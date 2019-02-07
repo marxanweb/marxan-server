@@ -49,17 +49,9 @@ GUEST_USER_ENABLED = True
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
 CONNECTION_STRING = "dbname='marxanserver' host='localhost' user='jrc' password='thargal88'"
-MARXAN_FOLDER = "/home/ubuntu/workspace/marxan-server/"
-MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users/"
-CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping/"
-MARXAN_EXECUTABLE = MARXAN_FOLDER + "MarOpt_v243_Linux64"
-MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources/"
-START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project/"
-EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project/"
-CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping/"
 OGR2OGR_EXECUTABLE = "/home/ubuntu/miniconda2/bin/ogr2ogr"
 MAPBOX_USER = "blishten"
-MAPBOX_ACCESS_TOKEN = "sk.eyJ1IjoiYmxpc2h0ZW4iLCJhIjoiY2piNm1tOGwxMG9lajMzcXBlZDR4aWVjdiJ9.Z1Jq4UAgGpXukvnUReLO1g"
+MBAT = "sk.eyJ1IjoiYmxpc2h0ZW4iLCJhIjoiY2piNm1tOGwxMG9lajMzcXBlZDR4aWVjdiJ9.Z1Jq4UAgGpXukvnUReLO1g"
 SERVER_CONFIG_FILENAME = "server.dat"
 USER_DATA_FILENAME = "user.dat"
 PROJECT_DATA_FILENAME = "input.dat"
@@ -80,6 +72,24 @@ MISSING_VALUES_FILE_PREFIX = "output_mv"
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
 ####################################################################################################################################################################################################################################################################
 
+#run when the server starts to set all of the global path variables
+def _setFolders():
+    global MARXAN_FOLDER
+    global MARXAN_USERS_FOLDER
+    global CLUMP_FOLDER 
+    global MARXAN_EXECUTABLE 
+    global MARXAN_WEB_RESOURCES_FOLDER
+    global START_PROJECT_FOLDER 
+    global EMPTY_PROJECT_TEMPLATE_FOLDER 
+    #get the folder from this files path
+    MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + "/"
+    MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users/"
+    CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping/"
+    MARXAN_EXECUTABLE = MARXAN_FOLDER + "MarOpt_v243_Linux64"
+    MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources/"
+    START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project/"
+    EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project/"
+    
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
     pos = path.rfind("/")
@@ -673,7 +683,7 @@ def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
 #uploads a tileset to mapbox using the filename of the file (filename) to upload and the name of the resulting tileset (_name)
 def _uploadTileset(filename, _name):
     #create an instance of the upload service
-    service = Uploader(access_token=MAPBOX_ACCESS_TOKEN)    
+    service = Uploader(access_token=MBAT)    
     with open(filename, 'rb') as src:
         upload_resp = service.upload(src, _name)
         upload_id = upload_resp.json()['id']
@@ -1974,6 +1984,8 @@ if __name__ == "__main__":
         root_streamhandler = root_logger.handlers[0]
         root_streamhandler.setFormatter(my_log_formatter)
         # logging.disable(logging.ERROR)
+        #set the universal folder paths
+        _setFolders()
         #test for prerequisites
         if not os.path.exists(OGR2OGR_EXECUTABLE):
             raise MarxanServicesError("The path to the ogr2ogr executable '" + OGR2OGR_EXECUTABLE + "' could not be found")

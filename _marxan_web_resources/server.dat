@@ -1,0 +1,3 @@
+
+ENABLE_GUEST_USER True
+CORS_DOMAINS https://andrewcottam.github.io,https://marxan-client-blishten.c9users.io:8081,https://beta2.biopama.org

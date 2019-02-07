@@ -14,10 +14,8 @@ sudo apt-get install postgresql postgresql-contrib postgis postgresql-9.3-postgi
 sudo apt-get update  
 createuser jrc -P -s  
 createdb -T template0 marxanserver  
-psql  
-CREATE EXTENSION IF NOT EXISTS postgis;  
-CREATE EXTENSION IF NOT EXISTS postgis_topology;  
-\q  
+psql -c 'CREATE EXTENSION IF NOT EXISTS postgis;'   
+psql -c 'CREATE EXTENSION IF NOT EXISTS postgis_topology;'
 psql -h 127.0.0.1 -d marxanserver -U jrc -f /home/ubuntu/workspace/dump.sql  
 rm dump.sql   
 rm Miniconda2-latest-Linux-x86_64.sh   

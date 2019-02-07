@@ -2,15 +2,12 @@
 Back end Marxan Server installation for running Marxan Web. 
 
 ## Installation
-Download the required files:  
+The following installation was testing on Ubuntu 14.04.   
+### Download the required files:  
 ```
 wget https://github.com/andrewcottam/marxan-server/archive/v0.2.zip    
 wget https://github.com/andrewcottam/marxan-server/releases/download/v0.2/dump.sql  
 wget https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh  
-```
-### Source files  
-Unzip the Marxan Server source files:  
-```
 unzip v0.2.zip   
 ```
 ### Install Python prerequisites

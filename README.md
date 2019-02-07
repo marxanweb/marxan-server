@@ -2,7 +2,7 @@
 Back end Marxan Server installation for running Marxan Web. 
 
 ## Installation
-The following installation was testing on Ubuntu 14.04. Replace <VERSION> with the actual version, e.g. 1.1.  
+The following installation was testing on Ubuntu 14.04. Replace \<VERSION> with the actual version, e.g. 1.1.  
 ### Download and unzip the required files:  
 ```
 wget https://github.com/andrewcottam/marxan-server/archive/v<VERSION>.zip    

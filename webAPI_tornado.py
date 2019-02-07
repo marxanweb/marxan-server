@@ -48,7 +48,8 @@ GUEST_USERNAME = "guest"
 GUEST_USER_ENABLED = True
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
-CONNECTION_STRING = "dbname='marxanserver' host='localhost' user='jrc' password='thargal88'"
+DATABASE_NAME = 'marxanserver'
+CONNECTION_STRING = "dbname='" + DATABASE_NAME + "' host='localhost' user='jrc' password='thargal88'"
 OGR2OGR_EXECUTABLE = "/home/ubuntu/miniconda2/bin/ogr2ogr"
 MAPBOX_USER = "blishten"
 MBAT = "sk.eyJ1IjoiYmxpc2h0ZW4iLCJhIjoiY2piNm1tOGwxMG9lajMzcXBlZDR4aWVjdiJ9.Z1Jq4UAgGpXukvnUReLO1g"
@@ -665,7 +666,7 @@ def _unzipFile(filename):
 
 def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
-    cmd = OGR2OGR_EXECUTABLE + ' -f "ESRI Shapefile" ' + MARXAN_FOLDER + feature_class_name + '.shp' + ' "PG:host=localhost dbname=biopama user=jrc password=thargal88" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
+    cmd = OGR2OGR_EXECUTABLE + ' -f "ESRI Shapefile" ' + MARXAN_FOLDER + feature_class_name + '.shp' + ' "PG:host=localhost dbname=' + DATABASE_NAME + ' user=jrc password=thargal88" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
     status, output = commands.getstatusoutput(cmd) 
     #check for errors from the ogr2ogr command
     if output != "":
@@ -908,7 +909,7 @@ class PostGIS():
             #drop the feature class if it already exists
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid
-            cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=localhost user=jrc dbname=biopama password=thargal88" ' + MARXAN_FOLDER + shapefile + ' -nlt GEOMETRY -lco SCHEMA=marxan -nln ' + feature_class_name + ' -t_srs ' + epsgCode
+            cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=localhost user=jrc dbname=' + DATABASE_NAME + ' password=thargal88" ' + MARXAN_FOLDER + shapefile + ' -nlt GEOMETRY -lco SCHEMA=marxan -nln ' + feature_class_name + ' -t_srs ' + epsgCode
             #run the import
             status, output = commands.getstatusoutput(cmd) 
             #check for errors

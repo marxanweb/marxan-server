@@ -3,11 +3,11 @@ Back end Marxan Server installation for running Marxan Web.
 
 # Installation
 Download the required files:  
-'''
+```
 wget https://github.com/andrewcottam/marxan-server/archive/v0.2.zip    
 wget https://github.com/andrewcottam/marxan-server/releases/download/v0.2/dump.sql  
 wget https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh  
-'''
+```
 unzip v0.2.zip   
 bash Miniconda2-latest-Linux-x86_64.sh  (Enter yes at: Do you wish the installer to initialize Miniconda2 in your /home/ubuntu/.bashrc ? [yes|no])  
 conda install tornado psycopg2 pandas gdal  

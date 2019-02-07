@@ -7,12 +7,12 @@ The following installation was testing on Ubuntu 14.04. Replace \<VERSION> with 
 ```
 wget https://github.com/andrewcottam/marxan-server/archive/v<VERSION>.zip    
 wget https://github.com/andrewcottam/marxan-server/releases/download/v<VERSION>/dump.sql  
-wget https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh  
 unzip v<VERSION>.zip   
 ```
 ### Install Python prerequisites
 Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda2 in your /home/ubuntu/.bashrc ?):  
 ```
+wget https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh  
 bash Miniconda2-latest-Linux-x86_64.sh  
 ```  
 Install prerequisites:  

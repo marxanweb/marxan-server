@@ -22,3 +22,5 @@ psql -h 127.0.0.1 -d marxanserver -U jrc -f /home/ubuntu/workspace/dump.sql
 rm dump.sql   
 rm Miniconda2-latest-Linux-x86_64.sh   
 rm v0.2.zip  
+sudo service postgresql restart  
+python marxan-server-0.2/webAPI_tornado.py  

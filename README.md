@@ -2,13 +2,13 @@
 Back end Marxan Server installation for running Marxan Web. 
 
 ## Installation
-The following installation was testing on Ubuntu 14.04.   
+The following installation was testing on Ubuntu 14.04. Replace <VERSION> with the actual version, e.g. 1.1.  
 ### Download and unzip the required files:  
 ```
-wget https://github.com/andrewcottam/marxan-server/archive/v0.2.zip    
-wget https://github.com/andrewcottam/marxan-server/releases/download/v0.2/dump.sql  
+wget https://github.com/andrewcottam/marxan-server/archive/v<VERSION>.zip    
+wget https://github.com/andrewcottam/marxan-server/releases/download/v<VERSION>/dump.sql  
 wget https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh  
-unzip v0.2.zip   
+unzip v<VERSION>.zip   
 ```
 ### Install Python prerequisites
 Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda2 in your /home/ubuntu/.bashrc ?):  
@@ -40,11 +40,11 @@ Remove the downloaded files
 ```
 rm dump.sql   
 rm Miniconda2-latest-Linux-x86_64.sh   
-rm v0.2.zip  
+rm v<VERSION>.zip  
 ```
 ### Start the Marxan Server
 Start the PostGIS instance and the Marxan Server  
 ```
 sudo service postgresql restart  
-python marxan-server-0.2/webAPI_tornado.py  
+python marxan-server-<VERSION>/webAPI_tornado.py  
 ```

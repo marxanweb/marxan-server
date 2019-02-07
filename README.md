@@ -13,8 +13,8 @@ sudo apt-get update
 sudo apt-get install postgresql postgresql-contrib postgis postgresql-9.3-postgis-scripts  
 sudo apt-get update  
 psql  
-CREATE EXTENSION postgis;  
-CREATE EXTENSION postgis_topology;  
+CREATE EXTENSION IF NOT EXISTS postgis;  
+CREATE EXTENSION IF NOT EXISTS postgis_topology;  
 \q  
 createuser jrc -P -s  
 createdb -T template0 marxanserver  

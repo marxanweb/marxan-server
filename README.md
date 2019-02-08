@@ -42,9 +42,10 @@ rm dump.sql
 rm Miniconda2-latest-Linux-x86_64.sh   
 rm v<VERSION>.zip  
 ```
-### Start the Marxan Server
-Start the PostGIS instance and the Marxan Server  
+### Start the services
+Start the PostGIS instance, the webserver (in this case Apache2) and the Marxan Server  
 ```
 sudo service postgresql restart  
+service apache2 restart
 python marxan-server-<VERSION>/webAPI_tornado.py  
 ```

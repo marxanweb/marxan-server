@@ -777,8 +777,8 @@ def _checkCORS(obj):
     if "Referer" in obj.request.headers.keys():
         referer = urlparse(obj.request.headers.get("Referer"))
         origin = referer.scheme + "://" + referer.netloc
-        #check the origin is permitter
-        if origin in PERMITTED_DOMAINS:
+        #check the origin is permitted either by being in the list of permitted domains or if the referer and host are on the same machine, i.e. not cross domain
+        if (origin in PERMITTED_DOMAINS) or (referer.netloc == obj.request.host_name):
             #if so, write the headers
             obj.set_header("Access-Control-Allow-Origin", origin)
             obj.set_header("Access-Control-Allow-Credentials", "true")
@@ -1534,7 +1534,7 @@ class updateProjectParameters(MarxanRESTHandler):
         self.send_response({'info': ",".join(params.keys()) + " parameters updated"})
         
 #uploads a feature class with the passed feature class name to MapBox as a tileset using the MapBox Uploads API
-#https://db-server-blishten.c9users.io:8081/marxan-server/uploadTilesetToMapBox?feature_class_name=pu_ton_marine_hexagons_20&mapbox_layer_name=hexagons&callback=__jp9
+#https://db-server-blishten.c9users.io:8081/marxan-server/uploadTilesetToMapBox?feature_class_name=pu_ton_marine_hexagon_20&mapbox_layer_name=hexagon&callback=__jp9
 class uploadTilesetToMapBox(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1634,8 +1634,8 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
     def check_origin(self, origin):
         if DISABLE_SECURITY:
             return True
-        #check the origin is in the permitted origins - the Origin header will not end in a forward slash
-        if origin in PERMITTED_DOMAINS:
+        #check the origin is in the permitted origins or that the origin and referer are on the same machine
+        if (origin in PERMITTED_DOMAINS) or (urlparse(self.request.headers.get("Origin")).netloc == self.request.host_name):
             return True
         else:
             raise HTTPError(403, "The origin '" + origin + "' does not have permission to access the service (CORS error)")
@@ -1776,7 +1776,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
 ####################################################################################################################################################################################################################################################################
 
 #preprocesses the features by intersecting them with the planning units
-#wss://db-server-blishten.c9users.io:8081/marxan-server/preprocessFeature?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagons_30&feature_class_name=volcano&alias=volcano&id=63408475
+#wss://db-server-blishten.c9users.io:8081/marxan-server/preprocessFeature?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30&feature_class_name=volcano&alias=volcano&id=63408475
 class preprocessFeature(QueryWebSocketHandler):
 
     #run the preprocessing
@@ -1840,7 +1840,7 @@ class preprocessFeature(QueryWebSocketHandler):
         self.close()
 
 #preprocesses the protected areas by intersecting them with the planning units
-#wss://db-server-blishten.c9users.io:8081/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagons_30
+#wss://db-server-blishten.c9users.io:8081/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30
 class preprocessProtectedAreas(QueryWebSocketHandler):
 
     #run the preprocessing
@@ -1992,7 +1992,7 @@ if __name__ == "__main__":
             raise MarxanServicesError("The path to the ogr2ogr executable '" + OGR2OGR_EXECUTABLE + "' could not be found")
         if not os.path.exists(MARXAN_EXECUTABLE):
             raise MarxanServicesError("The path to the Marxan executable '" + MARXAN_EXECUTABLE + "' could not be found")
-        # Add domains that you want to allow to access your services and data - this only applies to cross-domain requests and is not relevant if the client and server software are on the same machine - these are set in the server.dat file CORS_DOMAINS variable
+        # Add domains that you want to allow to access your services and data - these are set in the server.dat file CORS_DOMAINS variable
         PERMITTED_DOMAINS = _getKeyValuesFromFile(MARXAN_WEB_RESOURCES_FOLDER + SERVER_CONFIG_FILENAME)["CORS_DOMAINS"].split(",")
         app = make_app()
         app.listen(8081, '0.0.0.0')

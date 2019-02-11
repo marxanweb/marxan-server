@@ -3,12 +3,7 @@ Back end Marxan Server installation for running Marxan Web.
 
 ## Architecture
 The following image shows the high level architecture of marxan-server. 
-
-![marxan-server architecture](./marxan-server architecture.png)  
-
-
-
-![Image of Yaktocat](https://octodex.github.com/images/yaktocat.png)
+![marxan-server architecture](architecture.png)  
 
 ## Installation
 The following installation was testing on Ubuntu 14.04. Replace \<VERSION> with the actual version, e.g. 1.1.  

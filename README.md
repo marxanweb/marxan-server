@@ -31,7 +31,7 @@ sudo apt-get install postgresql postgresql-contrib postgis postgresql-9.3-postgi
 sudo apt-get update  
 ```
 ### Create database  
-Create the database, user and PostGIS functions and import the required data:
+Create the database user, database and PostGIS functions and import the required data:
 ```  
 createuser jrc -P -s  
 createdb -T template0 marxanserver  

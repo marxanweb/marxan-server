@@ -1,6 +1,11 @@
 # marxan-server
 Back end Marxan Server installation for running Marxan Web. 
 
+## Architecture
+The following image shows the high level architecture of marxan-server. 
+
+![marxan-server architecture](marxan-server architecture.png)
+
 ## Installation
 The following installation was testing on Ubuntu 14.04. Replace \<VERSION> with the actual version, e.g. 1.1.  
 ### Download and unzip the required files:  

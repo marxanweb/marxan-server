@@ -9,13 +9,13 @@ wget https://github.com/andrewcottam/marxan-server/archive/v<VERSION>.zip
 wget https://github.com/andrewcottam/marxan-server/releases/download/v<VERSION>/dump.sql  
 unzip v<VERSION>.zip   
 ```
-### Install Python prerequisites
+### Install Python dependencies
 Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda2 in your /home/ubuntu/.bashrc ?):  
 ```
 wget https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh  
 bash Miniconda2-latest-Linux-x86_64.sh  
 ```  
-Install prerequisites:  
+Install dependencies:  
 ```  
 conda install tornado psycopg2 pandas gdal  
 pip install mapbox  

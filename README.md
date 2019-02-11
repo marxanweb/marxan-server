@@ -8,7 +8,7 @@ The following image shows the high level architecture of marxan-server.
 ## Installation
 The following installation was testing on Ubuntu 14.04. Replace \<VERSION> with the actual version, e.g. 1.1.  
 ### Download and unzip the required files:  
-Click on the Releases link above and copy the link to the download files.  
+Click on the releases link above and copy the link to the download files.  
 ```
 wget https://github.com/andrewcottam/marxan-server/archive/v<VERSION>.zip    
 wget https://github.com/andrewcottam/marxan-server/releases/download/v<VERSION>/dump.sql  

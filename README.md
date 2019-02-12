@@ -54,4 +54,4 @@ sudo service postgresql restart
 python marxan-server-<VERSION>/webAPI_tornado.py  
 ```
 ### Navigate the marxan-client
-https://<host>:8081/index.html
+https://\<host>:8081/index.html

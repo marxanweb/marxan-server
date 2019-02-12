@@ -52,7 +52,7 @@ GUEST_USERNAME = "guest"
 GUEST_USER_ENABLED = True
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
-DATABASE_NAME = 'biopama'
+DATABASE_NAME = 'marxanserver'
 CONNECTION_STRING = "dbname='" + DATABASE_NAME + "' host='localhost' user='jrc' password='thargal88'"
 MAPBOX_USER = "blishten"
 MBAT = "sk.eyJ1IjoiYmxpc2h0ZW4iLCJhIjoiY2piNm1tOGwxMG9lajMzcXBlZDR4aWVjdiJ9.Z1Jq4UAgGpXukvnUReLO1g"
@@ -90,7 +90,7 @@ def _setGlobalVariables():
     global MARXAN_SERVER_VERSION
     global MARXAN_CLIENT_VERSION
     #get the folder from this files path
-    MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + "/"
+    MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + os.sep
     #get the version of the marxan-server software
     try:
         pos = MARXAN_FOLDER.index("marxan-server-")
@@ -104,9 +104,10 @@ def _setGlobalVariables():
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
         exe = "ogr2ogr.exe"
+        OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep + "library" + os.sep + "bin" + os.sep # sys.executable is the Python.exe file and will likely be in C:\Users\a_cottam\Miniconda2 folder - ogr2ogr is then in /library/bin on windows
     else:
         exe = "ogr2ogr"
-    OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep
+        OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep # sys.executable is the Python.exe file and will likely be in /home/ubuntu//miniconda2/bin/ - the same place as ogr2ogr
     #if the ogr2ogr executable path is not in the miniconda bin directory, then hard-code it here and uncomment the line
     #OGR2OGR_PATH = ""
     OGR2OGR_EXECUTABLE = OGR2OGR_PATH + exe
@@ -131,7 +132,7 @@ def _setGlobalVariables():
             print " Multiple versions of the marxan-client found"
         else:
             MARXAN_CLIENT_BUILD_FOLDER = client_installs[0] + os.sep + "build"
-        MARXAN_CLIENT_VERSION = MARXAN_CLIENT_BUILD_FOLDER[MARXAN_CLIENT_BUILD_FOLDER.rindex("-")+1:MARXAN_CLIENT_BUILD_FOLDER.rindex("/")]
+        MARXAN_CLIENT_VERSION = MARXAN_CLIENT_BUILD_FOLDER[MARXAN_CLIENT_BUILD_FOLDER.rindex("-")+1:MARXAN_CLIENT_BUILD_FOLDER.rindex(os.sep)]
         print " Using marxan-client v" + MARXAN_CLIENT_VERSION
         print " Marxan Web available at https://<HOST>:8081/index.html (replace <HOST> with the hostname)"
     else:
@@ -167,7 +168,7 @@ def _getUsers():
     #get a list of folders underneath the marxan users folder
     user_folders = glob.glob(MARXAN_USERS_FOLDER + "*/")
     #convert these into a list of users
-    users = [user[:-1][user[:-1].rfind("/")+1:] for user in user_folders]
+    users = [user[:-1][user[:-1].rfind(os.sep)+1:] for user in user_folders]
     if "input" in users: 
         users.remove("input")
     if "output" in users: 
@@ -206,7 +207,7 @@ def _getProjectsForUser(user):
     tmpObj = ExtendableObject()
     for dir in project_folders:
         #get the name of the folder 
-        project = dir[:-1][dir[:-1].rfind("/")+1:]
+        project = dir[:-1][dir[:-1].rfind(os.sep)+1:]
         if (project[:2] != "__"): #folders beginning with __ are system folders
             #get the data from the input file for this project
             tmpObj.project = project
@@ -253,7 +254,7 @@ def _deleteProject(obj):
 #clones a project from the source_folder which is a full folder path to the destination_folder which is a full folder path
 def _cloneProject(source_folder, destination_folder):
     #get the project name
-    original_project_name = source_folder[:-1].split("/")[-1]
+    original_project_name = source_folder[:-1].split(os.sep)[-1]
     #get the new project folder
     new_project_folder = destination_folder + original_project_name + os.sep
     #recursively check that the folder does not exist until we get a new folder that doesnt exist
@@ -264,7 +265,7 @@ def _cloneProject(source_folder, destination_folder):
     #update the description and create date
     _updateParameters(new_project_folder + PROJECT_DATA_FILENAME, {'DESCRIPTION': "Clone of project '" + original_project_name + "'",  'CREATEDATE': datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S")})
     #return the name of the new project
-    return new_project_folder[:-1].split("/")[-1]
+    return new_project_folder[:-1].split(os.sep)[-1]
 
 #sets the various paths to the users folder and project folders using the request arguments in the passed object
 def _setFolderPaths(obj, arguments):

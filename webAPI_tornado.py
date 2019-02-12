@@ -87,7 +87,18 @@ def _setGlobalVariables():
     global START_PROJECT_FOLDER 
     global EMPTY_PROJECT_TEMPLATE_FOLDER 
     global OGR2OGR_EXECUTABLE
-    print "Starting marxan-server.."
+    global MARXAN_SERVER_VERSION
+    global MARXAN_CLIENT_VERSION
+    #get the folder from this files path
+    MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + "/"
+    #get the version of the marxan-server software
+    try:
+        pos = MARXAN_FOLDER.index("marxan-server-")
+        MARXAN_SERVER_VERSION = MARXAN_FOLDER[pos + 14:-1]
+        print "Starting marxan-server v" + MARXAN_SERVER_VERSION + " .."
+    except (ValueError):
+        MARXAN_SERVER_VERSION = "Unknown"
+        print "Starting marxan-server.. (version unknown)"
     #print out which operating system is being used
     print " Running under " + platform.system() + " operating system"
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
@@ -103,8 +114,6 @@ def _setGlobalVariables():
         raise MarxanServicesError("The path to the ogr2ogr executable '" + OGR2OGR_EXECUTABLE + "' could not be found")
     else:
         print " Path to ogr2ogr executable: " + OGR2OGR_EXECUTABLE
-    #get the folder from this files path
-    MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + "/"
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users/"
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping/"
     MARXAN_EXECUTABLE = MARXAN_FOLDER + "MarOpt_v243_Linux64"
@@ -119,13 +128,15 @@ def _setGlobalVariables():
     if len(client_installs)>0:
         if (len(client_installs)>1):
             MARXAN_CLIENT_BUILD_FOLDER = client_installs[len(client_installs)-1] + os.sep + "build"
-            print " Multiple versions of the marxan-client found - using: " + MARXAN_CLIENT_BUILD_FOLDER
+            print " Multiple versions of the marxan-client found"
         else:
             MARXAN_CLIENT_BUILD_FOLDER = client_installs[0] + os.sep + "build"
-            print " Using marxan-client: " + MARXAN_CLIENT_BUILD_FOLDER
+        MARXAN_CLIENT_VERSION = MARXAN_CLIENT_BUILD_FOLDER[MARXAN_CLIENT_BUILD_FOLDER.rindex("-")+1:MARXAN_CLIENT_BUILD_FOLDER.rindex("/")]
+        print " Using marxan-client v" + MARXAN_CLIENT_VERSION
         print " Marxan Web available at https://<HOST>:8081/index.html (replace <HOST> with the hostname)"
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
+        print " Marxan Web not available (no marxan-client files)"
     print "Started at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
     
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
@@ -339,14 +350,8 @@ def _getKeyValuesFromFile(filename):
 def _getServerData(obj):
     #get the data from the server configuration file - these key/values are changed by the marxan-client
     obj.serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
-    #get the version of the marxan-server software
-    try:
-        pos = MARXAN_FOLDER.index("marxan-server-v")
-        version = MARXAN_FOLDER[pos + 14:]
-    except (ValueError):
-        version = "Unknown"
     #set the return values: permitted CORS domains - these are set in this Python module; the server os and hardware; the version of the marxan-server software
-    obj.serverData.update({"CORS_DOMAINS": ",".join(PERMITTED_DOMAINS), "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": version, "SERVER_NAME": SERVER_NAME})
+    obj.serverData.update({"CORS_DOMAINS": ",".join(PERMITTED_DOMAINS), "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME})
         
 #get the data on the user from the user.dat file 
 def _getUserData(obj):

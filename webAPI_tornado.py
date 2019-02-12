@@ -37,11 +37,11 @@ import platform
 ####################################################################################################################################################################################################################################################################
 ## constant declarations
 ####################################################################################################################################################################################################################################################################
-SERVER_NAME = "Marxan Server @ JRC"
+SERVER_NAME = "" # change this if you want your server to appear in the list with its own name
 ##SECURITY SETTINGS
 DISABLE_SECURITY = False                                                            # Set to True to turn off all security, i.e. authentication and authorisation
 COOKIE_RANDOM_VALUE = "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__"               # This must be set to a random value as it is used to encrypt and sign cookies - if it is not changed then malicious hackers can use this default value to produce their own signed cookies compromising security
-PERMITTED_DOMAINS = ["https://andrewcottam.github.io","https://marxan-client-blishten.c9users.io:8081","https://beta2.biopama.org","https://marxan-server-blishten.c9users.io:8081"]
+PERMITTED_DOMAINS = ["https://andrewcottam.github.io:8081/","https://marxan-client-blishten.c9users.io:8081","https://beta2.biopama.org:8081/","https://marxan-server-blishten.c9users.io:8081"]
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado"]    # REST services that have no authentication/authorisation/CORS control
 ROLE_UNAUTHORISED_METHODS = {                                                       # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
     "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","getPlanningUnitGrids","createPlanningUnitGrid","deletePlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation",'deleteFeature','deleteUser'],
@@ -136,6 +136,7 @@ def _setGlobalVariables():
         print " Marxan Web available at https://<HOST>:8081/index.html (replace <HOST> with the hostname)"
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
+        MARXAN_CLIENT_VERSION = "Not installed"
         print " Marxan Web not available (no marxan-client files)"
     print "Started at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
     
@@ -827,6 +828,10 @@ def _requestIsWebSocket(request):
     else:
         return True
 
+#removes the port from the end of the netloc if it is present
+def _getRefererDomain(referer):
+    return referer.split(":")[0]
+    
 #to prevent CORS errors in the client
 def _checkCORS(obj):
     #get the method requested
@@ -838,10 +843,11 @@ def _checkCORS(obj):
             return 
     #get the referer
     if "Referer" in obj.request.headers.keys():
-        referer = urlparse(obj.request.headers.get("Referer"))
+        referer = urlparse(obj.request.headers.get("Referer")) # netloc = test-blishten.c9users.io:8081
+        refererDomain = _getRefererDomain(referer.netloc) # test-blishten.c9users.io
         origin = referer.scheme + "://" + referer.netloc
         #check the origin is permitted either by being in the list of permitted domains or if the referer and host are on the same machine, i.e. not cross domain
-        if (origin in PERMITTED_DOMAINS) or (referer.netloc == obj.request.host_name):
+        if (origin in PERMITTED_DOMAINS) or (refererDomain == obj.request.host_name):
             #if so, write the headers
             obj.set_header("Access-Control-Allow-Origin", origin)
             obj.set_header("Access-Control-Allow-Credentials", "true")
@@ -1262,8 +1268,8 @@ class validateUser(MarxanRESTHandler):
         try:
             #get the user data from the user.dat file
             _getUserData(self)
-        except:
-            raise MarxanServicesError("Invalid login")
+        except (MarxanServicesError) as e:
+            raise MarxanServicesError(e.message)
         #compare the passed password to the one in the user.dat file
         if self.get_argument("password") == self.userData["PASSWORD"]:
             #set a response cookie for the authenticated user
@@ -1698,7 +1704,10 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         if DISABLE_SECURITY:
             return True
         #check the origin is in the permitted origins or that the origin and referer are on the same machine
-        if (origin in PERMITTED_DOMAINS) or (urlparse(self.request.headers.get("Origin")).netloc == self.request.host_name):
+        netloc = urlparse(self.request.headers.get("Origin")).netloc # https://test-blishten.c9users.io:8081
+        #get the origin without the port
+        referer_domain = _getRefererDomain(netloc)
+        if (origin in PERMITTED_DOMAINS) or (referer_domain == self.request.host_name):
             return True
         else:
             raise HTTPError(403, "The origin '" + origin + "' does not have permission to access the service (CORS error)")

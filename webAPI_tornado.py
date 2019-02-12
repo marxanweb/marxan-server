@@ -2,6 +2,7 @@ from tornado.iostream import StreamClosedError
 from tornado.process import Subprocess
 from tornado.log import LogFormatter
 from tornado.web import HTTPError
+from tornado.web import StaticFileHandler
 from tornado.ioloop import IOLoop
 from tornado import concurrent
 from tornado import gen
@@ -31,13 +32,16 @@ import zipfile
 import shutil
 import uuid
 import signal
+import platform
 
 ####################################################################################################################################################################################################################################################################
 ## constant declarations
 ####################################################################################################################################################################################################################################################################
+SERVER_NAME = "Marxan Server @ JRC"
 ##SECURITY SETTINGS
 DISABLE_SECURITY = False                                                            # Set to True to turn off all security, i.e. authentication and authorisation
 COOKIE_RANDOM_VALUE = "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__"               # This must be set to a random value as it is used to encrypt and sign cookies - if it is not changed then malicious hackers can use this default value to produce their own signed cookies compromising security
+PERMITTED_DOMAINS = ["https://andrewcottam.github.io","https://marxan-client-blishten.c9users.io:8081","https://beta2.biopama.org","https://marxan-server-blishten.c9users.io:8081"]
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado"]    # REST services that have no authentication/authorisation/CORS control
 ROLE_UNAUTHORISED_METHODS = {                                                       # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
     "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","getPlanningUnitGrids","createPlanningUnitGrid","deletePlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation",'deleteFeature','deleteUser'],
@@ -50,7 +54,6 @@ NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie 
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
 DATABASE_NAME = 'marxanserver'
 CONNECTION_STRING = "dbname='" + DATABASE_NAME + "' host='localhost' user='jrc' password='thargal88'"
-OGR2OGR_EXECUTABLE = "/home/ubuntu/miniconda2/bin/ogr2ogr"
 MAPBOX_USER = "blishten"
 MBAT = "sk.eyJ1IjoiYmxpc2h0ZW4iLCJhIjoiY2piNm1tOGwxMG9lajMzcXBlZDR4aWVjdiJ9.Z1Jq4UAgGpXukvnUReLO1g"
 SERVER_CONFIG_FILENAME = "server.dat"
@@ -74,14 +77,32 @@ MISSING_VALUES_FILE_PREFIX = "output_mv"
 ####################################################################################################################################################################################################################################################################
 
 #run when the server starts to set all of the global path variables
-def _setFolders():
+def _setGlobalVariables():
     global MARXAN_FOLDER
     global MARXAN_USERS_FOLDER
+    global MARXAN_CLIENT_BUILD_FOLDER
     global CLUMP_FOLDER 
     global MARXAN_EXECUTABLE 
     global MARXAN_WEB_RESOURCES_FOLDER
     global START_PROJECT_FOLDER 
     global EMPTY_PROJECT_TEMPLATE_FOLDER 
+    global OGR2OGR_EXECUTABLE
+    print "Starting marxan-server.."
+    #print out which operating system is being used
+    print " Running under " + platform.system() + " operating system"
+    #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
+    if platform.system() == "Windows":
+        exe = "ogr2ogr.exe"
+    else:
+        exe = "ogr2ogr"
+    OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep
+    #if the ogr2ogr executable path is not in the miniconda bin directory, then hard-code it here and uncomment the line
+    #OGR2OGR_PATH = ""
+    OGR2OGR_EXECUTABLE = OGR2OGR_PATH + exe
+    if not os.path.exists(OGR2OGR_EXECUTABLE):
+        raise MarxanServicesError("The path to the ogr2ogr executable '" + OGR2OGR_EXECUTABLE + "' could not be found")
+    else:
+        print " Path to ogr2ogr executable: " + OGR2OGR_EXECUTABLE
     #get the folder from this files path
     MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + "/"
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users/"
@@ -90,6 +111,22 @@ def _setFolders():
     MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources/"
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project/"
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project/"
+    print " Path to Marxan executable: " + MARXAN_EXECUTABLE
+    #get the parent folder
+    PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
+    #get the path to the marxan-client-v<VERSION> folder if it exists
+    client_installs = glob.glob(PARENT_FOLDER + "marxan-client*")
+    if len(client_installs)>0:
+        if (len(client_installs)>1):
+            MARXAN_CLIENT_BUILD_FOLDER = client_installs[len(client_installs)-1] + os.sep + "build"
+            print " Multiple versions of the marxan-client found - using: " + MARXAN_CLIENT_BUILD_FOLDER
+        else:
+            MARXAN_CLIENT_BUILD_FOLDER = client_installs[0] + os.sep + "build"
+            print " Using marxan-client: " + MARXAN_CLIENT_BUILD_FOLDER
+        print " Marxan Web available at https://<HOST>:8081/index.html (replace <HOST> with the hostname)"
+    else:
+        MARXAN_CLIENT_BUILD_FOLDER = ""
+    print "Started at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
     
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
@@ -300,10 +337,17 @@ def _getKeyValuesFromFile(filename):
 
 #gets the server data
 def _getServerData(obj):
-    data = _getKeyValuesFromFile(MARXAN_WEB_RESOURCES_FOLDER + SERVER_CONFIG_FILENAME)
-    #set the serverData attribute on this object
-    obj.serverData = data
-
+    #get the data from the server configuration file - these key/values are changed by the marxan-client
+    obj.serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
+    #get the version of the marxan-server software
+    try:
+        pos = MARXAN_FOLDER.index("marxan-server-v")
+        version = MARXAN_FOLDER[pos + 14:]
+    except (ValueError):
+        version = "Unknown"
+    #set the return values: permitted CORS domains - these are set in this Python module; the server os and hardware; the version of the marxan-server software
+    obj.serverData.update({"CORS_DOMAINS": ",".join(PERMITTED_DOMAINS), "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": version, "SERVER_NAME": SERVER_NAME})
+        
 #get the data on the user from the user.dat file 
 def _getUserData(obj):
     data = _getKeyValuesFromFile(obj.folder_user + USER_DATA_FILENAME)
@@ -555,21 +599,35 @@ def _updateParameters(data_file, newParams):
 #gets the position of the end of the line which may be different in windows/unix generated files
 def _getEndOfLine(text):
     try:
-        p = text.index("\r\n") 
+        p = text.index("\r\n")  #windows uses carriage return + line feed
     except (ValueError):
-        p = text.index("\n") 
+        p = text.index("\n") #unix uses just line feed
     return p
 
 #returns all the keys from a set of KEY/VALUE pairs in a string expression
 def _getKeys(s):
     #get all the parameter keys
-    matches = re.findall('\\n[A-Z1-9_]{2,}', s, re.DOTALL)
+    matches = re.findall('\\n[A-Z1-9_]{2,}', s, re.DOTALL) #this will match against both windows and unix line endings, e.g. \r\n and \n
     return [m[1:] for m in matches]
   
 #gets the key value combination from the text, e.g. PUNAME pu.dat    
 def _getKeyValue(text, parameterName):
     p1 = text.index(parameterName)
-    value = text[p1 + len(parameterName) + 1:text.index("\r",p1)]
+    #the end of line marker could either be a \r\n or a \n - get the position of both and see which is the first
+    try:    
+        pCrLf = text[p1:].index("\r\n")
+    except (ValueError):
+        pCrLf = -1
+    pLf = text[p1:].index("\n")
+    if pCrLf > -1:
+        if pLf > -1:
+            if pLf < pCrLf:
+                p2 = pLf
+            else:
+                p2 = pCrLf
+    else:
+        p2 = pLf
+    value = text[p1 + len(parameterName) + 1:(p2 + p1)] 
     #convert any boolean text strings to boolean values - these will then get returned as javascript bool types
     if value == "True":
         value = True
@@ -1006,7 +1064,7 @@ class toggleEnableGuestUser(MarxanRESTHandler):
             enabledString = "False"
         else:
             enabledString = "True"
-        _updateParameters(MARXAN_WEB_RESOURCES_FOLDER + SERVER_CONFIG_FILENAME, {"ENABLE_GUEST_USER": enabledString})
+        _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"ENABLE_GUEST_USER": enabledString})
         #set the response
         self.send_response({'enabled': not enabled})
         
@@ -1970,7 +2028,8 @@ def make_app():
         ("/marxan-server/runMarxan", runMarxan),
         ("/marxan-server/stopMarxan", stopMarxan),
         ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
-        ("/marxan-server/testTornado", testTornado)
+        ("/marxan-server/testTornado", testTornado),
+        (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
     ], cookie_secret=COOKIE_RANDOM_VALUE)
 
 if __name__ == "__main__":
@@ -1985,17 +2044,11 @@ if __name__ == "__main__":
         root_streamhandler = root_logger.handlers[0]
         root_streamhandler.setFormatter(my_log_formatter)
         # logging.disable(logging.ERROR)
-        #set the universal folder paths
-        _setFolders()
-        #test for prerequisites
-        if not os.path.exists(OGR2OGR_EXECUTABLE):
-            raise MarxanServicesError("The path to the ogr2ogr executable '" + OGR2OGR_EXECUTABLE + "' could not be found")
-        if not os.path.exists(MARXAN_EXECUTABLE):
-            raise MarxanServicesError("The path to the Marxan executable '" + MARXAN_EXECUTABLE + "' could not be found")
-        # Add domains that you want to allow to access your services and data - these are set in the server.dat file CORS_DOMAINS variable
-        PERMITTED_DOMAINS = _getKeyValuesFromFile(MARXAN_WEB_RESOURCES_FOLDER + SERVER_CONFIG_FILENAME)["CORS_DOMAINS"].split(",")
+        #set the global variables
+        _setGlobalVariables()
         app = make_app()
-        app.listen(8081, '0.0.0.0')
+        #start listening on port 8081
+        app.listen(8081)
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         print e.message

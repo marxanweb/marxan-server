@@ -41,7 +41,7 @@ SERVER_NAME = "" # change this if you want your server to appear in the list wit
 ##SECURITY SETTINGS
 DISABLE_SECURITY = False                                                            # Set to True to turn off all security, i.e. authentication and authorisation
 COOKIE_RANDOM_VALUE = "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__"               # This must be set to a random value as it is used to encrypt and sign cookies - if it is not changed then malicious hackers can use this default value to produce their own signed cookies compromising security
-PERMITTED_DOMAINS = ["https://andrewcottam.github.io:8081/","https://marxan-client-blishten.c9users.io:8081","https://beta2.biopama.org:8081/","https://marxan-server-blishten.c9users.io:8081"]
+PERMITTED_DOMAINS = ["https://andrewcottam.github.io","http://marxan-client-blishten.c9users.io:8081","https://marxan-client-blishten.c9users.io:8081","https://beta2.biopama.org","https://marxan-server-blishten.c9users.io:8081"]
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado"]    # REST services that have no authentication/authorisation/CORS control
 ROLE_UNAUTHORISED_METHODS = {                                                       # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
     "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","getPlanningUnitGrids","createPlanningUnitGrid","deletePlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation",'deleteFeature','deleteUser'],
@@ -52,7 +52,7 @@ GUEST_USERNAME = "guest"
 GUEST_USER_ENABLED = True
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
-DATABASE_NAME = 'marxanserver'
+DATABASE_NAME = 'biopama'
 CONNECTION_STRING = "dbname='" + DATABASE_NAME + "' host='localhost' user='jrc' password='thargal88'"
 MAPBOX_USER = "blishten"
 MBAT = "sk.eyJ1IjoiYmxpc2h0ZW4iLCJhIjoiY2piNm1tOGwxMG9lajMzcXBlZDR4aWVjdiJ9.Z1Jq4UAgGpXukvnUReLO1g"
@@ -828,10 +828,6 @@ def _requestIsWebSocket(request):
     else:
         return True
 
-#removes the port from the end of the netloc if it is present
-def _getRefererDomain(referer):
-    return referer.split(":")[0]
-    
 #to prevent CORS errors in the client
 def _checkCORS(obj):
     #get the method requested
@@ -843,11 +839,11 @@ def _checkCORS(obj):
             return 
     #get the referer
     if "Referer" in obj.request.headers.keys():
-        referer = urlparse(obj.request.headers.get("Referer")) # netloc = test-blishten.c9users.io:8081
-        refererDomain = _getRefererDomain(referer.netloc) # test-blishten.c9users.io
-        origin = referer.scheme + "://" + referer.netloc
+        #get the referer url, e.g. https://marxan-client-blishten.c9users.io:8081/
+        referer = obj.request.headers.get("Referer")
+        origin = referer[:-1] # the origin does not have a trailing space
         #check the origin is permitted either by being in the list of permitted domains or if the referer and host are on the same machine, i.e. not cross domain
-        if (origin in PERMITTED_DOMAINS) or (refererDomain == obj.request.host_name):
+        if (origin in PERMITTED_DOMAINS) or (referer.index(obj.request.host_name)!=-1):
             #if so, write the headers
             obj.set_header("Access-Control-Allow-Origin", origin)
             obj.set_header("Access-Control-Allow-Credentials", "true")
@@ -1703,11 +1699,8 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
     def check_origin(self, origin):
         if DISABLE_SECURITY:
             return True
-        #check the origin is in the permitted origins or that the origin and referer are on the same machine
-        netloc = urlparse(self.request.headers.get("Origin")).netloc # https://test-blishten.c9users.io:8081
-        #get the origin without the port
-        referer_domain = _getRefererDomain(netloc)
-        if (origin in PERMITTED_DOMAINS) or (referer_domain == self.request.host_name):
+        #the request is valid for CORS if the origin is in the list of permitted domains, or the origin is the same as the host, i.e. same machine
+        if (origin in PERMITTED_DOMAINS) or (origin.index(self.request.host_name)!=-1):
             return True
         else:
             raise HTTPError(403, "The origin '" + origin + "' does not have permission to access the service (CORS error)")

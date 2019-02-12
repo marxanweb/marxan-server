@@ -34,10 +34,10 @@ sudo apt-get update
 ### Create database  
 Create the database user, database and PostGIS functions and import the required data:
 ```  
-createuser jrc -P -s  
-createdb -T template0 marxanserver  
-psql -c 'CREATE EXTENSION IF NOT EXISTS postgis;'   
-psql -c 'CREATE EXTENSION IF NOT EXISTS postgis_topology;'  
+createuser -U postgres -P -s jrc  
+createdb -U postgres -T template0 marxanserver  
+psql -U postgres -c 'CREATE EXTENSION IF NOT EXISTS postgis;'   
+psql -U postgres -c 'CREATE EXTENSION IF NOT EXISTS postgis_topology;'  
 psql -h 127.0.0.1 -d marxanserver -U jrc -f /home/ubuntu/workspace/dump.sql  
 ```
 ### Cleanup

@@ -41,7 +41,7 @@ SERVER_NAME = "" # change this if you want your server to appear in the list wit
 ##SECURITY SETTINGS
 DISABLE_SECURITY = False                                                            # Set to True to turn off all security, i.e. authentication and authorisation
 COOKIE_RANDOM_VALUE = "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__"               # This must be set to a random value as it is used to encrypt and sign cookies - if it is not changed then malicious hackers can use this default value to produce their own signed cookies compromising security
-PERMITTED_DOMAINS = ["https://andrewcottam.github.io","http://marxan-client-blishten.c9users.io:8081","https://marxan-client-blishten.c9users.io:8081","https://beta2.biopama.org","https://marxan-server-blishten.c9users.io:8081"]
+PERMITTED_DOMAINS = ["https://beta.biopama.org","https://andrewcottam.github.io","http://marxan-client-blishten.c9users.io:8081","https://marxan-client-blishten.c9users.io:8081","https://beta.biopama.org","https://marxan-server-blishten.c9users.io:8081"]
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado"]    # REST services that have no authentication/authorisation/CORS control
 ROLE_UNAUTHORISED_METHODS = {                                                       # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
     "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","getPlanningUnitGrids","createPlanningUnitGrid","deletePlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation",'deleteFeature','deleteUser'],
@@ -835,16 +835,17 @@ def _checkCORS(obj):
     method = _getRESTMethod(obj.request.path)
     #no CORS policy if security is disabled or if the server is running on localhost or if the request is for a permitted method
     # or if the user is 'guest' (if this is enabled) - dont set any headers - this will only work for GET requests - cross-domwin POST requests must have the headers
-    if (DISABLE_SECURITY or obj.request.host[:9] == "localhost" or (method in PERMITTED_METHODS) or (obj.current_user == GUEST_USERNAME)):
-        if obj.request.method == "GET":
-            return 
+    if (obj.request.method == "GET" or DISABLE_SECURITY or obj.request.host[:9] == "localhost" or (method in PERMITTED_METHODS) or (obj.current_user == GUEST_USERNAME)):
+        return 
     #get the referer
     if "Referer" in obj.request.headers.keys():
-        #get the referer url, e.g. https://marxan-client-blishten.c9users.io:8081/
+        #get the referer url, e.g. https://marxan-client-blishten.c9users.io:8081/ or https://beta.biopama.org/marxan-client/build/
         referer = obj.request.headers.get("Referer")
-        origin = referer[:-1] # the origin does not have a trailing space
+        #get the origin
+        parsed = urlparse(referer) 
+        origin = parsed.scheme + "://" + parsed.netloc
         #check the origin is permitted either by being in the list of permitted domains or if the referer and host are on the same machine, i.e. not cross domain
-        if (origin in PERMITTED_DOMAINS) or (referer.index(obj.request.host_name)!=-1):
+        if (origin in PERMITTED_DOMAINS) or (referer.find(obj.request.host_name)!=-1):
             #if so, write the headers
             obj.set_header("Access-Control-Allow-Origin", origin)
             obj.set_header("Access-Control-Allow-Credentials", "true")
@@ -1701,7 +1702,8 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         if DISABLE_SECURITY:
             return True
         #the request is valid for CORS if the origin is in the list of permitted domains, or the origin is the same as the host, i.e. same machine
-        if (origin in PERMITTED_DOMAINS) or (origin.index(self.request.host_name)!=-1):
+        parsed = urlparse(origin) # we need to get the host_name from the origin so parse it with urlparse
+        if (origin in PERMITTED_DOMAINS) or (parsed.netloc.find(self.request.host_name)!=-1):
             return True
         else:
             raise HTTPError(403, "The origin '" + origin + "' does not have permission to access the service (CORS error)")

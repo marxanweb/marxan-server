@@ -34,10 +34,9 @@ sudo apt-get update
 ### Create database  
 Create the database user, database and PostGIS functions and import the required data:
 ```  
-createuser jrc -P -s  
+createuser -P -s jrc
 createdb -T template0 marxanserver  
 psql -c 'CREATE EXTENSION IF NOT EXISTS postgis;'   
-psql -c 'CREATE EXTENSION IF NOT EXISTS postgis_topology;'  
 psql -h 127.0.0.1 -d marxanserver -U jrc -f /home/ubuntu/workspace/dump.sql  
 ```
 ### Cleanup
@@ -48,9 +47,10 @@ rm Miniconda2-latest-Linux-x86_64.sh
 rm v<VERSION>.zip  
 ```
 ### Start the services
-Start the PostGIS instance, the webserver (in this case Apache2) and the Marxan Server  
+Start the PostGIS instance and the Marxan Server  
 ```
 sudo service postgresql restart  
-service apache2 restart
 python marxan-server-<VERSION>/webAPI_tornado.py  
 ```
+### Navigate the marxan-client
+https://\<host>:8081/index.html

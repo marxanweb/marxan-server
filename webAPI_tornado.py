@@ -10,6 +10,7 @@ from urlparse import urlparse
 from psycopg2 import sql
 from mapbox import Uploader
 from mapbox import errors
+import webbrowser
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
@@ -101,6 +102,7 @@ def _setGlobalVariables():
         print "Starting marxan-server.. (version unknown)"
     #print out which operating system is being used
     print " Running under " + platform.system() + " operating system"
+    print " Path to the Python interpreter: " + sys.executable
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
         exe = "ogr2ogr.exe"
@@ -134,7 +136,6 @@ def _setGlobalVariables():
             MARXAN_CLIENT_BUILD_FOLDER = client_installs[0] + os.sep + "build"
         MARXAN_CLIENT_VERSION = MARXAN_CLIENT_BUILD_FOLDER[MARXAN_CLIENT_BUILD_FOLDER.rindex("-")+1:MARXAN_CLIENT_BUILD_FOLDER.rindex(os.sep)]
         print " Using marxan-client v" + MARXAN_CLIENT_VERSION
-        print " Marxan Web available at https://<HOST>:8081/index.html (replace <HOST> with the hostname)"
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
@@ -2059,6 +2060,12 @@ if __name__ == "__main__":
         app = make_app()
         #start listening on port 8081
         app.listen(8081)
+        #open the web browser if the call includes a url, e.g. python webAPI_tornado.py http://localhost:8081/index.html
+        if len(sys.argv)>1:
+            url = sys.argv[1] # normally "http://localhost:8081/index.html"
+            webbrowser.open(url, new=1, autoraise=True)
+            print "Opening Marxan Web at '" + url + "'"
+        print "Enter CTRL+Break to stop marxan-server"
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         print e.message

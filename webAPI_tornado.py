@@ -38,13 +38,10 @@ import platform
 ####################################################################################################################################################################################################################################################################
 ## constant declarations
 ####################################################################################################################################################################################################################################################################
-SERVER_NAME = "" # change this if you want your server to appear in the list with its own name
-SERVER_DESCRIPTION = "" #change this if you want your server to appear in the list with its own description
+
 ##SECURITY SETTINGS
 DISABLE_SECURITY = False                                                            # Set to True to turn off all security, i.e. authentication and authorisation
-COOKIE_RANDOM_VALUE = "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__"               # This must be set to a random value as it is used to encrypt and sign cookies - if it is not changed then malicious hackers can use this default value to produce their own signed cookies compromising security
-#domains that are allowed to access and update this server - add http://localhost:8081 if you want to allow access from local installs
-PERMITTED_DOMAINS = ["https://beta.biopama.org","https://andrewcottam.github.io","http://marxan-client-blishten.c9users.io:8081","https://marxan-client-blishten.c9users.io:8081","https://marxan-server-blishten.c9users.io:8081"]
+#domains that are allowed to access and update this server - add http://localhost:8081 if you want to allow access from all local installs
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado"]    # REST services that have no authentication/authorisation/CORS control
 ROLE_UNAUTHORISED_METHODS = {                                                       # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
     "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","getPlanningUnitGrids","createPlanningUnitGrid","deletePlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation",'deleteFeature','deleteUser'],
@@ -52,11 +49,9 @@ ROLE_UNAUTHORISED_METHODS = {                                                   
     "Admin": []
 }
 GUEST_USERNAME = "guest"
-GUEST_USER_ENABLED = True
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
 DATABASE_NAME = 'marxanserver'
-CONNECTION_STRING = "dbname='" + DATABASE_NAME + "' host='localhost' user='jrc' password='thargal88'"
 MAPBOX_USER = "blishten"
 MBAT = "sk.eyJ1IjoiYmxpc2h0ZW4iLCJhIjoiY2piNm1tOGwxMG9lajMzcXBlZDR4aWVjdiJ9.Z1Jq4UAgGpXukvnUReLO1g"
 SERVER_CONFIG_FILENAME = "server.dat"
@@ -92,8 +87,23 @@ def _setGlobalVariables():
     global OGR2OGR_EXECUTABLE
     global MARXAN_SERVER_VERSION
     global MARXAN_CLIENT_VERSION
+    global CONNECTION_STRING 
+    global COOKIE_RANDOM_VALUE
+    global PERMITTED_DOMAINS
+    global ENABLE_GUEST_USER
+    global SERVER_NAME
+    global SERVER_DESCRIPTION
     #get the folder from this files path
     MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + os.sep
+    #get the data in the server configuration file
+    serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
+    #get the database connection string
+    SERVER_NAME = serverData['SERVER_NAME']
+    SERVER_DESCRIPTION = serverData['SERVER_DESCRIPTION']
+    CONNECTION_STRING = "dbname='" + DATABASE_NAME + "' host='" + serverData['DATABASE_HOST'] + "' user='" + serverData['DATABASE_USER'] + "' password='" + serverData['DATABASE_PASSWORD'] + "'"
+    COOKIE_RANDOM_VALUE = serverData['COOKIE_RANDOM_VALUE']
+    PERMITTED_DOMAINS = serverData['PERMITTED_DOMAINS'].split(",")
+    ENABLE_GUEST_USER = serverData['ENABLE_GUEST_USER']
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
     try:
         pos = MARXAN_FOLDER.index("marxan-server-")
@@ -104,29 +114,32 @@ def _setGlobalVariables():
         print "Starting marxan-server.. (version unknown)"
     #print out which operating system is being used
     print " Running under " + platform.system() + " operating system"
+    print " Database connection: " + CONNECTION_STRING
     print " Path to the Python executable: " + sys.executable
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
-        exe = "ogr2ogr.exe"
+        ogr2ogr_executable = "ogr2ogr.exe"
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep + "library" + os.sep + "bin" + os.sep # sys.executable is the Python.exe file and will likely be in C:\Users\a_cottam\Miniconda2 folder - ogr2ogr is then in /library/bin on windows
+        marxan_executable = "Marxan.exe"
     else:
-        exe = "ogr2ogr"
+        ogr2ogr_executable = "ogr2ogr"
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep # sys.executable is the Python.exe file and will likely be in /home/ubuntu//miniconda2/bin/ - the same place as ogr2ogr
+        marxan_executable = "MarOpt_v243_Linux64"
     #if the ogr2ogr executable path is not in the miniconda bin directory, then hard-code it here and uncomment the line
     #OGR2OGR_PATH = ""
-    OGR2OGR_EXECUTABLE = OGR2OGR_PATH + exe
+    OGR2OGR_EXECUTABLE = OGR2OGR_PATH + ogr2ogr_executable
     if not os.path.exists(OGR2OGR_EXECUTABLE):
         raise MarxanServicesError("The path to the ogr2ogr executable '" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
     else:
-        print " Path to ogr2ogr executable: " + OGR2OGR_EXECUTABLE
+        print " Path to the ogr2ogr executable: " + OGR2OGR_EXECUTABLE
     #set the various folder paths
-    MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users/"
-    CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping/"
-    MARXAN_EXECUTABLE = MARXAN_FOLDER + "MarOpt_v243_Linux64"
-    MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources/"
-    START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project/"
-    EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project/"
-    print " Path to Marxan executable: " + MARXAN_EXECUTABLE
+    MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
+    CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
+    MARXAN_EXECUTABLE = MARXAN_FOLDER + marxan_executable
+    MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources" + os.sep
+    START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
+    EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
+    print " Path to the Marxan executable: " + MARXAN_EXECUTABLE
     print "Started " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\n"
     print "Press CTRL+Break to stop the server\n"
     time.sleep(3)
@@ -145,8 +158,8 @@ def _setGlobalVariables():
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
-        print "marxan-client not installed"
-    
+        print "marxan-client not installed\n"
+        
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
     pos = path.rfind("/")
@@ -197,7 +210,7 @@ def _getUsersData(users):
         #get the data for the user
         _getUserData(tmpObj)
         #create a dict to save the data
-        combinedDict = tmpObj.userData.copy() 
+        combinedDict = tmpObj.userData.copy() # pylint:disable=no-member
         combinedDict.update({'user': user})
         usersData.append(combinedDict)
     return usersData         
@@ -220,7 +233,7 @@ def _getProjectsForUser(user):
             tmpObj.folder_project = MARXAN_USERS_FOLDER + user + os.sep + project + os.sep
             _getProjectData(tmpObj)
             #create a dict to save the data
-            projects.append({'user': user, 'name': project,'description': tmpObj.projectData["metadata"]["DESCRIPTION"],'createdate': tmpObj.projectData["metadata"]["CREATEDATE"],'oldVersion': tmpObj.projectData["metadata"]["OLDVERSION"],'private': tmpObj.projectData["metadata"]["PRIVATE"]})
+            projects.append({'user': user, 'name': project,'description': tmpObj.projectData["metadata"]["DESCRIPTION"],'createdate': tmpObj.projectData["metadata"]["CREATEDATE"],'oldVersion': tmpObj.projectData["metadata"]["OLDVERSION"],'private': tmpObj.projectData["metadata"]["PRIVATE"]}) # pylint:disable=no-member
     return projects
 
 #gets all projects for all users
@@ -265,7 +278,7 @@ def _cloneProject(source_folder, destination_folder):
     new_project_folder = destination_folder + original_project_name + os.sep
     #recursively check that the folder does not exist until we get a new folder that doesnt exist
     while (os.path.exists(new_project_folder)):
-        new_project_folder = new_project_folder[:-1] + "_copy/"
+        new_project_folder = new_project_folder[:-1] + "_copy" + os.sep
     #copy the project
     shutil.copytree(source_folder, new_project_folder)
     #update the description and create date
@@ -359,7 +372,7 @@ def _getServerData(obj):
     #get the data from the server configuration file - these key/values are changed by the marxan-client
     obj.serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
     #set the return values: permitted CORS domains - these are set in this Python module; the server os and hardware; the version of the marxan-server software
-    obj.serverData.update({"CORS_DOMAINS": ",".join(PERMITTED_DOMAINS), "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION})
+    obj.serverData.update({"ENABLE_GUEST_USER": ENABLE_GUEST_USER, "CORS_DOMAINS": ",".join(PERMITTED_DOMAINS), "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION})
         
 #get the data on the user from the user.dat file 
 def _getUserData(obj):
@@ -837,8 +850,6 @@ def _requestIsWebSocket(request):
 
 #to prevent CORS errors in the client
 def _checkCORS(obj):
-    #get the method requested
-    method = _getRESTMethod(obj.request.path)
     #no CORS policy if security is disabled or if the server is running on localhost or if the request is for a permitted method
     # or if the user is 'guest' (if this is enabled) - dont set any headers - this will only work for GET requests - cross-domwin POST requests must have the headers
     if (obj.request.method == "GET" or DISABLE_SECURITY or obj.request.host[:9] == "localhost" or (obj.current_user == GUEST_USERNAME)):
@@ -1765,7 +1776,7 @@ class runMarxan(MarxanWebSocketHandler):
                         self.app = Subprocess(["exec " + MARXAN_EXECUTABLE])
                 except (WindowsError) as e: # pylint:disable=undefined-variable
                     if (e.strerror == "The system cannot find the file specified"):
-                        self.send_response({'error': 'The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.', 'status': 'Finished'})
+                        self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
                         #close the websocket
                         self.close()
                 else:
@@ -1876,7 +1887,7 @@ class preprocessFeature(QueryWebSocketHandler):
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #new version of marxan - do the intersection
                 future = self.executeQueryAsynchronously("SELECT * FROM marxan.get_pu_areas_for_interest_feature(%s,%s);", [self.get_argument('planning_grid_name'),self.get_argument('feature_class_name')], "Preprocessing '" + self.get_argument('alias') + "'", "  Preprocessing..", "Finishing preprocessing")
-                future.add_done_callback(self.intersectionComplete)
+                future.add_done_callback(self.intersectionComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan
                 self.intersectionComplete(None) 
@@ -1939,7 +1950,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
             _getProjectData(self)
             #do the intersection with the protected areas
             future = self.executeQueryAsynchronously(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM (SELECT iucn_cat, geom FROM marxan.wdpa) AS wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geom, ST_Transform(grid.geometry, 4326)) ORDER BY 1,2;").format(sql.Identifier(self.get_argument('planning_grid_name'))), None, "Preprocessing protected areas", "  Preprocessing protected areas..", "Finishing preprocessing")
-            future.add_done_callback(self.preprocessProtectedAreasComplete)
+            future.add_done_callback(self.preprocessProtectedAreasComplete) # pylint:disable=no-member
     
     #callback which is called when the intersection has been done
     def preprocessProtectedAreasComplete(self, future):
@@ -1971,7 +1982,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
                 #new version of marxan - get the boundary lengths
                 PostGIS().execute("DROP TABLE IF EXISTS marxan.tmp;") 
                 future = self.executeQueryAsynchronously(sql.SQL("CREATE TABLE marxan.tmp AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(a.geometry, b.geometry), 2))/1000 boundary  FROM marxan.{0} a, marxan.{0} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])), None, "Getting boundary lengths", "  Processing ..", "Finishing preprocessing")
-                future.add_done_callback(self.preprocessPlanningUnitsComplete)
+                future.add_done_callback(self.preprocessPlanningUnitsComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan
                 self.preprocessPlanningUnitsComplete(None) 

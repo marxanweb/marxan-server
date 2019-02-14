@@ -39,9 +39,11 @@ import platform
 ## constant declarations
 ####################################################################################################################################################################################################################################################################
 SERVER_NAME = "" # change this if you want your server to appear in the list with its own name
+SERVER_DESCRIPTION = "" #change this if you want your server to appear in the list with its own description
 ##SECURITY SETTINGS
 DISABLE_SECURITY = False                                                            # Set to True to turn off all security, i.e. authentication and authorisation
 COOKIE_RANDOM_VALUE = "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__"               # This must be set to a random value as it is used to encrypt and sign cookies - if it is not changed then malicious hackers can use this default value to produce their own signed cookies compromising security
+#domains that are allowed to access and update this server - add http://localhost:8081 if you want to allow access from local installs
 PERMITTED_DOMAINS = ["https://beta.biopama.org","https://andrewcottam.github.io","http://marxan-client-blishten.c9users.io:8081","https://marxan-client-blishten.c9users.io:8081","https://marxan-server-blishten.c9users.io:8081"]
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado"]    # REST services that have no authentication/authorisation/CORS control
 ROLE_UNAUTHORISED_METHODS = {                                                       # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
@@ -92,7 +94,7 @@ def _setGlobalVariables():
     global MARXAN_CLIENT_VERSION
     #get the folder from this files path
     MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + os.sep
-    #get the version of the marxan-server software
+    #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
     try:
         pos = MARXAN_FOLDER.index("marxan-server-")
         MARXAN_SERVER_VERSION = MARXAN_FOLDER[pos + 14:-1]
@@ -102,7 +104,7 @@ def _setGlobalVariables():
         print "Starting marxan-server.. (version unknown)"
     #print out which operating system is being used
     print " Running under " + platform.system() + " operating system"
-    print " Path to the Python interpreter: " + sys.executable
+    print " Path to the Python executable: " + sys.executable
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
         exe = "ogr2ogr.exe"
@@ -114,9 +116,10 @@ def _setGlobalVariables():
     #OGR2OGR_PATH = ""
     OGR2OGR_EXECUTABLE = OGR2OGR_PATH + exe
     if not os.path.exists(OGR2OGR_EXECUTABLE):
-        raise MarxanServicesError("The path to the ogr2ogr executable '" + OGR2OGR_EXECUTABLE + "' could not be found")
+        raise MarxanServicesError("The path to the ogr2ogr executable '" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
     else:
         print " Path to ogr2ogr executable: " + OGR2OGR_EXECUTABLE
+    #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users/"
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping/"
     MARXAN_EXECUTABLE = MARXAN_FOLDER + "MarOpt_v243_Linux64"
@@ -124,29 +127,31 @@ def _setGlobalVariables():
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project/"
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project/"
     print " Path to Marxan executable: " + MARXAN_EXECUTABLE
+    print "Started " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\n"
+    print "Press CTRL+Break to stop the server\n"
+    time.sleep(3)
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
-    #get the path to the marxan-client-v<VERSION> folder if it exists
+    #OUTPUT THE INFORMATION ABOUT THE MARXAN-CLIENT SOFTWARE IF PRESENT
     client_installs = glob.glob(PARENT_FOLDER + "marxan-client*")
     if len(client_installs)>0:
         if (len(client_installs)>1):
             MARXAN_CLIENT_BUILD_FOLDER = client_installs[len(client_installs)-1] + os.sep + "build"
-            print " Multiple versions of the marxan-client found"
+            print "Multiple versions of the marxan-client found"
         else:
             MARXAN_CLIENT_BUILD_FOLDER = client_installs[0] + os.sep + "build"
         MARXAN_CLIENT_VERSION = MARXAN_CLIENT_BUILD_FOLDER[MARXAN_CLIENT_BUILD_FOLDER.rindex("-")+1:MARXAN_CLIENT_BUILD_FOLDER.rindex(os.sep)]
-        print " Using marxan-client v" + MARXAN_CLIENT_VERSION
+        print "marxan-client v" + MARXAN_CLIENT_VERSION + " installed"
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
-        print " Marxan Web not available (no marxan-client files)"
-    print "Started at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
+        print "marxan-client not installed"
     
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
     pos = path.rfind("/")
     if pos > -1:
-        return path[pos+1:]
+        return path[pos+1:] 
     else:
         return ""
     
@@ -354,7 +359,7 @@ def _getServerData(obj):
     #get the data from the server configuration file - these key/values are changed by the marxan-client
     obj.serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
     #set the return values: permitted CORS domains - these are set in this Python module; the server os and hardware; the version of the marxan-server software
-    obj.serverData.update({"CORS_DOMAINS": ",".join(PERMITTED_DOMAINS), "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME})
+    obj.serverData.update({"CORS_DOMAINS": ",".join(PERMITTED_DOMAINS), "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION})
         
 #get the data on the user from the user.dat file 
 def _getUserData(obj):
@@ -836,7 +841,7 @@ def _checkCORS(obj):
     method = _getRESTMethod(obj.request.path)
     #no CORS policy if security is disabled or if the server is running on localhost or if the request is for a permitted method
     # or if the user is 'guest' (if this is enabled) - dont set any headers - this will only work for GET requests - cross-domwin POST requests must have the headers
-    if (obj.request.method == "GET" or DISABLE_SECURITY or obj.request.host[:9] == "localhost" or (method in PERMITTED_METHODS) or (obj.current_user == GUEST_USERNAME)):
+    if (obj.request.method == "GET" or DISABLE_SECURITY or obj.request.host[:9] == "localhost" or (obj.current_user == GUEST_USERNAME)):
         return 
     #get the referer
     if "Referer" in obj.request.headers.keys():
@@ -1753,11 +1758,21 @@ class runMarxan(MarxanWebSocketHandler):
                 _deleteAllFiles(self.folder_output)
                 #run marxan - the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
                 #the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) instead of the tornado process - see here: https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
-                self.app = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=subprocess.PIPE, shell=True)
-                #return the pid so that the process can be stopped
-                self.send_response({'pid': self.app.pid, 'status':'pid'})
-                IOLoop.current().spawn_callback(self.stream_output)
-                self.app.stdin.write('\n') # to end the marxan process by sending ENTER to the stdin
+                try:
+                    if platform.system() != "Windows":
+                        self.app = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=subprocess.PIPE, shell=True)
+                    else:
+                        self.app = Subprocess(["exec " + MARXAN_EXECUTABLE])
+                except (WindowsError) as e: # pylint:disable=undefined-variable
+                    if (e.strerror == "The system cannot find the file specified"):
+                        self.send_response({'error': 'The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.', 'status': 'Finished'})
+                        #close the websocket
+                        self.close()
+                else:
+                    #return the pid so that the process can be stopped
+                    self.send_response({'pid': self.app.pid, 'status':'pid'})
+                    IOLoop.current().spawn_callback(self.stream_output)
+                    self.app.stdin.write('\n') # to end the marxan process by sending ENTER to the stdin
             else:
                 self.send_response({'error': "Project '" + self.get_argument("project") + "' does not exist", 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 #close the websocket
@@ -2062,10 +2077,16 @@ if __name__ == "__main__":
         app.listen(8081)
         #open the web browser if the call includes a url, e.g. python webAPI_tornado.py http://localhost:8081/index.html
         if len(sys.argv)>1:
-            url = sys.argv[1] # normally "http://localhost:8081/index.html"
-            webbrowser.open(url, new=1, autoraise=True)
-            print "Opening Marxan Web at '" + url + "'"
-        print "Enter CTRL+Break to stop marxan-server"
+            if MARXAN_CLIENT_VERSION == "Not installed":
+                print "Ignoring start url parameter as the marxan-client is not installed"
+            else:
+                url = sys.argv[1] # normally "http://localhost:8081/index.html"
+                print "Opening Marxan Web at '" + url + "' ..\n"
+                time.sleep(3)
+                webbrowser.open(url, new=1, autoraise=True)
+        else:
+            if MARXAN_CLIENT_VERSION != "Not installed":
+                print "No url parameter specified for 'python webAPI_tornado.py <url>'\n"
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         print e.message

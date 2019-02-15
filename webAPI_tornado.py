@@ -28,7 +28,6 @@ import datetime
 import select
 import subprocess
 import sys
-import commands
 import zipfile
 import shutil
 import uuid
@@ -51,7 +50,6 @@ ROLE_UNAUTHORISED_METHODS = {                                                   
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
-DATABASE_NAME = 'marxanserver'
 MAPBOX_USER = "blishten"
 MBAT = "sk.eyJ1IjoiYmxpc2h0ZW4iLCJhIjoiY2piNm1tOGwxMG9lajMzcXBlZDR4aWVjdiJ9.Z1Jq4UAgGpXukvnUReLO1g"
 SERVER_CONFIG_FILENAME = "server.dat"
@@ -93,6 +91,10 @@ def _setGlobalVariables():
     global ENABLE_GUEST_USER
     global SERVER_NAME
     global SERVER_DESCRIPTION
+    global DATABASE_NAME
+    global DATABASE_HOST
+    global DATABASE_USER
+    global DATABASE_PASSWORD
     #get the folder from this files path
     MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + os.sep
     #get the data in the server configuration file
@@ -100,7 +102,12 @@ def _setGlobalVariables():
     #get the database connection string
     SERVER_NAME = serverData['SERVER_NAME']
     SERVER_DESCRIPTION = serverData['SERVER_DESCRIPTION']
-    CONNECTION_STRING = "dbname='" + DATABASE_NAME + "' host='" + serverData['DATABASE_HOST'] + "' user='" + serverData['DATABASE_USER'] + "' password='" + serverData['DATABASE_PASSWORD'] + "'"
+    DATABASE_NAME = serverData['DATABASE_NAME']
+    DATABASE_HOST = serverData['DATABASE_HOST']
+    DATABASE_USER = serverData['DATABASE_USER']
+    DATABASE_PASSWORD = serverData['DATABASE_PASSWORD']
+    DATABASE_NAME = serverData['DATABASE_NAME']
+    CONNECTION_STRING = "dbname='" + DATABASE_NAME + "' host='" + DATABASE_HOST + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
     COOKIE_RANDOM_VALUE = serverData['COOKIE_RANDOM_VALUE']
     PERMITTED_DOMAINS = serverData['PERMITTED_DOMAINS'].split(",")
     ENABLE_GUEST_USER = serverData['ENABLE_GUEST_USER']
@@ -154,7 +161,7 @@ def _setGlobalVariables():
         else:
             MARXAN_CLIENT_BUILD_FOLDER = client_installs[0] + os.sep + "build"
         MARXAN_CLIENT_VERSION = MARXAN_CLIENT_BUILD_FOLDER[MARXAN_CLIENT_BUILD_FOLDER.rindex("-")+1:MARXAN_CLIENT_BUILD_FOLDER.rindex(os.sep)]
-        print "marxan-client v" + MARXAN_CLIENT_VERSION + " installed"
+        print "Using marxan-client v" + MARXAN_CLIENT_VERSION
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
@@ -268,7 +275,10 @@ def _createProject(obj, name):
 #deletes a project
 def _deleteProject(obj):
     #delete the folder and all of its contents
-    shutil.rmtree(obj.folder_project)
+    try:
+        shutil.rmtree(obj.folder_project)
+    except (WindowsError) as e: # pylint:disable=undefined-variable
+        raise MarxanServicesError(e.strerror)
 
 #clones a project from the source_folder which is a full folder path to the destination_folder which is a full folder path
 def _cloneProject(source_folder, destination_folder):
@@ -750,11 +760,12 @@ def _unzipFile(filename):
 
 def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
-    cmd = OGR2OGR_EXECUTABLE + ' -f "ESRI Shapefile" ' + MARXAN_FOLDER + feature_class_name + '.shp' + ' "PG:host=localhost dbname=' + DATABASE_NAME + ' user=jrc password=thargal88" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
-    status, output = commands.getstatusoutput(cmd) 
-    #check for errors from the ogr2ogr command
-    if output != "":
-        raise MarxanServicesError("The ogr2ogr command failed with the error: " + output)
+    cmd = OGR2OGR_EXECUTABLE + ' -f "ESRI Shapefile" ' + MARXAN_FOLDER + feature_class_name + '.shp' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
+    try:
+        subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+    #catch any unforeseen circumstances
+    except subprocess.CalledProcessError as e:
+        raise MarxanServicesError("Error exporting shapefile. " + e.output)
     #zip the shapefile to upload to Mapbox
     lstFilenames = glob.glob(MARXAN_FOLDER + feature_class_name + '.*')
     zipfilename = MARXAN_FOLDER + feature_class_name + ".zip"
@@ -993,12 +1004,12 @@ class PostGIS():
             #drop the feature class if it already exists
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid
-            cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=localhost user=jrc dbname=' + DATABASE_NAME + ' password=thargal88" ' + MARXAN_FOLDER + shapefile + ' -nlt GEOMETRY -lco SCHEMA=marxan -nln ' + feature_class_name + ' -t_srs ' + epsgCode
+            cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" ' + MARXAN_FOLDER + shapefile + ' -nlt GEOMETRY -lco SCHEMA=marxan -nln ' + feature_class_name + ' -t_srs ' + epsgCode
             #run the import
-            status, output = commands.getstatusoutput(cmd) 
-            #check for errors
-            if (output != ''):
-                raise MarxanServicesError("Error importing shapefile: " + output)
+            subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+        #catch any unforeseen circumstances
+        except subprocess.CalledProcessError as e:
+            raise MarxanServicesError("Error importing shapefile. " + e.output)
         except Exception as e:
             self._cleanup()
             raise MarxanServicesError(e.message)
@@ -1542,6 +1553,12 @@ class getServerData(MarxanRESTHandler):
     def get(self):
         #get the data from the server.dat file
         _getServerData(self)
+        #delete sensitive information from the server config data
+        del self.serverData['COOKIE_RANDOM_VALUE']
+        del self.serverData['DATABASE_HOST']
+        del self.serverData['DATABASE_NAME']
+        del self.serverData['DATABASE_PASSWORD']
+        del self.serverData['DATABASE_USER']
         #set the response
         self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
 
@@ -1700,11 +1717,11 @@ class testRoleAuthorisation(MarxanRESTHandler):
     def get(self):
         self.send_response({'info': "Service successful"})
 
-#tests tornado is working properly		
+#tests tornado is working properly
 class testTornado(MarxanRESTHandler):
-	def get(self):
-		self.send_response({'info': "Tornado running"})
-		
+    def get(self):
+        self.send_response({'info': "Tornado running"})
+
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling WebSockets
 ####################################################################################################################################################################################################################################################################
@@ -1767,15 +1784,17 @@ class runMarxan(MarxanWebSocketHandler):
                 os.chdir(self.folder_project)
                 #delete all of the current output files
                 _deleteAllFiles(self.folder_output)
-                #run marxan - the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
+                #run marxan 
                 #the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) instead of the tornado process - see here: https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
                 try:
                     if platform.system() != "Windows":
+                        #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM
                         self.app = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=subprocess.PIPE, shell=True)
                     else:
-                        self.app = Subprocess(["exec " + MARXAN_EXECUTABLE])
+                        #the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
+                        self.app = Subprocess([MARXAN_EXECUTABLE])
                 except (WindowsError) as e: # pylint:disable=undefined-variable
-                    if (e.strerror == "The system cannot find the file specified"):
+                    if (e.winerror == 1260):
                         self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
                         #close the websocket
                         self.close()
@@ -2034,7 +2053,7 @@ def make_app():
         ("/marxan-server/importPlanningUnitGrid", importPlanningUnitGrid),
         ("/marxan-server/createFeaturePreprocessingFileFromImport", createFeaturePreprocessingFileFromImport),
         ("/marxan-server/toggleEnableGuestUser", toggleEnableGuestUser),
-        ("/marxan-server/createUser", createUser),
+        ("/marxan-server/createUser", createUser), 
         ("/marxan-server/validateUser", validateUser),
         ("/marxan-server/resendPassword", resendPassword),
         ("/marxan-server/getUser", getUser),

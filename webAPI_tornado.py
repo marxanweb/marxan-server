@@ -601,7 +601,8 @@ def _readFile(filename):
 def _deleteAllFiles(folder):
     files = glob.glob(folder + "*")
     for f in files:
-        os.remove(f)
+        if f[:-3]!='dat': #dont try to remove the log file as it is accessed by the runMarxan function to return the data as it is written
+            os.remove(f)
 
 #copies a directory from src to dest recursively
 def _copyDirectory(src, dest):
@@ -1789,10 +1790,10 @@ class runMarxan(MarxanWebSocketHandler):
                 try:
                     if platform.system() != "Windows":
                         #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM
-                        self.app = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=subprocess.PIPE, shell=True)
+                        self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=subprocess.PIPE, shell=True)
                     else:
                         #the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
-                        self.app = Subprocess([MARXAN_EXECUTABLE])
+                        self.marxanProcess = Subprocess([MARXAN_EXECUTABLE], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
                 except (WindowsError) as e: # pylint:disable=undefined-variable
                     if (e.winerror == 1260):
                         self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
@@ -1800,9 +1801,9 @@ class runMarxan(MarxanWebSocketHandler):
                         self.close()
                 else:
                     #return the pid so that the process can be stopped
-                    self.send_response({'pid': self.app.pid, 'status':'pid'})
+                    self.send_response({'pid': self.marxanProcess.pid, 'status':'pid'})
                     IOLoop.current().spawn_callback(self.stream_output)
-                    self.app.stdin.write('\n') # to end the marxan process by sending ENTER to the stdin
+                    self.marxanProcess.stdin.write('\n') # to end the marxan process by sending ENTER to the stdin
             else:
                 self.send_response({'error': "Project '" + self.get_argument("project") + "' does not exist", 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 #close the websocket
@@ -1810,12 +1811,24 @@ class runMarxan(MarxanWebSocketHandler):
 
     @gen.coroutine
     def stream_output(self):
-        try:
+        if platform.system() != "Windows":
+            try:
+                while True:
+                    #read from the stdout stream
+                    line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
+                    self.send_response({'info':line, 'status':'Running'})
+            except StreamClosedError: #fired when the stream closes
+                self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+                #close the websocket
+                self.close()
+        else:
             while True:
-                # line = yield self.app.stdout.read_bytes(4096)
-                line = yield self.app.stdout.read_bytes(4096, partial=True)
-                self.send_response({'info':line, 'status':'Running'})
-        except StreamClosedError: #fired when the stream closes
+                #read from the stdout file object
+                line = self.marxanProcess.stdout.readline()
+                self.send_response({'info': line, 'status':'Running'})
+                #bit of a hack to see when it has finished running
+                if line.find("Press return to exit") > -1:
+                    break
             self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
             #close the websocket
             self.close()

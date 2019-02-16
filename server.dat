@@ -3,7 +3,7 @@ ENABLE_GUEST_USER True
 SERVER_NAME 
 SERVER_DESCRIPTION 
 COOKIE_RANDOM_VALUE __TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__
-PERMITTED_DOMAINS https://beta.biopama.org,https://andrewcottam.github.io,http://marxan-client-blishten.c9users.io:8081,https://marxan-client-blishten.c9users.io:8081,https://marxan-server-blishten.c9users.io:8081
+PERMITTED_DOMAINS https://beta.biopama.org,https://andrewcottam.github.io,https://marxan-server-blishten.c9users.io:8081
 DATABASE_NAME marxanserver
 DATABASE_HOST localhost
 DATABASE_USER jrc

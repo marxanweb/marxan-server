@@ -22,7 +22,7 @@ bash Miniconda2-latest-Linux-x86_64.sh
 ```  
 Install dependencies:  
 ```  
-conda install tornado psycopg2 pandas gdal  
+conda install tornado psycopg2 pandas gdal colorama    
 pip install mapbox  
 ```  
 ### Install Postgresql/PostGIS

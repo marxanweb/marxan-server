@@ -33,6 +33,7 @@ import shutil
 import uuid
 import signal
 import platform
+import colorama
 
 ####################################################################################################################################################################################################################################################################
 ## constant declarations
@@ -95,6 +96,8 @@ def _setGlobalVariables():
     global DATABASE_HOST
     global DATABASE_USER
     global DATABASE_PASSWORD
+    #initialise colorama to be able to show log messages on windows in color
+    colorama.init()
     #get the folder from this files path
     MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + os.sep
     #get the data in the server configuration file
@@ -115,10 +118,10 @@ def _setGlobalVariables():
     try:
         pos = MARXAN_FOLDER.index("marxan-server-")
         MARXAN_SERVER_VERSION = MARXAN_FOLDER[pos + 14:-1]
-        print "Starting marxan-server v" + MARXAN_SERVER_VERSION + " .."
+        print "\x1b[1;32;48mStarting marxan-server v" + MARXAN_SERVER_VERSION + " ..\x1b[0m"
     except (ValueError):
         MARXAN_SERVER_VERSION = "Unknown"
-        print "Starting marxan-server.. (version unknown)"
+        print '\x1b[1;32;48mStarting marxan-server.. (version unknown)\x1b[0m'
     #print out which operating system is being used
     print " Running under " + platform.system() + " operating system"
     print " Database connection: " + CONNECTION_STRING
@@ -147,8 +150,8 @@ def _setGlobalVariables():
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     print " Path to the Marxan executable: " + MARXAN_EXECUTABLE
-    print "Started " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\n"
-    print "Press CTRL+Break to stop the server\n"
+    print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n"
+    print "\x1b[1;31;48mPress CTRL+Break to stop the server\x1b[0m\n"
     time.sleep(3)
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
@@ -161,7 +164,7 @@ def _setGlobalVariables():
         else:
             MARXAN_CLIENT_BUILD_FOLDER = client_installs[0] + os.sep + "build"
         MARXAN_CLIENT_VERSION = MARXAN_CLIENT_BUILD_FOLDER[MARXAN_CLIENT_BUILD_FOLDER.rindex("-")+1:MARXAN_CLIENT_BUILD_FOLDER.rindex(os.sep)]
-        print "Using marxan-client v" + MARXAN_CLIENT_VERSION
+        print "Using marxan-client v" + MARXAN_CLIENT_VERSION 
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
@@ -798,7 +801,7 @@ def _deleteFeature(feature_class_name):
 def _importFeature(filename, name, description):
     #unzip the shapefile
     rootfilename = _unzipFile(filename) 
-    #import the shapefile into PostGIS
+    #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
     postgis = PostGIS()
     postgis.importShapefile(rootfilename + ".shp", "undissolved", "EPSG:3410")
     #TODO: implement the upload to Mapbox
@@ -807,14 +810,21 @@ def _importFeature(filename, name, description):
     #delete the shapefile and the zip file
     #TODO: _deleteZippedShapefile is cleanup code and wherever it occurs it should always be run even if an exception occurs
     _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
+    #finish the import 
+    id = _importUndissolvedFeature(rootfilename, name, description, tilesetId)
+    return id
+
+#imports the undissolved feature class into the marxan schema with the featureclassname and inserts a record in the metadata_interest_features table
+def _importUndissolvedFeature(featureclassname, name, description, tilesetId):
     #dissolve the feature class
-    postgis.execute(sql.SQL("SELECT ST_Union(wkb_geometry) geometry INTO marxan.{} FROM marxan.undissolved;").format(sql.Identifier(rootfilename)))   
+    postgis = PostGIS()
+    postgis.execute(sql.SQL("SELECT ST_Union(wkb_geometry) geometry INTO marxan.{} FROM marxan.undissolved;").format(sql.Identifier(featureclassname)))   
     #create an index
-    postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(rootfilename)))
+    postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(featureclassname)))
     #drop the undissolved feature class
     postgis.execute("DROP TABLE IF EXISTS marxan.undissolved;") 
     #create a record for this new feature in the metadata_interest_features table
-    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features SELECT %s, %s, %s, now(), sub._area, %s, sub.extent FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(rootfilename)), [rootfilename, name, description, tilesetId], "One")[0]
+    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features SELECT %s, %s, %s, now(), sub._area, %s, sub.extent FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(featureclassname)), [featureclassname, name, description, tilesetId], "One")[0]
     return id
 
 #imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox
@@ -1688,6 +1698,20 @@ class deleteFeature(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "Feature deleted"})
 
+#creates a new feature from a passed linestring 
+class createFeatureFromLinestring(MarxanRESTHandler):
+    def post(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['name','description','linestring']) 
+        #create the undissolved feature class
+        PostGIS().execute("DROP TABLE IF EXISTS marxan.undissolved")
+        PostGIS().execute("CREATE TABLE marxan.undissolved AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS wkb_geometry;",[self.get_argument('linestring')])
+        #import the undissolved feature class
+        unique_identifier = "digitised_" + uuid.uuid4().hex
+        id = _importUndissolvedFeature(unique_identifier, self.get_argument('name'), self.get_argument('description'), "")
+        #set the response
+        self.send_response({'info': "Feature '" + unique_identifier + "' created", 'id': id})
+        
 #imports a zipped planning unit shapefile which has been uploaded to the marxan root folder into PostGIS as a planning unit grid feature class
 #https://db-server-blishten.c9users.io:8081/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5
 class importPlanningUnitGrid(MarxanRESTHandler):
@@ -2076,6 +2100,7 @@ def make_app():
         ("/marxan-server/getFeature", getFeature),
         ("/marxan-server/importFeature", importFeature),
         ("/marxan-server/deleteFeature", deleteFeature),
+        ("/marxan-server/createFeatureFromLinestring", createFeatureFromLinestring),
         ("/marxan-server/getFeaturePlanningUnits", getFeaturePlanningUnits),
         ("/marxan-server/getPlanningUnitsData", getPlanningUnitsData), #currently not used
         ("/marxan-server/updatePUFile", updatePUFile),
@@ -2124,7 +2149,7 @@ if __name__ == "__main__":
                 print "Ignoring start url parameter as the marxan-client is not installed"
             else:
                 url = sys.argv[1] # normally "http://localhost:8081/index.html"
-                print "Opening Marxan Web at '" + url + "' ..\n"
+                print "\x1b[1;32;48mOpening Marxan Web at '" + url + "' ..\x1b[0m\n"
                 time.sleep(3)
                 webbrowser.open(url, new=1, autoraise=True)
         else:

@@ -36,7 +36,7 @@ Create the database user, database and PostGIS functions and import the required
 ```  
 createuser -P -s jrc
 createdb -T template0 marxanserver  
-psql -c 'CREATE EXTENSION IF NOT EXISTS postgis;'   
+psql -c 'CREATE EXTENSION IF NOT EXISTS postgis;'    
 psql -h 127.0.0.1 -d marxanserver -U jrc -f /home/ubuntu/workspace/dump.sql   
 ```
 ### Cleanup
@@ -45,7 +45,7 @@ Remove the downloaded files
 rm dump.sql   
 rm Miniconda2-latest-Linux-x86_64.sh   
 rm v<VERSION>.zip  
-```
+``` 
 ### Start the services
 Start the PostGIS instance and the Marxan Server  
 ```

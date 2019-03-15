@@ -96,6 +96,8 @@ def _setGlobalVariables():
     global DATABASE_HOST
     global DATABASE_USER
     global DATABASE_PASSWORD
+    global DATABASE_VERSION_POSTGRESQL
+    global DATABASE_VERSION_POSTGIS
     #initialise colorama to be able to show log messages on windows in color
     colorama.init()
     #get the folder from this files path
@@ -111,6 +113,9 @@ def _setGlobalVariables():
     DATABASE_PASSWORD = serverData['DATABASE_PASSWORD']
     DATABASE_NAME = serverData['DATABASE_NAME']
     CONNECTION_STRING = "dbname='" + DATABASE_NAME + "' host='" + DATABASE_HOST + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
+    #get the database version
+    postgis = PostGIS()
+    DATABASE_VERSION_POSTGRESQL, DATABASE_VERSION_POSTGIS = postgis.execute("SELECT version(), PostGIS_Version();", None, "One")  
     COOKIE_RANDOM_VALUE = serverData['COOKIE_RANDOM_VALUE']
     PERMITTED_DOMAINS = serverData['PERMITTED_DOMAINS'].split(",")
     ENABLE_GUEST_USER = serverData['ENABLE_GUEST_USER']
@@ -121,11 +126,13 @@ def _setGlobalVariables():
         print "\x1b[1;32;48mStarting marxan-server v" + MARXAN_SERVER_VERSION + " ..\x1b[0m"
     except (ValueError):
         MARXAN_SERVER_VERSION = "Unknown"
-        print '\x1b[1;32;48mStarting marxan-server.. (version unknown)\x1b[0m'
+        print '\n\x1b[1;32;48mStarting marxan-server.. (version unknown)\x1b[0m'
     #print out which operating system is being used
     print " Running under " + platform.system() + " operating system"
     print " Database connection: " + CONNECTION_STRING
-    print " Path to the Python executable: " + sys.executable
+    print " " + DATABASE_VERSION_POSTGRESQL
+    print " PostGIS: " + DATABASE_VERSION_POSTGIS
+    print " Python executable: " + sys.executable
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
         ogr2ogr_executable = "ogr2ogr.exe"
@@ -141,7 +148,7 @@ def _setGlobalVariables():
     if not os.path.exists(OGR2OGR_EXECUTABLE):
         raise MarxanServicesError("The path to the ogr2ogr executable '" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
     else:
-        print " Path to the ogr2ogr executable: " + OGR2OGR_EXECUTABLE
+        print " ogr2ogr executable: " + OGR2OGR_EXECUTABLE
     #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
@@ -149,7 +156,7 @@ def _setGlobalVariables():
     MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources" + os.sep
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
-    print " Path to the Marxan executable: " + MARXAN_EXECUTABLE
+    print " Marxan executable: " + MARXAN_EXECUTABLE
     print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n"
     print "\x1b[1;31;48mPress CTRL+Break to stop the server\x1b[0m\n"
     time.sleep(3)
@@ -385,7 +392,7 @@ def _getServerData(obj):
     #get the data from the server configuration file - these key/values are changed by the marxan-client
     obj.serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
     #set the return values: permitted CORS domains - these are set in this Python module; the server os and hardware; the version of the marxan-server software
-    obj.serverData.update({"ENABLE_GUEST_USER": ENABLE_GUEST_USER, "CORS_DOMAINS": ",".join(PERMITTED_DOMAINS), "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION})
+    obj.serverData.update({"DATABASE_VERSION_POSTGIS": DATABASE_VERSION_POSTGIS, "DATABASE_VERSION_POSTGRESQL": DATABASE_VERSION_POSTGRESQL, "ENABLE_GUEST_USER": ENABLE_GUEST_USER, "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION})
         
 #get the data on the user from the user.dat file 
 def _getUserData(obj):
@@ -827,7 +834,7 @@ def _importUndissolvedFeature(featureclassname, name, description, tilesetId):
     id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features SELECT %s, %s, %s, now(), sub._area, %s, sub.extent FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(featureclassname)), [featureclassname, name, description, tilesetId], "One")[0]
     return id
 
-#imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox
+#imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox - this is for importing marxan old version files
 def _importPlanningUnitGrid(filename, name, description):
     #unzip the shapefile
     rootfilename = _unzipFile(filename) 
@@ -1018,6 +1025,8 @@ class PostGIS():
             cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" ' + MARXAN_FOLDER + shapefile + ' -nlt GEOMETRY -lco SCHEMA=marxan -nln ' + feature_class_name + ' -t_srs ' + epsgCode
             #run the import
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+            #add a unique constraint so that the data can be used in ArcGIS
+            # self.execute("ALTER TABLE marxan._tmp3 ADD CONSTRAINT tmp3_idx1 PRIMARY KEY (puid);")
         #catch any unforeseen circumstances
         except subprocess.CalledProcessError as e:
             raise MarxanServicesError("Error importing shapefile. " + e.output)
@@ -1570,6 +1579,8 @@ class getServerData(MarxanRESTHandler):
         del self.serverData['DATABASE_NAME']
         del self.serverData['DATABASE_PASSWORD']
         del self.serverData['DATABASE_USER']
+        #get the version of postgis
+        
         #set the response
         self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
 

@@ -994,6 +994,7 @@ class PostGIS():
             records = []
             #do any argument binding 
             sql = self._mogrify(sql, data)
+            print sql
             self.cursor.execute(sql)
             #commit the transaction immediately
             self.connection.commit()
@@ -1025,15 +1026,21 @@ class PostGIS():
             cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" ' + MARXAN_FOLDER + shapefile + ' -nlt GEOMETRY -lco SCHEMA=marxan -nln ' + feature_class_name + ' -t_srs ' + epsgCode
             #run the import
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-            #add a unique constraint so that the data can be used in ArcGIS
-            # self.execute("ALTER TABLE marxan._tmp3 ADD CONSTRAINT tmp3_idx1 PRIMARY KEY (puid);")
         #catch any unforeseen circumstances
         except subprocess.CalledProcessError as e:
             raise MarxanServicesError("Error importing shapefile. " + e.output)
         except Exception as e:
-            self._cleanup()
+            if not self.connection.closed:
+                self._cleanup()
             raise MarxanServicesError(e.message)
                 
+    #creates a primary key on the column in the passed feature_class
+    def createPrimaryKey(self, feature_class_name, column):
+        try:
+            self.execute(sql.SQL("ALTER TABLE marxan.{tbl} ADD CONSTRAINT {key} PRIMARY KEY ({col});").format(tbl=sql.Identifier(feature_class_name), key=sql.Identifier("idx_" + uuid.uuid4().hex), col=sql.Identifier(column)))
+        except Exception as e:
+            raise MarxanServicesError(e.message)
+        
     def __del__(self):
         self._cleanup()
 
@@ -1287,6 +1294,10 @@ class createPlanningUnitGrid(MarxanRESTHandler):
         _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
         #create the new planning unit and get the first row back
         data = PostGIS().execute("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape')], "One")
+        #get the feature class name
+        fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
+        #create a primary key so the feature class can be used in ArcGIS
+        PostGIS().createPrimaryKey(fc, "puid")        
         #set the response
         self.send_response({'info':'Planning unit grid created', 'planning_unit_grid': data[0]})
 

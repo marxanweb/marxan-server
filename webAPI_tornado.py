@@ -10,6 +10,7 @@ from urlparse import urlparse
 from psycopg2 import sql
 from mapbox import Uploader
 from mapbox import errors
+from osgeo import ogr
 import webbrowser
 import tornado.ioloop
 import tornado.web
@@ -61,9 +62,9 @@ PLANNING_UNITS_FILENAME ="pu.dat"
 PUVSPR_FILENAME = "puvspr.dat"
 SPEC_FILENAME ="spec.dat"
 BOUNDARY_LENGTH_FILENAME = "bounds.dat"
-BEST_SOLUTION_FILENAME = "output_mvbest.txt"
-OUTPUT_SUMMARY_FILENAME = "output_sum.txt"
-SUMMED_SOLUTION_FILENAME = "output_ssoln.txt"
+BEST_SOLUTION_FILENAME = "output_mvbest"
+OUTPUT_SUMMARY_FILENAME = "output_sum"
+SUMMED_SOLUTION_FILENAME = "output_ssoln"
 FEATURE_PREPROCESSING_FILENAME = "feature_preprocessing.dat"
 PROTECTED_AREA_INTERSECTIONS_FILENAME = "protected_area_intersections.dat"
 SOLUTION_FILE_PREFIX = "output_r"
@@ -465,19 +466,30 @@ def _getMarxanLog(obj):
     log = log.replace(chr(176),"") #Graphic character, low density dotted
     obj.marxanLog = log
 
+#the extension of the output files depends on the settings SAVE* in the input.dat file, either csv or txt. This function gets the correct filename+extension.
+def _getOutputFilename(filename):
+    if (os.path.exists(filename + ".csv")):
+        return filename + ".csv"
+    else:
+        return filename + ".txt"
+
 def _getBestSolution(obj):
-    obj.bestSolution = _loadCSV(obj.folder_output + BEST_SOLUTION_FILENAME)
+    filename = _getOutputFilename(obj.folder_output + BEST_SOLUTION_FILENAME)
+    obj.bestSolution = _loadCSV(filename)
 
 def _getOutputSummary(obj):
-    obj.outputSummary = _loadCSV(obj.folder_output + OUTPUT_SUMMARY_FILENAME)
+    filename = _getOutputFilename(obj.folder_output + OUTPUT_SUMMARY_FILENAME)
+    obj.outputSummary = _loadCSV(filename)
 
 def _getSummedSolution(obj):
-    df = _loadCSV(obj.folder_output + SUMMED_SOLUTION_FILENAME)
+    filename = _getOutputFilename(obj.folder_output + SUMMED_SOLUTION_FILENAME)
+    df = _loadCSV(filename)
     obj.summedSolution = _normaliseDataFrame(df, "number", "planning_unit")
 
 def _getSolution(obj, solutionId):
-    if os.path.exists(obj.folder_output + SOLUTION_FILE_PREFIX + "%05d" % int(solutionId) + ".txt"):
-        df = _loadCSV(obj.folder_output + SOLUTION_FILE_PREFIX + "%05d" % int(solutionId) + ".txt")
+    filename = _getOutputFilename(obj.folder_output + SOLUTION_FILE_PREFIX + "%05d" % int(solutionId))
+    if os.path.exists(filename):
+        df = _loadCSV(filename)
         obj.solution = _normaliseDataFrame(df, "solution", "planning_unit")
     else:
         obj.solution = []
@@ -517,9 +529,9 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
     records = []
     for i in range(len(ids)):
         if i not in removedIds:
-            records.append({'id': str(ids[i]), 'prop': str(float(props[i])/100), 'spf': spfs[i]})
+            records.append({'id': ids[i], 'prop': str(float(props[i])/100), 'spf': spfs[i]})
     df = pandas.DataFrame(records)
-    #sort the records by the id fied
+    #sort the records by the id field
     df = df.sort_values(by=['id'])
     #write the data to file
     _writeCSV(obj, "SPECNAME", df)
@@ -542,10 +554,8 @@ def _updatePuFile(obj, status1_ids, status2_ids, status3_ids):
     status1 = _puidsArrayToPuDatFormat(status1_ids,1)
     status2 = _puidsArrayToPuDatFormat(status2_ids,2)
     status3 = _puidsArrayToPuDatFormat(status3_ids,3)
-    #get the path to the pu.dat file
-    filename = obj.folder_input + _getProjectInputFilename(obj, "PUNAME")
     #read the data from the pu.dat file 
-    df = _loadCSV(filename)
+    df = _getProjectInputData(obj, "PUNAME")
     #reset the status for all planning units
     df['status'] = 0
     #concatenate the status arrays
@@ -566,7 +576,7 @@ def _updatePuFile(obj, status1_ids, status2_ids, status3_ids):
 #loads a csv file and returns the data as a dataframe or an empty dataframe if the file does not exist. If errorIfNotExists is True then it raises an error.
 def _loadCSV(filename, errorIfNotExists = False):
     if (os.path.exists(filename)):
-        df = pandas.read_csv(filename)
+        df = pandas.read_csv(filename, sep = None, engine = 'python') #sep = None forces the Python parsing engine to detect the separator as it can be tab or comman in marxan
     else:
         if errorIfNotExists:
             raise MarxanServicesError("The file '" + filename + "' does not exist")
@@ -586,7 +596,7 @@ def _writeToDatFile(file, dataframe):
     #see if the file exists
     if (os.path.exists(file)):
         #read the current data
-        df = pandas.read_csv(file)
+        df = pandas.read_csv(file, sep = None, engine = 'python') #sep = None forces the Python parsing engine to detect the separator as it can be tab or comman in marxan
     else:
         #create the new dataframe
         df = pandas.DataFrame()
@@ -838,6 +848,9 @@ def _importUndissolvedFeature(featureclassname, name, description, tilesetId):
 def _importPlanningUnitGrid(filename, name, description):
     #unzip the shapefile
     rootfilename = _unzipFile(filename) 
+    #make sure the puid column is lowercase
+    if _shapefileHasField(MARXAN_FOLDER + rootfilename + ".shp", "PUID"):
+        raise MarxanServicesError("The field 'puid' in the zipped shapefile is uppercase and it must be lowercase")
     #import the shapefile into PostGIS
     postgis = PostGIS()
     try:
@@ -939,6 +952,17 @@ def _guestUserEnabled(obj):
     #get the current state
     return obj.serverData['ENABLE_GUEST_USER']
     
+#returns true if the passed shapefile has the fieldname - this is case sensitive
+def _shapefileHasField(shapefile, fieldname):
+	dataSource = ogr.Open(shapefile)
+	daLayer = dataSource.GetLayer(0)
+	layerDefinition = daLayer.GetLayerDefn()
+	count = layerDefinition.GetFieldCount()
+	for i in range(count):
+		if (layerDefinition.GetFieldDefn(i).GetName() == fieldname):
+			return True
+	return False
+	
 ####################################################################################################################################################################################################################################################################
 ## generic classes
 ####################################################################################################################################################################################################################################################################
@@ -994,7 +1018,6 @@ class PostGIS():
             records = []
             #do any argument binding 
             sql = self._mogrify(sql, data)
-            print sql
             self.cursor.execute(sql)
             #commit the transaction immediately
             self.connection.commit()
@@ -1435,7 +1458,7 @@ class getFeaturePlanningUnits(MarxanRESTHandler):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project','oid'])    
         #get the data from the puvspr.dat file as a dataframe
-        df = _loadCSV(self.folder_input + PUVSPR_FILENAME)
+        df = _getProjectInputData(self, "PUVSPRNAME")
         #get the planning unit ids as a list
         puids = df.loc[df['species'] == int(self.get_argument("oid"))]['pu'].tolist()
         #set the response

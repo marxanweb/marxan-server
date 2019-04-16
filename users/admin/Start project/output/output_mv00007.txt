@@ -1,0 +1,4 @@
+"Conservation Feature","Feature Name","Target","Amount Held","Occurrence Target ","Occurrences Held","Separation Target ","Separation Achieved","Target Met","MPM"
+63767166,,210148968.750080,229881046.788693,0,5,0,0,yes,1.000000
+63408405,,16846764.395485,23228187.927784,0,1,0,0,yes,1.000000
+63407942,,1256420761.272963,1258903430.377028,0,32,0,0,yes,1.000000

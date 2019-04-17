@@ -35,6 +35,7 @@ import uuid
 import signal
 import platform
 import colorama
+import io
 
 ####################################################################################################################################################################################################################################################################
 ## constant declarations
@@ -160,7 +161,7 @@ def _setGlobalVariables():
     print " Marxan executable: " + MARXAN_EXECUTABLE
     print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n"
     print "\x1b[1;31;48mPress CTRL+Break to stop the server\x1b[0m\n"
-    time.sleep(3)
+    #time.sleep(3)
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-CLIENT SOFTWARE IF PRESENT
@@ -327,7 +328,7 @@ def _getProjectData(obj):
     metadataDict = {}
     rendererDict = {}
     #get the file contents
-    s = _readFile(obj.folder_project + PROJECT_DATA_FILENAME)
+    s = _readFileUnicode(obj.folder_project + PROJECT_DATA_FILENAME)
     #get the keys from the file
     keys = _getKeys(s)
     #iterate through the keys and get their values
@@ -373,7 +374,7 @@ def _getKeyValuesFromFile(filename):
     if not os.path.exists(filename):
         raise MarxanServicesError("The file '" + filename +"' does not exist") 
     #get the file contents
-    s = _readFile(filename)
+    s = _readFileUnicode(filename)
     #get the keys from the file
     keys = _getKeys(s)
     #iterate through the keys, get their values and add them to a dictionary
@@ -458,43 +459,48 @@ def _getProtectedAreaIntersectionsData(obj):
 #gets the marxan log after a run
 def _getMarxanLog(obj):
     if (os.path.exists(obj.folder_output + OUTPUT_LOG_FILENAME)):
-        log = _readFile(obj.folder_output + OUTPUT_LOG_FILENAME)
+        log = _readFileUnicode(obj.folder_output + OUTPUT_LOG_FILENAME)
     else:
         log = ""
-    #there are some characters in the log file which cause the json parser to fail - remove them
-    log = log.replace("\x90","")
-    log = log.replace(chr(176),"") #Graphic character, low density dotted
     obj.marxanLog = log
 
-#the extension of the output files depends on the settings SAVE* in the input.dat file, either csv or txt. This function gets the correct filename+extension.
+#the extension of the output files depends on the settings SAVE* in the input.dat file and probably on the version of marxan. This function gets the correct filename+extension (normally either csv or txt)
 def _getOutputFilename(filename):
-    if (os.path.exists(filename + ".csv")):
-        return filename + ".csv"
+    #filename is the full filename without an extension
+    files = glob.glob(filename + "*") 
+    if (len(files)) > 0:
+        extension = files[0][-4:]
+        return filename + extension
     else:
-        return filename + ".txt"
+        raise MarxanServicesError("The output file '" + filename + "' does not exist")
 
+#loads the data from the marxan best solution file
 def _getBestSolution(obj):
     filename = _getOutputFilename(obj.folder_output + BEST_SOLUTION_FILENAME)
     obj.bestSolution = _loadCSV(filename)
 
+#loads the data from the marxan output summary file
 def _getOutputSummary(obj):
     filename = _getOutputFilename(obj.folder_output + OUTPUT_SUMMARY_FILENAME)
     obj.outputSummary = _loadCSV(filename)
 
+#loads the data from the marxan summed solution file
 def _getSummedSolution(obj):
     filename = _getOutputFilename(obj.folder_output + SUMMED_SOLUTION_FILENAME)
     df = _loadCSV(filename)
     obj.summedSolution = _normaliseDataFrame(df, "number", "planning_unit")
 
+#loads the data from a marxan single solution file
 def _getSolution(obj, solutionId):
     filename = _getOutputFilename(obj.folder_output + SOLUTION_FILE_PREFIX + "%05d" % int(solutionId))
     if os.path.exists(filename):
         df = _loadCSV(filename)
-        obj.solution = _normaliseDataFrame(df, "solution", "planning_unit")
+        #normalise the data by the planning unit field and solution field - these may be called planning_unit,solution or PUID,SOLUTION - so get their names by position 
+        obj.solution = _normaliseDataFrame(df, df.columns[1], df.columns[0])
     else:
         obj.solution = []
         raise MarxanServicesError("Solution '" + str(solutionId) + "' in project '" + obj.get_argument('project') + "' no longer exists")
-
+        
 def _getMissingValues(obj, solutionId):
     df = _loadCSV(obj.folder_output + MISSING_VALUES_FILE_PREFIX + "%05d" % int(solutionId) + ".txt")
     obj.missingValues = df.to_dict(orient="split")["data"]
@@ -617,6 +623,18 @@ def _readFile(filename):
     f.close()
     return s
 
+#gets a files contents as a unicode string
+def _readFileUnicode(filename):
+    f = io.open(filename, mode="r", encoding="utf-8")
+    s = f.read()
+    return s
+
+#writes a files contents as a unicode string
+def _writeFileUnicode(filename, s):
+    f = io.open(filename, 'w', encoding="utf-8")
+    f.write(s)
+    f.close()    
+    
 #deletes all of the files in the passed folder
 def _deleteAllFiles(folder):
     files = glob.glob(folder + "*")
@@ -639,7 +657,7 @@ def _copyDirectory(src, dest):
 def _updateParameters(data_file, newParams):
     if newParams:
         #get the existing parameters 
-        s = _readFile(data_file)
+        s = _readFileUnicode(data_file)
         #update any that are passed in as query params
         for k, v in newParams.iteritems():
             try:
@@ -648,7 +666,7 @@ def _updateParameters(data_file, newParams):
                     p2 = _getEndOfLine(s[p1:]) #get the position of the end of line
                     s = s[:p1] + k + " " + v + s[(p1 + p2):]
                 #write these parameters back to the *.dat file
-                _writeFile(data_file, s)
+                _writeFileUnicode(data_file, s)
             except ValueError:
                 continue
     return 
@@ -737,12 +755,12 @@ def _validateArguments(arguments, argumentList):
             raise MarxanServicesError("Missing input argument:" + argument)
 
 #converts the raw arguments from the request.arguments parameter into a simple dict excluding those in omitArgumentList
-#e.g. _getSimpleArguments(self.request.arguments, ['user','project','callback']) would convert {'project': ['Tonga marine 30km2'], 'callback': ['__jp13'], 'COLORCODE': ['PiYG'], 'user': ['andrew']} to {'COLORCODE': 'PiYG'}
-def _getSimpleArguments(arguments, omitArgumentList):
+#e.g. _getSimpleArguments(self, ['user','project','callback']) would convert {'project': ['Tonga marine 30km2'], 'callback': ['__jp13'], 'COLORCODE': ['PiYG'], 'user': ['andrew']} to {'COLORCODE': 'PiYG'}
+def _getSimpleArguments(obj, omitArgumentList):
     returnDict = {}
-    for argument in arguments:
+    for argument in obj.request.arguments:
         if argument not in omitArgumentList:
-            returnDict.update({argument: arguments[argument][0]})
+            returnDict.update({argument: obj.get_argument(argument)}) #get_argument gets the argument as unicode - HTTPRequest.arguments gets it as a byte string
     return returnDict
 
 #gets the passed argument name as an array of integers, e.g. ['12,15,4,6'] -> [12,15,4,6]
@@ -858,7 +876,9 @@ def _importPlanningUnitGrid(filename, name, description):
         #create an index
         postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (wkb_geometry);").format(sql.Identifier(rootfilename)))
         #create a record for this new feature in the metadata_planning_units table
-        feature_class_name = postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date) VALUES (%s,%s,%s,now()) RETURNING feature_class_name;", [rootfilename, name, description], "One")[0]
+        feature_class_name = postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date,domain) VALUES (%s,%s,%s,now(),'Unknown') RETURNING feature_class_name;", [rootfilename, name, description], "One")[0]
+        #create the envelope for the new planning grid
+        postgis.execute("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(wkb_geometry) AS geometry FROM marxan.pulayer_bc_marine) AS f) WHERE feature_class_name = %s;", [feature_class_name])
         #upload to mapbox
         uploadId = _uploadTileset(MARXAN_FOLDER + filename, rootfilename)
     except (MarxanServicesError):
@@ -1203,15 +1223,15 @@ class upgradeProject(MarxanRESTHandler):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project'])  
         #get the projects existing data from the input.dat file
-        old = _readFile(self.folder_project + PROJECT_DATA_FILENAME)
+        old = _readFileUnicode(self.folder_project + PROJECT_DATA_FILENAME)
         #get an empty projects data
-        new = _readFile(EMPTY_PROJECT_TEMPLATE_FOLDER + PROJECT_DATA_FILENAME)
+        new = _readFileUnicode(EMPTY_PROJECT_TEMPLATE_FOLDER + PROJECT_DATA_FILENAME)
         #everything from the 'DESCRIPTION No description' needs to be added
         pos = new.find("DESCRIPTION No description")
         if pos > -1:
             newText = new[pos:]
             old = old + "\n" + newText
-            _writeFile(self.folder_project + PROJECT_DATA_FILENAME, old)
+            _writeFileUnicode(self.folder_project + PROJECT_DATA_FILENAME, old)
         else:
             raise MarxanServicesError("Unable to update the old version of Marxan to the new one")
         #populate the feature_preprocessing.dat file using data in the puvspr.dat file
@@ -1307,7 +1327,7 @@ class getCountries(MarxanRESTHandler):
 #https://db-server-blishten.c9users.io:8081/marxan-server/getPlanningUnitGrids?callback=__jp0
 class getPlanningUnitGrids(MarxanRESTHandler):
     def get(self):
-        content = PostGIS().getDict("SELECT feature_class_name ,alias ,description ,creation_date::text ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope FROM marxan.metadata_planning_units order by 1;")
+        content = PostGIS().getDict("SELECT feature_class_name ,alias ,description ,creation_date::text ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope FROM marxan.metadata_planning_units order by 2;")
         self.send_response({'info': 'Planning unit grids retrieved', 'planning_unit_grids': content})        
         
 #https://db-server-blishten.c9users.io:8081/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon&callback=__jp10        
@@ -1415,7 +1435,7 @@ class getProject(MarxanRESTHandler):
         else:
             #see if the project exists
             if not os.path.exists(self.folder_project):
-                raise MarxanServicesError("The project '" + self.get_argument("project") + "' no longer exists")
+                raise MarxanServicesError("The project '" + self.get_argument("project") + "' does not exist")
             #if the project name is an empty string, then get the first project for the user
             if (self.get_argument("project") == ""):
                 self.projects = _getProjectsForUser(self.get_argument("user"))
@@ -1591,16 +1611,19 @@ class getResults(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project'])    
-        #get the log
-        _getMarxanLog(self)
-        #get the best solution
-        _getBestSolution(self)
-        #get the output sum
-        _getOutputSummary(self)
-        #get the summed solution
-        _getSummedSolution(self)
-        #set the response
-        self.send_response({'info':'Results loaded', 'log': self.marxanLog, 'mvbest': self.bestSolution.to_dict(orient="split")["data"], 'summary':self.outputSummary.to_dict(orient="split")["data"], 'ssoln': self.summedSolution})
+        try:
+            #get the log
+            _getMarxanLog(self)
+            #get the best solution
+            _getBestSolution(self)
+            #get the output sum
+            _getOutputSummary(self)
+            #get the summed solution
+            _getSummedSolution(self)
+            #set the response
+            self.send_response({'info':'Results loaded', 'log': self.marxanLog, 'mvbest': self.bestSolution.to_dict(orient="split")["data"], 'summary':self.outputSummary.to_dict(orient="split")["data"], 'ssoln': self.summedSolution})
+        except (MarxanServicesError):
+            self.send_response({'info':'No results available'})
 
 #gets the data from the server.dat file as an abject
 class getServerData(MarxanRESTHandler):
@@ -1671,7 +1694,7 @@ class updateUserParameters(MarxanRESTHandler):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user'])  
         #get the parameters to update as a simple dict
-        params = _getSimpleArguments(self.request.arguments, ['user','callback'])
+        params = _getSimpleArguments(self, ['user','callback'])
         #update the parameters
         _updateParameters(self.folder_user + USER_DATA_FILENAME, params)
         #set the response
@@ -1684,7 +1707,7 @@ class updateProjectParameters(MarxanRESTHandler):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project'])  
         #get the parameters to update as a simple dict
-        params = _getSimpleArguments(self.request.arguments, ['user','project','callback'])
+        params = _getSimpleArguments(self, ['user','project','callback'])
         #update the parameters
         _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, params)
         #set the response
@@ -2195,7 +2218,7 @@ if __name__ == "__main__":
             else:
                 url = sys.argv[1] # normally "http://localhost:8081/index.html"
                 print "\x1b[1;32;48mOpening Marxan Web at '" + url + "' ..\x1b[0m\n"
-                time.sleep(3)
+                #time.sleep(3)
                 webbrowser.open(url, new=1, autoraise=True)
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":

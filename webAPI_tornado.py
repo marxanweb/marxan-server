@@ -36,6 +36,7 @@ import signal
 import platform
 import colorama
 import io
+import requests
 
 ####################################################################################################################################################################################################################################################################
 ## constant declarations
@@ -46,8 +47,8 @@ DISABLE_SECURITY = False                                                        
 #domains that are allowed to access and update this server - add http://localhost:8081 if you want to allow access from all local installs
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado"]    # REST services that have no authentication/authorisation/CORS control
 ROLE_UNAUTHORISED_METHODS = {                                                       # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","getPlanningUnitGrids","createPlanningUnitGrid","deletePlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation",'deleteFeature','deleteUser'],
-    "User": ['testRoleAuthorisation','deleteProject','deleteFeature','getUsers','deleteUser'],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation",'deleteFeature','deleteUser'],
+    "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid"],
     "Admin": []
 }
 GUEST_USERNAME = "guest"
@@ -824,6 +825,11 @@ def _uploadTileset(filename, _name):
         upload_id = upload_resp.json()['id']
         return upload_id
         
+#deletes a tileset 
+def _deleteTileset(tilesetid):
+    url = "https://api.mapbox.com/tilesets/v1/" + MAPBOX_USER + "." + tilesetid + "?access_token=" + MBAT
+    response = requests.delete(url)    
+        
 #deletes a feature
 def _deleteFeature(feature_class_name):
     #delete the feature class
@@ -864,23 +870,24 @@ def _importUndissolvedFeature(featureclassname, name, description, tilesetId):
 
 #imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox - this is for importing marxan old version files
 def _importPlanningUnitGrid(filename, name, description):
-    #unzip the shapefile
-    rootfilename = _unzipFile(filename) 
+    #unzip the shapefile and get the name of the shapefile without an extension, e.g. PlanningUnitsData.zip -> planningunits.shp -> planningunits
+    rootfilename = _unzipFile(filename)
+    #get a unique feature class name for the import
+    feature_class_name = "pu_" + uuid.uuid4().hex[:29] #mapbox tileset ids are limited to 32 characters
     #make sure the puid column is lowercase
     if _shapefileHasField(MARXAN_FOLDER + rootfilename + ".shp", "PUID"):
         raise MarxanServicesError("The field 'puid' in the zipped shapefile is uppercase and it must be lowercase")
     #import the shapefile into PostGIS
     postgis = PostGIS()
     try:
-        postgis.importShapefile(rootfilename + ".shp", rootfilename, "EPSG:3410")
-        #create an index
-        postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (wkb_geometry);").format(sql.Identifier(rootfilename)))
         #create a record for this new feature in the metadata_planning_units table
-        feature_class_name = postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date,domain) VALUES (%s,%s,%s,now(),'Unknown') RETURNING feature_class_name;", [rootfilename, name, description], "One")[0]
+        postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date) VALUES (%s,%s,%s,now());", [feature_class_name, name, description])
+        #import the shapefile
+        postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
         #create the envelope for the new planning grid
-        postgis.execute("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(wkb_geometry) AS geometry FROM marxan.pulayer_bc_marine) AS f) WHERE feature_class_name = %s;", [feature_class_name])
+        postgis.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(wkb_geometry) AS geometry FROM marxan.{}) AS f) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
         #upload to mapbox
-        uploadId = _uploadTileset(MARXAN_FOLDER + filename, rootfilename)
+        uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
     except (MarxanServicesError):
         raise
     finally:
@@ -1020,7 +1027,7 @@ class PostGIS():
     #called in exceptions to close the cursor and connection
     def _cleanup(self):
         self.cursor.close()
-        self.connection.commit()
+        # self.connection.commit()
         self.connection.close()
         
     #executes a query and returns the data as a data frame
@@ -1033,14 +1040,15 @@ class PostGIS():
         return df.to_dict(orient="records")
             
     #executes a query and returns the first records as specified by the numberToFetch parameter
-    def execute(self, sql, data = None, numberToFetch = "None"):
+    def execute(self, sql, data = None, numberToFetch = "None", commitImmediately = True):
         try:
             records = []
             #do any argument binding 
             sql = self._mogrify(sql, data)
             self.cursor.execute(sql)
             #commit the transaction immediately
-            self.connection.commit()
+            if commitImmediately:
+                self.connection.commit()
             if numberToFetch == "One":
                 records = self.cursor.fetchone()
             elif numberToFetch == "All":
@@ -1353,6 +1361,8 @@ class deletePlanningUnitGrid(MarxanRESTHandler):
         PostGIS().execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [self.get_argument('planning_grid_name')])
         #delete the feature class
         PostGIS().execute(sql.SQL("DROP TABLE marxan.{};").format(sql.Identifier(self.get_argument('planning_grid_name'))))
+        #Delete the tileset on Mapbox TODO only if the planning grid is an imported one - we dont want to delete standard country tilesets from Mapbox as they may be in use elsewhere
+        _deleteTileset(self.get_argument('planning_grid_name'))
         #set the response
         self.send_response({'info':'Planning unit grid deleted'})
 

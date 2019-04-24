@@ -92,7 +92,6 @@ def _setGlobalVariables():
     global CONNECTION_STRING 
     global COOKIE_RANDOM_VALUE
     global PERMITTED_DOMAINS
-    global ENABLE_GUEST_USER
     global SERVER_NAME
     global SERVER_DESCRIPTION
     global DATABASE_NAME
@@ -121,7 +120,6 @@ def _setGlobalVariables():
     DATABASE_VERSION_POSTGRESQL, DATABASE_VERSION_POSTGIS = postgis.execute("SELECT version(), PostGIS_Version();", None, "One")  
     COOKIE_RANDOM_VALUE = serverData['COOKIE_RANDOM_VALUE']
     PERMITTED_DOMAINS = serverData['PERMITTED_DOMAINS'].split(",")
-    ENABLE_GUEST_USER = serverData['ENABLE_GUEST_USER']
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
     try:
         pos = MARXAN_FOLDER.index("marxan-server-")
@@ -395,7 +393,7 @@ def _getServerData(obj):
     #get the data from the server configuration file - these key/values are changed by the marxan-client
     obj.serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
     #set the return values: permitted CORS domains - these are set in this Python module; the server os and hardware; the version of the marxan-server software
-    obj.serverData.update({"DATABASE_VERSION_POSTGIS": DATABASE_VERSION_POSTGIS, "DATABASE_VERSION_POSTGRESQL": DATABASE_VERSION_POSTGRESQL, "ENABLE_GUEST_USER": ENABLE_GUEST_USER, "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION})
+    obj.serverData.update({"DATABASE_VERSION_POSTGIS": DATABASE_VERSION_POSTGIS, "DATABASE_VERSION_POSTGRESQL": DATABASE_VERSION_POSTGRESQL, "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION})
         
 #get the data on the user from the user.dat file 
 def _getUserData(obj):
@@ -439,7 +437,7 @@ def _getFeature(obj, oid):
 
 #get all species information from the PostGIS database
 def _getAllSpeciesData(obj):
-    obj.allSpeciesData = PostGIS().getDataFrame("select oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'Dy, DD Mon YYYY HH24:MI:SS')::text as creation_date, tilesetid from marxan.metadata_interest_features order by alias;")
+    obj.allSpeciesData = PostGIS().getDataFrame("select oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'Dy, DD Mon YYYY HH24:MI:SS')::text as creation_date, tilesetid, source from marxan.metadata_interest_features order by alias;")
 
 #get the information about which species have already been preprocessed
 def _getSpeciesPreProcessingData(obj):
@@ -834,29 +832,42 @@ def _deleteTileset(tilesetid):
 def _deleteFeature(feature_class_name):
     #delete the feature class
     postgis = PostGIS()
-    postgis.execute(sql.SQL("DROP TABLE marxan.{};").format(sql.Identifier(feature_class_name)))
+    postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
     #delete the record in the metadata_interest_features
     postgis.execute("DELETE FROM marxan.metadata_interest_features WHERE feature_class_name =%s;", [feature_class_name])
+    #delete the Mapbox tileset
+    _deleteTileset(feature_class_name)
+    
+def _getUniqueFeatureclassName(prefix):
+    return prefix + uuid.uuid4().hex[:(32 - len(prefix))] #mapbox tileset ids are limited to 32 characters
     
 #imports the feature from a zipped shapefile (given by filename)
 def _importFeature(filename, name, description):
     #unzip the shapefile
     rootfilename = _unzipFile(filename) 
-    #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
-    postgis = PostGIS()
-    postgis.importShapefile(rootfilename + ".shp", "undissolved", "EPSG:3410")
-    #TODO: implement the upload to Mapbox
-    uploadId = _uploadTileset(MARXAN_FOLDER + filename, rootfilename)
-    tilesetId = MAPBOX_USER + "." + rootfilename
-    #delete the shapefile and the zip file
-    #TODO: _deleteZippedShapefile is cleanup code and wherever it occurs it should always be run even if an exception occurs
-    _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
-    #finish the import 
-    id = _importUndissolvedFeature(rootfilename, name, description, tilesetId)
-    return id
+    #get a unique feature class name for the import
+    feature_class_name = _getUniqueFeatureclassName("f_")
+    try:
+        #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
+        postgis = PostGIS()
+        postgis.importShapefile(rootfilename + ".shp", "undissolved", "EPSG:3410")
+        #finish the import by dissolving the undissolved feature class
+        id = _importUndissolvedFeature(feature_class_name, name, description, "Import shapefile")
+        #upload the feature class to Mapbox
+        uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
+    except (MarxanServicesError):
+        raise
+    else:
+        #no error so delete the shapefile and the zip file
+        _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
+    finally:
+        pass
+    return {'feature_class_name': feature_class_name, 'uploadId': uploadId, 'id': id}
 
 #imports the undissolved feature class into the marxan schema with the featureclassname and inserts a record in the metadata_interest_features table
-def _importUndissolvedFeature(featureclassname, name, description, tilesetId):
+def _importUndissolvedFeature(featureclassname, name, description, source):
+    #get the Mapbox tilesetId 
+    tilesetId = MAPBOX_USER + "." + featureclassname
     #dissolve the feature class
     postgis = PostGIS()
     postgis.execute(sql.SQL("SELECT ST_Union(wkb_geometry) geometry INTO marxan.{} FROM marxan.undissolved;").format(sql.Identifier(featureclassname)))   
@@ -865,7 +876,7 @@ def _importUndissolvedFeature(featureclassname, name, description, tilesetId):
     #drop the undissolved feature class
     postgis.execute("DROP TABLE IF EXISTS marxan.undissolved;") 
     #create a record for this new feature in the metadata_interest_features table
-    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features SELECT %s, %s, %s, now(), sub._area, %s, sub.extent FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(featureclassname)), [featureclassname, name, description, tilesetId], "One")[0]
+    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(featureclassname)), [featureclassname, name, description, tilesetId, source], "One")[0]
     return id
 
 #imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox - this is for importing marxan old version files
@@ -873,15 +884,15 @@ def _importPlanningUnitGrid(filename, name, description):
     #unzip the shapefile and get the name of the shapefile without an extension, e.g. PlanningUnitsData.zip -> planningunits.shp -> planningunits
     rootfilename = _unzipFile(filename)
     #get a unique feature class name for the import
-    feature_class_name = "pu_" + uuid.uuid4().hex[:29] #mapbox tileset ids are limited to 32 characters
+    feature_class_name = _getUniqueFeatureclassName("pu_")
     #make sure the puid column is lowercase
     if _shapefileHasField(MARXAN_FOLDER + rootfilename + ".shp", "PUID"):
         raise MarxanServicesError("The field 'puid' in the zipped shapefile is uppercase and it must be lowercase")
-    #import the shapefile into PostGIS
-    postgis = PostGIS()
     try:
+        #import the shapefile into PostGIS
+        postgis = PostGIS()
         #create a record for this new feature in the metadata_planning_units table
-        postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date) VALUES (%s,%s,%s,now());", [feature_class_name, name, description])
+        postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source) VALUES (%s,%s,%s,now(),'Imported from shapefile');", [feature_class_name, name, description])
         #import the shapefile
         postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
         #create the envelope for the new planning grid
@@ -890,9 +901,11 @@ def _importPlanningUnitGrid(filename, name, description):
         uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
     except (MarxanServicesError):
         raise
-    finally:
+    else:
         #delete the shapefile and the zip file
         _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
+    finally:
+        pass
     return {'feature_class_name': feature_class_name, 'uploadId': uploadId}
     
 #populates the data in the feature_preprocessing.dat file from an existing puvspr.dat file, e.g. after an import from an old version of Marxan
@@ -1335,7 +1348,7 @@ class getCountries(MarxanRESTHandler):
 #https://db-server-blishten.c9users.io:8081/marxan-server/getPlanningUnitGrids?callback=__jp0
 class getPlanningUnitGrids(MarxanRESTHandler):
     def get(self):
-        content = PostGIS().getDict("SELECT feature_class_name ,alias ,description ,creation_date::text ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope FROM marxan.metadata_planning_units order by 2;")
+        content = PostGIS().getDict("SELECT feature_class_name ,alias ,description ,creation_date::text ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
         self.send_response({'info': 'Planning unit grids retrieved', 'planning_unit_grids': content})        
         
 #https://db-server-blishten.c9users.io:8081/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon&callback=__jp10        
@@ -1357,12 +1370,15 @@ class deletePlanningUnitGrid(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['planning_grid_name'])    
+        postgis = PostGIS()
+        #Delete the tileset on Mapbox only if the planning grid is an imported one - we dont want to delete standard country tilesets from Mapbox as they may be in use elsewhere
+        source = postgis.execute("SELECT source FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [self.get_argument('planning_grid_name')], "One")[0]  
+        if (source != 'planning_grid function'):
+            _deleteTileset(self.get_argument('planning_grid_name'))
         #delete the new planning unit record from the metadata_planning_units table
-        PostGIS().execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [self.get_argument('planning_grid_name')])
+        postgis.execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [self.get_argument('planning_grid_name')])
         #delete the feature class
-        PostGIS().execute(sql.SQL("DROP TABLE marxan.{};").format(sql.Identifier(self.get_argument('planning_grid_name'))))
-        #Delete the tileset on Mapbox TODO only if the planning grid is an imported one - we dont want to delete standard country tilesets from Mapbox as they may be in use elsewhere
-        _deleteTileset(self.get_argument('planning_grid_name'))
+        postgis.execute(sql.SQL("DROP TABLE marxan.{};").format(sql.Identifier(self.get_argument('planning_grid_name'))))
         #set the response
         self.send_response({'info':'Planning unit grid deleted'})
 
@@ -1762,9 +1778,9 @@ class importFeature(MarxanRESTHandler):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['filename','name','description'])   
         #import the shapefile
-        id = _importFeature(self.get_argument('filename'), self.get_argument('name'), self.get_argument('description'))
+        results = _importFeature(self.get_argument('filename'), self.get_argument('name'), self.get_argument('description'))
         #set the response
-        self.send_response({'info': "File '" + self.get_argument('filename') + "' imported", 'file': self.get_argument('filename'), 'id': id})
+        self.send_response({'info': "File '" + self.get_argument('filename') + "' imported", 'file': self.get_argument('filename'), 'id': results['id'], 'feature_class_name': results['feature_class_name'], 'uploadId': results['uploadId']})
 
 #deletes a feature from the PostGIS database
 #https://db-server-blishten.c9users.io:8081/marxan-server/deleteFeature?feature_name=test_feature1&callback=__jp5
@@ -1785,10 +1801,12 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         PostGIS().execute("DROP TABLE IF EXISTS marxan.undissolved")
         PostGIS().execute("CREATE TABLE marxan.undissolved AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS wkb_geometry;",[self.get_argument('linestring')])
         #import the undissolved feature class
-        unique_identifier = "digitised_" + uuid.uuid4().hex
-        id = _importUndissolvedFeature(unique_identifier, self.get_argument('name'), self.get_argument('description'), "")
+        feature_class_name = _getUniqueFeatureclassName("f_")
+        id = _importUndissolvedFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Draw on screen")
+        #upload to mapbox
+        uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
         #set the response
-        self.send_response({'info': "Feature '" + unique_identifier + "' created", 'id': id})
+        self.send_response({'info': "Feature '" + feature_class_name + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
         
 #imports a zipped planning unit shapefile which has been uploaded to the marxan root folder into PostGIS as a planning unit grid feature class
 #https://db-server-blishten.c9users.io:8081/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5

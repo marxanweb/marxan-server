@@ -1936,7 +1936,7 @@ class runMarxan(MarxanWebSocketHandler):
                 while True:
                     #read from the stdout stream
                     line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
-                    self.send_response({'info':line, 'status':'Running'})
+                    self.send_response({'info':line, 'status':'RunningMarxan'})
             except StreamClosedError: #fired when the stream closes
                 self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 #close the websocket
@@ -1945,7 +1945,7 @@ class runMarxan(MarxanWebSocketHandler):
             while True:
                 #read from the stdout file object
                 line = self.marxanProcess.stdout.readline()
-                self.send_response({'info': line, 'status':'Running'})
+                self.send_response({'info': line, 'status':'RunningMarxan'})
                 #bit of a hack to see when it has finished running
                 if line.find("Press return to exit") > -1:
                     break
@@ -1978,7 +1978,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                 
     @gen.coroutine
     #runs a PostGIS query asynchronously, i.e. non-blocking
-    def executeQueryAsynchronously(self, sql, data = None, startedMessage = "", processingMessage = "", finishingMessage = ""):
+    def executeQueryAsynchronously(self, sql, data = None, startedMessage = "", processingMessage = "", finishedMessage = ""):
         try:
             self.send_response({'info': startedMessage, 'status':'Started'})
             #connect to postgis asyncronously
@@ -1998,7 +1998,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
             while (state != psycopg2.extensions.POLL_OK):
                 yield gen.sleep(1)
                 state = self.conn.poll()
-                self.send_response({'info': processingMessage, 'status':'Running'})
+                self.send_response({'info': processingMessage, 'status':'RunningQuery'})
             #if the query returns data, then return the data
             if cur.description is not None:
                 #get the column names for the query
@@ -2011,12 +2011,12 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
 
         #handle any issues with the query syntax
         except (psycopg2.Error) as e:
-            self.send_response({'error': e.pgerror, 'status':'Running'})
+            self.send_response({'error': e.pgerror, 'status':' RunningQuery'})
         #clean up code
         finally:
             cur.close()
             self.conn.close()
-            self.send_response({'info': finishingMessage, 'status':'Finishing'})
+            self.send_response({'info': finishedMessage, 'status':'FinishedQuery'})
 
 ####################################################################################################################################################################################################################################################################
 ## WebSocket subclasses
@@ -2038,7 +2038,7 @@ class preprocessFeature(QueryWebSocketHandler):
             _getProjectData(self)
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #new version of marxan - do the intersection
-                future = self.executeQueryAsynchronously("SELECT * FROM marxan.get_pu_areas_for_interest_feature(%s,%s);", [self.get_argument('planning_grid_name'),self.get_argument('feature_class_name')], "Preprocessing '" + self.get_argument('alias') + "'", "  Preprocessing..", "Finishing preprocessing")
+                future = self.executeQueryAsynchronously("SELECT * FROM marxan.get_pu_areas_for_interest_feature(%s,%s);", [self.get_argument('planning_grid_name'),self.get_argument('feature_class_name')], "Preprocessing '" + self.get_argument('alias') + "'", "  Preprocessing..", "  Preprocessing finished")
                 future.add_done_callback(self.intersectionComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan
@@ -2101,7 +2101,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
             #get the project data
             _getProjectData(self)
             #do the intersection with the protected areas
-            future = self.executeQueryAsynchronously(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM (SELECT iucn_cat, geom FROM marxan.wdpa) AS wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geom, ST_Transform(grid.geometry, 4326)) ORDER BY 1,2;").format(sql.Identifier(self.get_argument('planning_grid_name'))), None, "Preprocessing protected areas", "  Preprocessing protected areas..", "Finishing preprocessing")
+            future = self.executeQueryAsynchronously(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM (SELECT iucn_cat, geom FROM marxan.wdpa) AS wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geom, ST_Transform(grid.geometry, 4326)) ORDER BY 1,2;").format(sql.Identifier(self.get_argument('planning_grid_name'))), None, "Preprocessing protected areas", "  Preprocessing protected areas..", "  Preprocessing finished")
             future.add_done_callback(self.preprocessProtectedAreasComplete) # pylint:disable=no-member
     
     #callback which is called when the intersection has been done
@@ -2114,9 +2114,9 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
         #get the data
         _getProtectedAreaIntersectionsData(self)
         #set the response
-        self.send_response({'info': self.protectedAreaIntersectionsData, 'status':'Finished'})
+        self.send_response({'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData, 'status':'Finished'})
     
-#preprocesses the planning units to get the boundary lengths where they intersect
+#preprocesses the planning units to get the boundary lengths where they intersect - produces the bounds.dat file
 #wss://db-server-blishten.c9users.io:8081/marxan-server/preprocessPlanningUnits?user=andrew&project=Tonga%20marine%2030km2
 class preprocessPlanningUnits(QueryWebSocketHandler):
 
@@ -2133,7 +2133,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #new version of marxan - get the boundary lengths
                 PostGIS().execute("DROP TABLE IF EXISTS marxan.tmp;") 
-                future = self.executeQueryAsynchronously(sql.SQL("CREATE TABLE marxan.tmp AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(a.geometry, b.geometry), 2))/1000 boundary  FROM marxan.{0} a, marxan.{0} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])), None, "Getting boundary lengths", "  Processing ..", "Finishing preprocessing")
+                future = self.executeQueryAsynchronously(sql.SQL("CREATE TABLE marxan.tmp AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(a.geometry, b.geometry), 2))/1000 boundary  FROM marxan.{0} a, marxan.{0} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])), None, "Getting boundary lengths", "  Processing ..", "  Preprocessing finished")
                 future.add_done_callback(self.preprocessPlanningUnitsComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan

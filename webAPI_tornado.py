@@ -419,7 +419,10 @@ def _getSpeciesData(obj):
         output_df['creation_date'] = "Unknown"
         output_df['area'] = -1
         output_df['tilesetid'] = ''
-        output_df = output_df[["alias", "feature_class_name", "description", "creation_date", "area", "tilesetid", "prop", "spf", "oid"]]
+        try:
+            output_df = output_df[["alias", "feature_class_name", "description", "creation_date", "area", "tilesetid", "prop", "spf", "oid"]]
+        except (KeyError) as e:
+            raise MarxanServicesError("Unable to load spec.dat data. " + e.message + ". Column names: " + ",".join(df.columns.to_list()).encode('unicode_escape')) #.encode('unicode_escape') in case there are tab characters which will be escaped to \\t
     else:
         #get the postgis feature data
         df2 = PostGIS().getDataFrame("select * from marxan.get_features()")
@@ -897,7 +900,7 @@ def _importPlanningUnitGrid(filename, name, description):
         postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
         #create the envelope for the new planning grid
         postgis.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(wkb_geometry) AS geometry FROM marxan.{}) AS f) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
-        #upload to mapbox
+        #start the upload to mapbox
         uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
     except (MarxanServicesError):
         raise
@@ -910,16 +913,21 @@ def _importPlanningUnitGrid(filename, name, description):
     
 #populates the data in the feature_preprocessing.dat file from an existing puvspr.dat file, e.g. after an import from an old version of Marxan
 def _createFeaturePreprocessingFileFromImport(obj):
-    #read the unique species ids from the puvspr file
+    #load the puvspr data
     df = _getProjectInputData(obj, "PUVSPRNAME")
-    #get the unique species ids
-    ids = sorted(df.species.unique().tolist())
-    #iterate through the species ids and get the data for them
-    for id in ids:
-        #get the summary information and write it to the feature preprocessing file
-        record = _getPuvsprStats(df, id)
-        _writeToDatFile(obj.folder_input + FEATURE_PREPROCESSING_FILENAME, record)
-        
+    #calculate the statistics for all features - each record will have the species id, the sum of the planning unit areas for that species and the count of the planning units
+    pivotted = df.pivot_table(index=['species'], aggfunc=['sum','count'], values='amount')
+    #flatten the pivot table
+    pivotted.columns = pivotted.columns.to_series().str.join('_')
+    #create a field called id which has the same values as the species column
+    pivotted['id'] = pivotted.index
+    #reorder the columns
+    pivotted = pivotted[['id', 'sum_amount', 'count_amount']]
+    #rename the columns
+    pivotted.columns = ['id','pu_area','pu_count']
+    #output the file
+    pivotted.to_csv(obj.folder_input + FEATURE_PREPROCESSING_FILENAME, index = False)
+    
 #detects whether the request is for a websocket from a tornado.httputil.HTTPServerRequest
 def _requestIsWebSocket(request):
     if "upgrade" in request.headers:
@@ -994,15 +1002,20 @@ def _guestUserEnabled(obj):
     
 #returns true if the passed shapefile has the fieldname - this is case sensitive
 def _shapefileHasField(shapefile, fieldname):
-	dataSource = ogr.Open(shapefile)
-	daLayer = dataSource.GetLayer(0)
-	layerDefinition = daLayer.GetLayerDefn()
-	count = layerDefinition.GetFieldCount()
-	for i in range(count):
-		if (layerDefinition.GetFieldDefn(i).GetName() == fieldname):
-			return True
-	return False
-	
+    ogr.UseExceptions()
+    try:
+        dataSource = ogr.Open(shapefile)
+        daLayer = dataSource.GetLayer(0)
+    except (RuntimeError) as e:
+        raise MarxanServicesError(e.message)
+    else:
+        layerDefinition = daLayer.GetLayerDefn()
+        count = layerDefinition.GetFieldCount()
+        for i in range(count):
+            if (layerDefinition.GetFieldDefn(i).GetName() == fieldname):
+                return True
+    return False
+
 ####################################################################################################################################################################################################################################################################
 ## generic classes
 ####################################################################################################################################################################################################################################################################
@@ -1092,7 +1105,7 @@ class PostGIS():
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
         #catch any unforeseen circumstances
         except subprocess.CalledProcessError as e:
-            raise MarxanServicesError("Error importing shapefile. " + e.output)
+            raise MarxanServicesError("Error importing shapefile.\n" + e.output)
         except Exception as e:
             if not self.connection.closed:
                 self._cleanup()
@@ -1372,15 +1385,19 @@ class deletePlanningUnitGrid(MarxanRESTHandler):
         _validateArguments(self.request.arguments, ['planning_grid_name'])    
         postgis = PostGIS()
         #Delete the tileset on Mapbox only if the planning grid is an imported one - we dont want to delete standard country tilesets from Mapbox as they may be in use elsewhere
-        source = postgis.execute("SELECT source FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [self.get_argument('planning_grid_name')], "One")[0]  
-        if (source != 'planning_grid function'):
-            _deleteTileset(self.get_argument('planning_grid_name'))
-        #delete the new planning unit record from the metadata_planning_units table
-        postgis.execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [self.get_argument('planning_grid_name')])
-        #delete the feature class
-        postgis.execute(sql.SQL("DROP TABLE marxan.{};").format(sql.Identifier(self.get_argument('planning_grid_name'))))
-        #set the response
-        self.send_response({'info':'Planning unit grid deleted'})
+        records = postgis.execute("SELECT source FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [self.get_argument('planning_grid_name')], "One")
+        if records:
+            source = records[0]
+            if (source != 'planning_grid function'):
+                _deleteTileset(self.get_argument('planning_grid_name'))
+            #delete the new planning unit record from the metadata_planning_units table
+            postgis.execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [self.get_argument('planning_grid_name')])
+            #delete the feature class
+            postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(self.get_argument('planning_grid_name'))))
+            #set the response
+            self.send_response({'info':'Planning grid deleted'})
+        else:
+            self.send_response({'info': "Nothing deleted - the planning grid does not exist"})
 
 #validates a user with the passed credentials
 #https://db-server-blishten.c9users.io:8081/marxan-server/validateUser?user=andrew&password=thargal88&callback=__jp2
@@ -1704,7 +1721,7 @@ class updatePUFile(MarxanRESTHandler):
 
 #used to populate the feature_preprocessing.dat file from an imported puvspr.dat file
 #https://db-server-blishten.c9users.io:8081/marxan-server/createFeaturePreprocessingFileFromImport?user=andrew&project=test&callback=__jp2
-class createFeaturePreprocessingFileFromImport(MarxanRESTHandler):
+class createFeaturePreprocessingFileFromImport(MarxanRESTHandler): #not currently used
     def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project']) 
@@ -1803,7 +1820,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #import the undissolved feature class
         feature_class_name = _getUniqueFeatureclassName("f_")
         id = _importUndissolvedFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Draw on screen")
-        #upload to mapbox
+        #start the upload to mapbox
         uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
         #set the response
         self.send_response({'info': "Feature '" + feature_class_name + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
@@ -1935,12 +1952,16 @@ class runMarxan(MarxanWebSocketHandler):
             try:
                 while True:
                     #read from the stdout stream
+                    print "getting a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n" 
                     line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
+                    print "got a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n" 
                     self.send_response({'info':line, 'status':'RunningMarxan'})
             except StreamClosedError: #fired when the stream closes
                 self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 #close the websocket
                 self.close()
+            except (Exception) as e:
+                print "Unexpected Exception: " + e.message
         else:
             while True:
                 #read from the stdout file object
@@ -2201,7 +2222,7 @@ def make_app():
         ("/marxan-server/getPlanningUnitsData", getPlanningUnitsData), #currently not used
         ("/marxan-server/updatePUFile", updatePUFile),
         ("/marxan-server/getSpeciesData", getSpeciesData), #currently not used
-        ("/marxan-server/getAllSpeciesData", getAllSpeciesData), #currently not used
+        ("/marxan-server/getAllSpeciesData", getAllSpeciesData), 
         ("/marxan-server/getSpeciesPreProcessingData", getSpeciesPreProcessingData), #currently not used
         ("/marxan-server/updateSpecFile", updateSpecFile),
         ("/marxan-server/getProtectedAreaIntersectionsData", getProtectedAreaIntersectionsData), #currently not used
@@ -2220,7 +2241,7 @@ def make_app():
         ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
         ("/marxan-server/testTornado", testTornado),
         (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
-    ], cookie_secret=COOKIE_RANDOM_VALUE)
+    ], cookie_secret=COOKIE_RANDOM_VALUE, websocket_ping_timeout=30, websocket_ping_interval=29)
 
 if __name__ == "__main__":
     try:

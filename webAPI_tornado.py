@@ -873,7 +873,7 @@ def _importUndissolvedFeature(featureclassname, name, description, source):
     tilesetId = MAPBOX_USER + "." + featureclassname
     #dissolve the feature class
     postgis = PostGIS()
-    postgis.execute(sql.SQL("SELECT ST_Union(wkb_geometry) geometry INTO marxan.{} FROM marxan.undissolved;").format(sql.Identifier(featureclassname)))   
+    postgis.execute(sql.SQL("SELECT ST_Union(geometry) geometry INTO marxan.{} FROM marxan.undissolved;").format(sql.Identifier(featureclassname)))   
     #create an index
     postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(featureclassname)))
     #drop the undissolved feature class
@@ -899,7 +899,7 @@ def _importPlanningUnitGrid(filename, name, description):
         #import the shapefile
         postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
         #create the envelope for the new planning grid
-        postgis.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(wkb_geometry) AS geometry FROM marxan.{}) AS f) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
+        postgis.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(geometry) AS geometry FROM marxan.{}) AS f) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
         #start the upload to mapbox
         uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
     except (MarxanServicesError):
@@ -1099,8 +1099,8 @@ class PostGIS():
         try:
             #drop the feature class if it already exists
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
-            #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid
-            cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" ' + MARXAN_FOLDER + shapefile + ' -nlt GEOMETRY -lco SCHEMA=marxan -nln ' + feature_class_name + ' -t_srs ' + epsgCode
+            #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
+            cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" ' + MARXAN_FOLDER + shapefile + ' -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode
             #run the import
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
         #catch any unforeseen circumstances
@@ -1816,7 +1816,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         _validateArguments(self.request.arguments, ['name','description','linestring']) 
         #create the undissolved feature class
         PostGIS().execute("DROP TABLE IF EXISTS marxan.undissolved")
-        PostGIS().execute("CREATE TABLE marxan.undissolved AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS wkb_geometry;",[self.get_argument('linestring')])
+        PostGIS().execute("CREATE TABLE marxan.undissolved AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS geometry;",[self.get_argument('linestring')])
         #import the undissolved feature class
         feature_class_name = _getUniqueFeatureclassName("f_")
         id = _importUndissolvedFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Draw on screen")
@@ -1952,7 +1952,7 @@ class runMarxan(MarxanWebSocketHandler):
             try:
                 while True:
                     #read from the stdout stream
-                    print "getting a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n" 
+                    print "getting a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m" 
                     line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
                     print "got a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n" 
                     self.send_response({'info':line, 'status':'RunningMarxan'})
@@ -2011,6 +2011,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
             #parameter bind if necessary
             if data is not None:
                 sql = cur.mogrify(sql, data)
+                print cur.mogrify(sql, data)
             #execute the query
             cur.execute(sql)
             #poll to get the state of the query

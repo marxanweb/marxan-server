@@ -504,7 +504,8 @@ def _getSolution(obj, solutionId):
         raise MarxanServicesError("Solution '" + str(solutionId) + "' in project '" + obj.get_argument('project') + "' no longer exists")
         
 def _getMissingValues(obj, solutionId):
-    df = _loadCSV(obj.folder_output + MISSING_VALUES_FILE_PREFIX + "%05d" % int(solutionId) + ".txt")
+    filename = _getOutputFilename(obj.folder_output + MISSING_VALUES_FILE_PREFIX + "%05d" % int(solutionId))
+    df = _loadCSV(filename)
     obj.missingValues = df.to_dict(orient="split")["data"]
 
 #updates/creates the spec.dat file with the passed interest features
@@ -1523,7 +1524,7 @@ class getFeaturePlanningUnits(MarxanRESTHandler):
         #get the data from the puvspr.dat file as a dataframe
         df = _getProjectInputData(self, "PUVSPRNAME")
         #get the planning unit ids as a list
-        puids = df.loc[df['species'] == int(self.get_argument("oid"))]['pu'].tolist()
+        puids = df.loc[df['species'] == int(self.get_argument("oid"))]['pu'].unique().tolist()
         #set the response
         self.send_response({"data": puids})
 
@@ -1952,11 +1953,11 @@ class runMarxan(MarxanWebSocketHandler):
             try:
                 while True:
                     #read from the stdout stream
-                    print "getting a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m" 
+                    # print "getting a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m" 
                     line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
-                    print "got a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n" 
+                    # print "got a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n" 
                     self.send_response({'info':line, 'status':'RunningMarxan'})
-            except StreamClosedError: #fired when the stream closes
+            except (StreamClosedError) as e: #fired when the stream closes
                 self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 #close the websocket
                 self.close()

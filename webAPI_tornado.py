@@ -47,8 +47,8 @@ DISABLE_SECURITY = False                                                        
 #domains that are allowed to access and update this server - add http://localhost:8081 if you want to allow access from all local installs
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado"]    # REST services that have no authentication/authorisation/CORS control
 ROLE_UNAUTHORISED_METHODS = {                                                       # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation","deleteFeature","deleteUser","getRunLog"],
-    "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLog"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs"],
+    "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
 GUEST_USERNAME = "guest"
@@ -159,7 +159,7 @@ def _setGlobalVariables():
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     print " Marxan executable: " + MARXAN_EXECUTABLE
-    print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n"
+    print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n"
     print "\x1b[1;31;48mPress CTRL+Break to stop the server\x1b[0m\n"
     #time.sleep(3)
     #get the parent folder
@@ -304,7 +304,7 @@ def _cloneProject(source_folder, destination_folder):
     #copy the project
     shutil.copytree(source_folder, new_project_folder)
     #update the description and create date
-    _updateParameters(new_project_folder + PROJECT_DATA_FILENAME, {'DESCRIPTION': "Clone of project '" + original_project_name + "'",  'CREATEDATE': datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S")})
+    _updateParameters(new_project_folder + PROJECT_DATA_FILENAME, {'DESCRIPTION': "Clone of project '" + original_project_name + "'",  'CREATEDATE': datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S")})
     #return the name of the new project
     return new_project_folder[:-1].split(os.sep)[-1]
 
@@ -1020,9 +1020,27 @@ def _shapefileHasField(shapefile, fieldname):
     return False
     
 #gets the data from the run log as a dataframe
-def _getRunLog(obj):
+def _getRunLogs():
     df = _loadCSV(MARXAN_FOLDER + RUN_LOG_FILENAME)
     return df
+
+#updates the run log with the details of the marxan job when it has stopped for whatever reason - endtime, runtime, runs and status are updated
+def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
+    #load the run log
+    df = _getRunLogs()
+    #get the index for the record that needs to be updated
+    i = df.loc[df['pid'] == pid].index.tolist()[0]  
+    #update the dataframe in place
+    if startTime:
+        df.loc[i,'endtime'] = datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S")
+        df.loc[i,'runtime'] = str((datetime.datetime.now() - startTime).seconds) + "s"
+    if numRunsCompleted:
+        df.loc[i,'runs'] = str(numRunsCompleted) + "/" + str(numRunsRequired) 
+    if (df.loc[i,'status'] == 'Running'): #only update the status if it isnt already set
+        df.loc[i,'status'] = status
+    #write the dataframe back to the run log 
+    df.to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
+    return df.loc[i,'status']
 
 ####################################################################################################################################################################################################################################################################
 ## generic classes
@@ -1239,7 +1257,7 @@ class createProject(MarxanRESTHandler):
         #create the empty project folder
         _createProject(self, self.get_argument('project'))
         #update the projects parameters
-        _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'DESCRIPTION': self.get_argument('description'), 'CREATEDATE': datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S"), 'PLANNING_UNIT_NAME': self.get_argument('planning_grid_name')})
+        _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'DESCRIPTION': self.get_argument('description'), 'CREATEDATE': datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"), 'PLANNING_UNIT_NAME': self.get_argument('planning_grid_name')})
         #create the spec.dat file
         _updateSpeciesFile(self, self.get_argument("interest_features"), self.get_argument("target_values"), self.get_argument("spf_values"), True)
         #create the pu.dat file
@@ -1851,6 +1869,9 @@ class stopMarxan(MarxanRESTHandler):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['pid'])   
         try:
+            #to distinguish between a process killed by the user and by the OS, we need to update the runlog.dat file to set this process as stopped and not killed
+            _updateRunLog(int(self.get_argument('pid')), None, None, None, 'Stopped')
+            #now kill the process
             os.kill(int(self.get_argument('pid')), signal.SIGTERM)
         except OSError:
             raise MarxanServicesError("The PID does not exist")
@@ -1859,11 +1880,19 @@ class stopMarxan(MarxanRESTHandler):
             
             
 #gets the run log
-#https://marxan-server-blishten.c9users.io:8081/marxan-server/getRunLog?
-class getRunLog(MarxanRESTHandler):
+#https://marxan-server-blishten.c9users.io:8081/marxan-server/getRunLogs?
+class getRunLogs(MarxanRESTHandler):
     def get(self):
-        runlog = _getRunLog(self)
-        self.send_response({'info': "Run log returned", 'data': runlog.values.tolist()})
+        runlog = _getRunLogs()
+        self.send_response({'info': "Run log returned", 'data': runlog.to_dict(orient="records")})
+
+#clears the run log
+#https://marxan-server-blishten.c9users.io:8081/marxan-server/clearRunLogs?
+class clearRunLogs(MarxanRESTHandler):
+    def get(self):
+        runlog = _getRunLogs()
+        runlog.loc[runlog['pid'] == -1].to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
+        self.send_response({'info': "Run log cleared"})
 
 #for testing role access to servivces            
 #https://marxan-server-blishten.c9users.io:8081/marxan-server/testRoleAuthorisation&callback=__jp5
@@ -1916,7 +1945,7 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
     #sends the message with a timestamp
     def send_response(self, message):
         if self.startTime: 
-            elapsedtime = str((datetime.datetime.now() - self.startTime).seconds) + " seconds"
+            elapsedtime = str((datetime.datetime.now() - self.startTime).seconds) + "s"
             message.update({'elapsedtime': elapsedtime})
         self.write_message(message)
 
@@ -1974,9 +2003,9 @@ class runMarxan(MarxanWebSocketHandler):
             try:
                 while True:
                     #read from the stdout stream
-                    # print "getting a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m" 
+                    # print "getting a line at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m" 
                     line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
-                    # print "got a line at " + datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S") + "\x1b[0m\n" 
+                    # print "got a line at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n" 
                     self.send_response({'info':line, 'status':'RunningMarxan'})
             except (StreamClosedError) as e: #fired when the stream closes - either if the process dies or if it finishes
                 #get the number of runs completed
@@ -1984,11 +2013,14 @@ class runMarxan(MarxanWebSocketHandler):
                 self.numRunsCompleted = len(files)
                 #write the response depending on if the run completed or not
                 if (self.numRunsCompleted == self.numRunsRequired):
-                    self.updateRunLog('Completed')
+                    _updateRunLog(self.marxanProcess.pid, self.startTime, self.numRunsCompleted, self.numRunsRequired, 'Completed')
                     self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
-                else:
-                    self.updateRunLog('Stopped')
-                    self.send_response({'error': 'Run did not finish', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+                else: #if the user stopped it then the run log should already have a status of Stopped
+                    actualStatus = _updateRunLog(self.marxanProcess.pid, self.startTime, self.numRunsCompleted, self.numRunsRequired, 'Killed')
+                    if (actualStatus == 'Stopped'):
+                        self.send_response({'error': 'Run stopped by user', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+                    else:
+                        self.send_response({'error': 'Run stopped by operating system', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 #close the websocket
                 self.close()
             except (Exception) as e:
@@ -2010,26 +2042,12 @@ class runMarxan(MarxanWebSocketHandler):
         user = self.get_argument('user')
         if not (user == '_clumping'): #pid, user, project, starttime, endtime, runtime, runs (e.g. 3/10), status = running, completed, stopped (by user), killed (by OS)
             #create the data record
-            record = [str(self.marxanProcess.pid), self.get_argument('user'), self.get_argument('project'), datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S"),'','', '0/' + str(self.numRunsRequired), 'Running']
+            record = [str(self.marxanProcess.pid), self.get_argument('user'), self.get_argument('project'), datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"),'','', '0/' + str(self.numRunsRequired), 'Running']
             #add the tab separators
             recordLine = "\t".join(record)
             #append the record to the run log file
             _writeFileUnicode(MARXAN_FOLDER + RUN_LOG_FILENAME, recordLine + "\n", "a")
             
-    #updates the run log with the details of the marxan job when it has stopped for whatever reason - endtime, runtime, runs and status are updated
-    def updateRunLog(self, status):
-        #load the run log
-        df = _getRunLog(self)
-        #get the index for the record that needs to be updated
-        i = df.loc[df['pid'] == self.marxanProcess.pid].index.tolist()[0]  
-        #update the dataframe
-        df.loc[i,'endtime'] = datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
-        df.loc[i,'runtime'] = str((datetime.datetime.now() - self.startTime).seconds) + " seconds"
-        df.loc[i,'runs'] = str(self.numRunsCompleted) + "/" + str(self.numRunsRequired) 
-        df.loc[i,'status'] = status
-        #write the dataframe back to the run log 
-        df.to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
-        
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
 ####################################################################################################################################################################################################################################################################
@@ -2295,7 +2313,8 @@ def make_app():
         ("/marxan-server/preprocessProtectedAreas", preprocessProtectedAreas),
         ("/marxan-server/runMarxan", runMarxan),
         ("/marxan-server/stopMarxan", stopMarxan),
-        ("/marxan-server/getRunLog", getRunLog),
+        ("/marxan-server/getRunLogs", getRunLogs),
+        ("/marxan-server/clearRunLogs", clearRunLogs),
         ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
         ("/marxan-server/testTornado", testTornado),
         (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder

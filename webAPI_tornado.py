@@ -1770,6 +1770,22 @@ class updatePUFile(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "pu.dat file updated"})
 
+#returns a set of features for the planning unit id
+#https://marxan-server-blishten.c9users.io:8081/marxan-server/getPUSpeciesList?user=admin&project=PNG&puid=36500&callback=__jp2
+class getPUSpeciesList(MarxanRESTHandler):
+    def get(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['user','project','puid'])   
+        #get the list as a set of IDs from the puvspr file
+        df = _getProjectInputData(self, "PUVSPRNAME")
+        ids = df.loc[df['pu']==int(self.get_argument('puid'))]['species'].tolist()
+        #get the species data from the spec.dat file and the PostGIS database
+        _getSpeciesData(self)
+        #filter the species data by the ids
+        features = self.speciesData[self.speciesData.id.isin(ids)]
+        #set the response
+        self.send_response({"info": 'Feature list returned', 'data': features.to_dict(orient="records")})
+
 #used to populate the feature_preprocessing.dat file from an imported puvspr.dat file
 #https://marxan-server-blishten.c9users.io:8081/marxan-server/createFeaturePreprocessingFileFromImport?user=andrew&project=test&callback=__jp2
 class createFeaturePreprocessingFileFromImport(MarxanRESTHandler): #not currently used
@@ -2068,7 +2084,7 @@ class runMarxan(MarxanWebSocketHandler):
 
     #finishes writing the output of a stream and writes the run log
     def finishOutput(self, returnCode):
-        try:
+        try: 
             #get the number of runs completed
             numRunsCompleted = _getNumberOfRunsCompleted(self)
             #write the response depending on if the run completed or not
@@ -2078,7 +2094,7 @@ class runMarxan(MarxanWebSocketHandler):
             else: #if the user stopped it then the run log should already have a status of Stopped
                 actualStatus = _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Killed')
                 if (actualStatus == 'Stopped'):
-                    self.send_response({'error': 'Run stopped by user', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+                    self.send_response({'error': 'Run stopped by ' + self.get_argument("user"), 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 else:
                     self.send_response({'error': 'Run stopped by operating system', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
             #close the websocket
@@ -2335,6 +2351,7 @@ def make_app():
         ("/marxan-server/getFeaturePlanningUnits", getFeaturePlanningUnits),
         ("/marxan-server/getPlanningUnitsData", getPlanningUnitsData), #currently not used
         ("/marxan-server/updatePUFile", updatePUFile),
+        ("/marxan-server/getPUSpeciesList", getPUSpeciesList),
         ("/marxan-server/getSpeciesData", getSpeciesData), #currently not used
         ("/marxan-server/getAllSpeciesData", getAllSpeciesData), 
         ("/marxan-server/getSpeciesPreProcessingData", getSpeciesPreProcessingData), #currently not used

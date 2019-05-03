@@ -1,3 +1,4 @@
+from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
 from tornado.process import Subprocess
 from tornado.log import LogFormatter
@@ -1021,8 +1022,32 @@ def _shapefileHasField(shapefile, fieldname):
     
 #gets the data from the run log as a dataframe
 def _getRunLogs():
+    #get the data from the run log file
     df = _loadCSV(MARXAN_FOLDER + RUN_LOG_FILENAME)
+    #for those processes that are running, update the number of runs completed
+    runningProjects = df.loc[df['status'] == 'Running']
+    for index, row in runningProjects.iterrows():
+        #get the output folder
+        tmpObj = ExtendableObject()
+        tmpObj.folder_output = MARXAN_USERS_FOLDER + row['user'] + os.sep + row['project'] + os.sep + "output" + os.sep
+        #get the number of runs completed
+        numRunsCompleted = _getNumberOfRunsCompleted(tmpObj)
+        #get the index for the record that needs to be updated
+        i = df.loc[df['pid'] == row['pid']].index.tolist()[0]  
+        #update the number of runs
+        df.loc[i,'runs'] = str(numRunsCompleted) + df.loc[i,'runs'][df.loc[i,'runs'].find("/"):]
     return df
+
+#gets the number of runs required from the input.dat file
+def _getNumberOfRunsRequired(obj):
+    if not hasattr(obj, "projectData"):
+        _getProjectData(obj)
+    return [int(s['value']) for s in obj.projectData['runParameters'] if s['key'] == 'NUMREPS'][0]
+    
+#gets the number of runs completed from the output files
+def _getNumberOfRunsCompleted(obj):
+    files = glob.glob(obj.folder_output + "output_r*")
+    return len(files)
 
 #updates the run log with the details of the marxan job when it has stopped for whatever reason - endtime, runtime, runs and status are updated
 def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
@@ -1985,13 +2010,17 @@ class runMarxan(MarxanWebSocketHandler):
                         self.close()
                 else:
                     #get the number of runs that were in the input.dat file
-                    self.numRunsRequired = [int(s['value']) for s in self.projectData['runParameters'] if s['key'] == 'NUMREPS'][0]
+                    self.numRunsRequired = _getNumberOfRunsRequired(self)
                     #log the run to the RUN_LOG_FILENAME file
                     self.logRun()
                     #return the pid so that the process can be stopped
                     self.send_response({'pid': self.marxanProcess.pid, 'status':'pid'})
+                    #callback on the next I/O loop
                     IOLoop.current().spawn_callback(self.stream_marxan_output)
-                    self.marxanProcess.stdin.write('\n') # to end the marxan process by sending ENTER to the stdin
+                    # to end the marxan process by sending ENTER to the stdin
+                    self.marxanProcess.stdin.write('\n') 
+                    #add a callback for when the process has finished
+                    self.marxanProcess.set_exit_callback(self.finishOutput)
             else:
                 self.send_response({'error': "Project '" + self.get_argument("project") + "' does not exist", 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 #close the websocket
@@ -2003,51 +2032,61 @@ class runMarxan(MarxanWebSocketHandler):
             try:
                 while True:
                     #read from the stdout stream
-                    # print "getting a line at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m" 
                     line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
-                    # print "got a line at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n" 
                     self.send_response({'info':line, 'status':'RunningMarxan'})
-            except (StreamClosedError) as e: #fired when the stream closes - either if the process dies or if it finishes
-                #get the number of runs completed
-                files = glob.glob(self.folder_output + "output_r*")
-                self.numRunsCompleted = len(files)
-                #write the response depending on if the run completed or not
-                if (self.numRunsCompleted == self.numRunsRequired):
-                    _updateRunLog(self.marxanProcess.pid, self.startTime, self.numRunsCompleted, self.numRunsRequired, 'Completed')
-                    self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
-                else: #if the user stopped it then the run log should already have a status of Stopped
-                    actualStatus = _updateRunLog(self.marxanProcess.pid, self.startTime, self.numRunsCompleted, self.numRunsRequired, 'Killed')
-                    if (actualStatus == 'Stopped'):
-                        self.send_response({'error': 'Run stopped by user', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
-                    else:
-                        self.send_response({'error': 'Run stopped by operating system', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
-                #close the websocket
-                self.close()
-            except (Exception) as e:
-                print "Unexpected Exception: " + e.message
+                
+            except (WebSocketClosedError):
+                print "The WebSocket was closed - unable to send a response to the client"
         else:
-            while True:
-                #read from the stdout file object
-                line = self.marxanProcess.stdout.readline()
-                self.send_response({'info': line, 'status':'RunningMarxan'})
-                #bit of a hack to see when it has finished running
-                if line.find("Press return to exit") > -1:
-                    break
-            self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+            try:
+                while True:
+                    #read from the stdout file object
+                    line = self.marxanProcess.stdout.readline()
+                    self.send_response({'info': line, 'status':'RunningMarxan'})
+                    #bit of a hack to see when it has finished running
+                    if line.find("Press return to exit") > -1:
+                        break
+                self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+                
+            except (WebSocketClosedError):
+                print "The WebSocket was closed - unable to send a response to the client"
+
             #close the websocket
             self.close()
 
     #writes the details of the started marxan job to the RUN_LOG_FILENAME file as a single line
     def logRun(self):
-        user = self.get_argument('user')
-        if not (user == '_clumping'): #pid, user, project, starttime, endtime, runtime, runs (e.g. 3/10), status = running, completed, stopped (by user), killed (by OS)
-            #create the data record
-            record = [str(self.marxanProcess.pid), self.get_argument('user'), self.get_argument('project'), datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"),'','', '0/' + str(self.numRunsRequired), 'Running']
-            #add the tab separators
-            recordLine = "\t".join(record)
-            #append the record to the run log file
-            _writeFileUnicode(MARXAN_FOLDER + RUN_LOG_FILENAME, recordLine + "\n", "a")
+        # user = self.get_argument('user')
+        # if not (user == '_clumping'): #pid, user, project, starttime, endtime, runtime, runs (e.g. 3/10), status = running, completed, stopped (by user), killed (by OS)
+        #create the data record
+        record = [str(self.marxanProcess.pid), self.get_argument('user'), self.get_argument('project'), datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"),'','', '0/' + str(self.numRunsRequired), 'Running']
+        #add the tab separators
+        recordLine = "\t".join(record)
+        #append the record to the run log file
+        _writeFileUnicode(MARXAN_FOLDER + RUN_LOG_FILENAME, recordLine + "\n", "a")
             
+
+    #finishes writing the output of a stream and writes the run log
+    def finishOutput(self, returnCode):
+        try:
+            #get the number of runs completed
+            numRunsCompleted = _getNumberOfRunsCompleted(self)
+            #write the response depending on if the run completed or not
+            if (numRunsCompleted == self.numRunsRequired):
+                _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Completed')
+                self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+            else: #if the user stopped it then the run log should already have a status of Stopped
+                actualStatus = _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Killed')
+                if (actualStatus == 'Stopped'):
+                    self.send_response({'error': 'Run stopped by user', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+                else:
+                    self.send_response({'error': 'Run stopped by operating system', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+            #close the websocket
+            self.close()
+
+        except (WebSocketClosedError): #the websocket may already have been closed
+            print "The WebSocket was closed - unable to send a response to the client"
+        
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
 ####################################################################################################################################################################################################################################################################

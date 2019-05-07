@@ -178,7 +178,7 @@ def _setGlobalVariables():
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
-        print "marxan-client not installed\n"
+        print "\x1b[1;32;48mmarxan-client not installed\x1b[0m\n"
         
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
@@ -902,6 +902,8 @@ def _importPlanningUnitGrid(filename, name, description):
         postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source) VALUES (%s,%s,%s,now(),'Imported from shapefile');", [feature_class_name, name, description])
         #import the shapefile
         postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
+        #make sure the puid column is an integer
+        postgis.execute(sql.SQL("ALTER TABLE marxan.{} ALTER COLUMN puid TYPE integer;").format(sql.Identifier(feature_class_name)))
         #create the envelope for the new planning grid
         postgis.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(geometry) AS geometry FROM marxan.{}) AS f) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
         #start the upload to mapbox
@@ -2029,6 +2031,8 @@ class runMarxan(MarxanWebSocketHandler):
                     self.numRunsRequired = _getNumberOfRunsRequired(self)
                     #log the run to the RUN_LOG_FILENAME file
                     self.logRun()
+                    #print the details of the run out to the log
+                    print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
                     #return the pid so that the process can be stopped
                     self.send_response({'pid': self.marxanProcess.pid, 'status':'pid'})
                     #callback on the next I/O loop
@@ -2052,7 +2056,9 @@ class runMarxan(MarxanWebSocketHandler):
                     self.send_response({'info':line, 'status':'RunningMarxan'})
                 
             except (WebSocketClosedError):
-                print "The WebSocket was closed - unable to send a response to the client"
+                print "The WebSocket was closed - unable to send a response to the client. pid = " + str(self.marxanProcess.pid)
+            except (StreamClosedError):                
+                pass
         else:
             try:
                 while True:
@@ -2065,7 +2071,9 @@ class runMarxan(MarxanWebSocketHandler):
                 self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 
             except (WebSocketClosedError):
-                print "The WebSocket was closed - unable to send a response to the client"
+                print "The WebSocket was closed - unable to send a response to the client" + str(self.marxanProcess.pid)
+            except (StreamClosedError):                
+                pass
 
             #close the websocket
             self.close()
@@ -2085,6 +2093,8 @@ class runMarxan(MarxanWebSocketHandler):
     #finishes writing the output of a stream and writes the run log
     def finishOutput(self, returnCode):
         try: 
+            #log the end of the run
+            print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has finished running"
             #get the number of runs completed
             numRunsCompleted = _getNumberOfRunsCompleted(self)
             #write the response depending on if the run completed or not
@@ -2140,7 +2150,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
             #parameter bind if necessary
             if data is not None:
                 sql = cur.mogrify(sql, data)
-                print cur.mogrify(sql, data)
+                # print cur.mogrify(sql, data)
             #execute the query
             cur.execute(sql)
             #poll to get the state of the query

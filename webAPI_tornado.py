@@ -161,7 +161,10 @@ def _setGlobalVariables():
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     print " Marxan executable: " + MARXAN_EXECUTABLE
     print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n"
-    print "\x1b[1;31;48mPress CTRL+Break to stop the server\x1b[0m\n"
+    if platform.system() != "Windows":
+        print "\x1b[1;31;48mPress CTRL+C to stop the server\x1b[0m\n"
+    else:
+        print "\x1b[1;31;48mPress CTRL+Break to stop the server\x1b[0m\n"
     #time.sleep(3)
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
@@ -174,7 +177,7 @@ def _setGlobalVariables():
         else:
             MARXAN_CLIENT_BUILD_FOLDER = client_installs[0] + os.sep + "build"
         MARXAN_CLIENT_VERSION = MARXAN_CLIENT_BUILD_FOLDER[MARXAN_CLIENT_BUILD_FOLDER.rindex("-")+1:MARXAN_CLIENT_BUILD_FOLDER.rindex(os.sep)]
-        print "Using marxan-client v" + MARXAN_CLIENT_VERSION 
+        print "marxan-client v" + MARXAN_CLIENT_VERSION + " is the most recent"
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
@@ -2414,7 +2417,8 @@ if __name__ == "__main__":
                 webbrowser.open(url, new=1, autoraise=True)
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":
-                print "No url parameter specified for 'python webAPI_tornado.py <url>'\n"
+                print "Marxan Web available at url: http(s)://<hostname>:8081/index.html"  
+                print "To start it automatically when the server is started, append the url onto 'python webAPI_tornado.py <url>'\n"
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         print e.message

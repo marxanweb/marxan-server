@@ -1177,7 +1177,7 @@ class PostGIS():
         self._cleanup()
 
 ####################################################################################################################################################################################################################################################################
-## extension class for tornado.process.Subprocess to allow registering callbacks when processes complete on Windows (tornado.process.Subprocess.set_exit_callback is not supported on Windows)
+## subclass of tornado.process.Subprocess to allow registering callbacks when processes complete on Windows (tornado.process.Subprocess.set_exit_callback is not supported on Windows)
 ####################################################################################################################################################################################################################################################################
 class MarxanSubprocess(tornado.process.Subprocess):
     #registers a callback function on Windows by creating another thread and polling the process to see when it is finished
@@ -2040,7 +2040,7 @@ class runMarxan(MarxanWebSocketHandler):
                         self.marxanProcess = MarxanSubprocess(["exec " + MARXAN_EXECUTABLE], stdout=MarxanSubprocess.STREAM, stdin=subprocess.PIPE, shell=True)
                     else:
                         #the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
-                        self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                        self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
                 except (WindowsError) as e: # pylint:disable=undefined-variable
                     if (e.winerror == 1260):
                         self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
@@ -2058,7 +2058,8 @@ class runMarxan(MarxanWebSocketHandler):
                     #callback on the next I/O loop
                     IOLoop.current().spawn_callback(self.stream_marxan_output)
                     # to end the marxan process by sending ENTER to the stdin
-                    self.marxanProcess.stdin.write('\n') 
+                    #self.marxanProcess.stdin.write('\n') 
+                    self.marxanProcess.proc.communicate(input='\n') # this works for windows
                     #add a callback for when the process has finished
                     if platform.system() != "Windows": # tornado.process.Subprocess.set_exit_callback does not work on Windows 
                         self.marxanProcess.set_exit_callback(self.finishOutput)
@@ -2069,6 +2070,7 @@ class runMarxan(MarxanWebSocketHandler):
                 #close the websocket
                 self.close()
 
+    #called on the first IOLoop callback and then streams the marxan output back to the client
     @gen.coroutine
     def stream_marxan_output(self):
         if platform.system() != "Windows":
@@ -2077,29 +2079,28 @@ class runMarxan(MarxanWebSocketHandler):
                     #read from the stdout stream
                     line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
                     self.send_response({'info':line, 'status':'RunningMarxan'})
-                
             except (WebSocketClosedError):
-                print "The WebSocket was closed - unable to send a response to the client. pid = " + str(self.marxanProcess.pid)
+                print "The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid)
             except (StreamClosedError):                
                 pass
         else:
             try:
-                while True: #on Windows this is a blocking function
-                    #read from the stdout file object
-                    line = self.marxanProcess.stdout.readline()
-                    self.send_response({'info': line, 'status':'RunningMarxan'})
-                
+                self.send_response({'info': "Log streaming is currently not supported on Windows", 'status':'RunningMarxan'})
+                #while True: #on Windows this is a blocking function
+                    ##read from the stdout file object
+                    #line = self.marxanProcess.stdout.readline()
+                    #self.send_response({'info': line, 'status':'RunningMarxan'})
             except (BufferError):
                 print "BufferError"
                 pass
             except (WebSocketClosedError):
-                print "The WebSocket was closed - unable to send a response to the client" + str(self.marxanProcess.pid)
+                print "The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid)
             except (StreamClosedError):  
                 print "StreamClosedError"
                 pass
 
-            #close the websocket
-            self.close()
+            ##close the websocket
+            #self.close()
 
     #writes the details of the started marxan job to the RUN_LOG_FILENAME file as a single line
     def logRun(self):
@@ -2133,7 +2134,7 @@ class runMarxan(MarxanWebSocketHandler):
             self.close()
 
         except (WebSocketClosedError): #the websocket may already have been closed
-            print "The WebSocket was closed - unable to send a response to the client"
+            print "The WebSocket was closed in finishOutput - unable to send a response to the client. pid = " + str(self.marxanProcess.pid)
         
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets

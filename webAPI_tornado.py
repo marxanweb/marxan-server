@@ -7,6 +7,7 @@ from tornado.web import StaticFileHandler
 from tornado.ioloop import IOLoop
 from tornado import concurrent
 from tornado import gen
+from threading import Thread
 from urlparse import urlparse
 from psycopg2 import sql
 from mapbox import Uploader
@@ -23,6 +24,7 @@ import psycopg2
 import pandas
 import os
 import re
+import time
 import traceback
 import glob
 import time
@@ -161,10 +163,7 @@ def _setGlobalVariables():
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     print " Marxan executable: " + MARXAN_EXECUTABLE
     print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n"
-    if platform.system() != "Windows":
-        print "\x1b[1;31;48mPress CTRL+C to stop the server\x1b[0m\n"
-    else:
-        print "\x1b[1;31;48mPress CTRL+Break to stop the server\x1b[0m\n"
+    print "\x1b[1;31;48mPress CTRL+Break to stop the server\x1b[0m\n"
     #time.sleep(3)
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
@@ -177,7 +176,7 @@ def _setGlobalVariables():
         else:
             MARXAN_CLIENT_BUILD_FOLDER = client_installs[0] + os.sep + "build"
         MARXAN_CLIENT_VERSION = MARXAN_CLIENT_BUILD_FOLDER[MARXAN_CLIENT_BUILD_FOLDER.rindex("-")+1:MARXAN_CLIENT_BUILD_FOLDER.rindex(os.sep)]
-        print "marxan-client v" + MARXAN_CLIENT_VERSION + " is the most recent"
+        print "Using marxan-client v" + MARXAN_CLIENT_VERSION 
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
@@ -1178,6 +1177,24 @@ class PostGIS():
         self._cleanup()
 
 ####################################################################################################################################################################################################################################################################
+## extension class for tornado.process.Subprocess to allow registering callbacks when processes complete on Windows (tornado.process.Subprocess.set_exit_callback is not supported on Windows)
+####################################################################################################################################################################################################################################################################
+class MarxanSubprocess(tornado.process.Subprocess):
+    #registers a callback function on Windows by creating another thread and polling the process to see when it is finished
+    def set_exit_callback_windows(self, callback, *args, **kwargs):
+        #set a reference to the thread so we can free it when the process ends
+        self._thread = Thread(target=self._poll_completion, args=(callback, args, kwargs)).start()
+
+    def _poll_completion(self, callback, args, kwargs):
+        #poll the process to see when it ends
+        while self.proc.poll() is None:
+            time.sleep(1)
+        #call the callback function with the process return code
+        callback(self.proc.returncode)
+        #free the thread memory
+        self._thread = None
+
+####################################################################################################################################################################################################################################################################
 ## baseclass for handling REST requests
 ####################################################################################################################################################################################################################################################################
 
@@ -2020,10 +2037,10 @@ class runMarxan(MarxanWebSocketHandler):
                 try:
                     if platform.system() != "Windows":
                         #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM
-                        self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=subprocess.PIPE, shell=True)
+                        self.marxanProcess = MarxanSubprocess(["exec " + MARXAN_EXECUTABLE], stdout=MarxanSubprocess.STREAM, stdin=subprocess.PIPE, shell=True)
                     else:
                         #the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
-                        self.marxanProcess = Subprocess([MARXAN_EXECUTABLE], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                        self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
                 except (WindowsError) as e: # pylint:disable=undefined-variable
                     if (e.winerror == 1260):
                         self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
@@ -2043,7 +2060,10 @@ class runMarxan(MarxanWebSocketHandler):
                     # to end the marxan process by sending ENTER to the stdin
                     self.marxanProcess.stdin.write('\n') 
                     #add a callback for when the process has finished
-                    self.marxanProcess.set_exit_callback(self.finishOutput)
+                    if platform.system() != "Windows": # tornado.process.Subprocess.set_exit_callback does not work on Windows 
+                        self.marxanProcess.set_exit_callback(self.finishOutput)
+                    else:
+                        self.marxanProcess.set_exit_callback_windows(self.finishOutput)
             else:
                 self.send_response({'error': "Project '" + self.get_argument("project") + "' does not exist", 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 #close the websocket
@@ -2064,18 +2084,18 @@ class runMarxan(MarxanWebSocketHandler):
                 pass
         else:
             try:
-                while True:
+                while True: #on Windows this is a blocking function
                     #read from the stdout file object
                     line = self.marxanProcess.stdout.readline()
                     self.send_response({'info': line, 'status':'RunningMarxan'})
-                    #bit of a hack to see when it has finished running
-                    if line.find("Press return to exit") > -1:
-                        break
-                self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 
+            except (BufferError):
+                print "BufferError"
+                pass
             except (WebSocketClosedError):
                 print "The WebSocket was closed - unable to send a response to the client" + str(self.marxanProcess.pid)
-            except (StreamClosedError):                
+            except (StreamClosedError):  
+                print "StreamClosedError"
                 pass
 
             #close the websocket
@@ -2092,7 +2112,6 @@ class runMarxan(MarxanWebSocketHandler):
         #append the record to the run log file
         _writeFileUnicode(MARXAN_FOLDER + RUN_LOG_FILENAME, recordLine + "\n", "a")
             
-
     #finishes writing the output of a stream and writes the run log
     def finishOutput(self, returnCode):
         try: 
@@ -2417,8 +2436,7 @@ if __name__ == "__main__":
                 webbrowser.open(url, new=1, autoraise=True)
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":
-                print "Marxan Web available at url: http(s)://<hostname>:8081/index.html"  
-                print "To start it automatically when the server is started, append the url onto 'python webAPI_tornado.py <url>'\n"
+                print "No url parameter specified for 'python webAPI_tornado.py <url>'\n"
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         print e.message

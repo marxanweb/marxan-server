@@ -168,7 +168,7 @@ def _setGlobalVariables():
         f = open(packageJson)
         MARXAN_CLIENT_VERSION = json.load(f)['version']
         f.close()
-        print "\x1b[1;32;48mUsing marxan-client v" + MARXAN_CLIENT_VERSION + "\x1b[0m"
+        print "\x1b[1;32;48mmarxan-client v" + MARXAN_CLIENT_VERSION + " installed if required\x1b[0m"
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"

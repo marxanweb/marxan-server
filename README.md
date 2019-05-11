@@ -39,6 +39,11 @@ createdb -T template0 marxanserver
 psql -c 'CREATE EXTENSION IF NOT EXISTS postgis;'    
 psql -h 127.0.0.1 -d marxanserver -U jrc -f /home/ubuntu/workspace/dump.sql   
 ```
+### Configure https
+app.listen(8081,ssl_options={"certfile": "/home/a_cottam/andrewcottam.com.crt","keyfile":"/home/a_cottam/andrewcottam_com.key"})
+
+### Deploying onto GCP
+Use screen otherwise when the ssh connection drops the python process will be killed.
 ### Cleanup
 Remove the downloaded files  
 ```

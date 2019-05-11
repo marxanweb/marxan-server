@@ -2419,8 +2419,11 @@ if __name__ == "__main__":
         #set the global variables
         _setGlobalVariables()
         app = make_app()
-        #start listening on port 8081
-        app.listen(8081)
+        #start listening on port 8081, and if there is an https certificate then use the certificate information from the server.dat file to return data securely
+        if serverData['CERTFILE'] != "None":
+            app.listen(8081,ssl_options={"certfile": serverData["CERTFILE"],"keyfile":serverData["KEYFILE"]})
+        else:
+            app.listen(8081)
         #open the web browser if the call includes a url, e.g. python webAPI_tornado.py http://localhost:8081/index.html
         if len(sys.argv)>1:
             if MARXAN_CLIENT_VERSION == "Not installed":

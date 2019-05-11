@@ -104,6 +104,8 @@ def _setGlobalVariables():
     global DATABASE_PASSWORD
     global DATABASE_VERSION_POSTGRESQL
     global DATABASE_VERSION_POSTGIS
+    global CERTFILE
+    global KEYFILE
     #initialise colorama to be able to show log messages on windows in color
     colorama.init()
     #get the folder from this files path
@@ -118,6 +120,8 @@ def _setGlobalVariables():
     DATABASE_USER = serverData['DATABASE_USER']
     DATABASE_PASSWORD = serverData['DATABASE_PASSWORD']
     DATABASE_NAME = serverData['DATABASE_NAME']
+    CERTFILE = serverData['CERTFILE']
+    KEYFILE = serverData['KEYFILE']
     CONNECTION_STRING = "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
     #get the database version
     postgis = PostGIS()
@@ -2420,8 +2424,8 @@ if __name__ == "__main__":
         _setGlobalVariables()
         app = make_app()
         #start listening on port 8081, and if there is an https certificate then use the certificate information from the server.dat file to return data securely
-        if serverData['CERTFILE'] != "None":
-            app.listen(8081,ssl_options={"certfile": serverData["CERTFILE"],"keyfile":serverData["KEYFILE"]})
+        if CERTFILE != "None":
+            app.listen(8081,ssl_options={"certfile": CERTFILE,"keyfile": KEYFILE})
         else:
             app.listen(8081)
         #open the web browser if the call includes a url, e.g. python webAPI_tornado.py http://localhost:8081/index.html

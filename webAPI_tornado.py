@@ -48,12 +48,13 @@ import requests
 ##SECURITY SETTINGS
 DISABLE_SECURITY = False                                                            # Set to True to turn off all security, i.e. authentication and authorisation
 #domains that are allowed to access and update this server - add http://localhost:8081 if you want to allow access from all local installs
-PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado"]    # REST services that have no authentication/authorisation/CORS control
+PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsAndBoundingBoxes"]    # REST services that have no authentication/authorisation/CORS control
 ROLE_UNAUTHORISED_METHODS = {                                                       # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
     "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs"],
     "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
+MARXAN_SERVER_VERSION = "0.6.2"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -91,7 +92,6 @@ def _setGlobalVariables():
     global START_PROJECT_FOLDER 
     global EMPTY_PROJECT_TEMPLATE_FOLDER 
     global OGR2OGR_EXECUTABLE
-    global MARXAN_SERVER_VERSION
     global MARXAN_CLIENT_VERSION
     global CONNECTION_STRING 
     global COOKIE_RANDOM_VALUE
@@ -118,23 +118,17 @@ def _setGlobalVariables():
     DATABASE_USER = serverData['DATABASE_USER']
     DATABASE_PASSWORD = serverData['DATABASE_PASSWORD']
     DATABASE_NAME = serverData['DATABASE_NAME']
-    CONNECTION_STRING = "dbname='" + DATABASE_NAME + "' host='" + DATABASE_HOST + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
+    CONNECTION_STRING = "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
     #get the database version
     postgis = PostGIS()
     DATABASE_VERSION_POSTGRESQL, DATABASE_VERSION_POSTGIS = postgis.execute("SELECT version(), PostGIS_Version();", None, "One")  
     COOKIE_RANDOM_VALUE = serverData['COOKIE_RANDOM_VALUE']
     PERMITTED_DOMAINS = serverData['PERMITTED_DOMAINS'].split(",")
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
-    try:
-        pos = MARXAN_FOLDER.index("marxan-server-")
-        MARXAN_SERVER_VERSION = MARXAN_FOLDER[pos + 14:-1]
-        print "\x1b[1;32;48mStarting marxan-server v" + MARXAN_SERVER_VERSION + " ..\x1b[0m"
-    except (ValueError):
-        MARXAN_SERVER_VERSION = "Unknown"
-        print '\n\x1b[1;32;48mStarting marxan-server.. (version unknown)\x1b[0m'
+    print "\x1b[1;32;48mStarting marxan-server v" + MARXAN_SERVER_VERSION + " ..\x1b[0m"
     #print out which operating system is being used
     print " Running under " + platform.system() + " operating system"
-    print " Database connection: " + CONNECTION_STRING
+    print " Database: " + CONNECTION_STRING
     print " " + DATABASE_VERSION_POSTGRESQL
     print " PostGIS: " + DATABASE_VERSION_POSTGIS
     print " Python executable: " + sys.executable
@@ -163,20 +157,18 @@ def _setGlobalVariables():
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     print " Marxan executable: " + MARXAN_EXECUTABLE
     print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n"
-    print "\x1b[1;31;48mPress CTRL+Break to stop the server\x1b[0m\n"
-    #time.sleep(3)
+    print "\x1b[1;31;48mPress CTRL+C to stop the server\x1b[0m\n"
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-CLIENT SOFTWARE IF PRESENT
-    client_installs = glob.glob(PARENT_FOLDER + "marxan-client*")
-    if len(client_installs)>0:
-        if (len(client_installs)>1):
-            MARXAN_CLIENT_BUILD_FOLDER = client_installs[len(client_installs)-1] + os.sep + "build"
-            print "Multiple versions of the marxan-client found"
-        else:
-            MARXAN_CLIENT_BUILD_FOLDER = client_installs[0] + os.sep + "build"
-        MARXAN_CLIENT_VERSION = MARXAN_CLIENT_BUILD_FOLDER[MARXAN_CLIENT_BUILD_FOLDER.rindex("-")+1:MARXAN_CLIENT_BUILD_FOLDER.rindex(os.sep)]
-        print "Using marxan-client v" + MARXAN_CLIENT_VERSION 
+    packageJson = PARENT_FOLDER + "marxan-client" + os.sep + "package.json"
+    if os.path.exists(packageJson):
+        MARXAN_CLIENT_BUILD_FOLDER = PARENT_FOLDER + "marxan-client" + os.sep + "build"
+        #open the node.js package.json file for the marxan-client app to read the version of the software
+        f = open(packageJson)
+        MARXAN_CLIENT_VERSION = json.load(f)['version']
+        f.close()
+        print "\x1b[1;32;48mUsing marxan-client v" + MARXAN_CLIENT_VERSION + "\x1b[0m"
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
@@ -263,8 +255,7 @@ def _getAllProjects():
     allProjects = []
     #get a list of users
     users = _getUsers()
-    #get the data for each user
-    _getUsersData(users)
+    #iterate through the users and get the project data 
     for user in users:
         projects = _getProjectsForUser(user)
         allProjects.extend(projects)
@@ -455,6 +446,10 @@ def _getPlanningUnitsData(obj):
     df = _getProjectInputData(obj, "PUNAME")
     #normalise the planning unit data to make the payload smaller        
     obj.planningUnitsData = _normaliseDataFrame(df, "status", "id")
+
+#gets the data for the planning grids
+def _getPlanningUnitGrids():
+    return PostGIS().getDict("SELECT feature_class_name ,alias ,description ,creation_date::text ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
 
 #get the protected area intersections information
 def _getProtectedAreaIntersectionsData(obj):
@@ -1434,8 +1429,8 @@ class getCountries(MarxanRESTHandler):
 #https://marxan-server-blishten.c9users.io:8081/marxan-server/getPlanningUnitGrids?callback=__jp0
 class getPlanningUnitGrids(MarxanRESTHandler):
     def get(self):
-        content = PostGIS().getDict("SELECT feature_class_name ,alias ,description ,creation_date::text ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
-        self.send_response({'info': 'Planning unit grids retrieved', 'planning_unit_grids': content})        
+        planningUnitGrids = _getPlanningUnitGrids()
+        self.send_response({'info': 'Planning unit grids retrieved', 'planning_unit_grids': planningUnitGrids})        
         
 #https://marxan-server-blishten.c9users.io:8081/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon&callback=__jp10        
 class createPlanningUnitGrid(MarxanRESTHandler):
@@ -2429,15 +2424,14 @@ if __name__ == "__main__":
         #open the web browser if the call includes a url, e.g. python webAPI_tornado.py http://localhost:8081/index.html
         if len(sys.argv)>1:
             if MARXAN_CLIENT_VERSION == "Not installed":
-                print "Ignoring start url parameter as the marxan-client is not installed"
+                print "\x1b[1;32;48mIgnoring start url parameter as the marxan-client is not installed\x1b[0m"
             else:
                 url = sys.argv[1] # normally "http://localhost:8081/index.html"
                 print "\x1b[1;32;48mOpening Marxan Web at '" + url + "' ..\x1b[0m\n"
-                #time.sleep(3)
                 webbrowser.open(url, new=1, autoraise=True)
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":
-                print "No url parameter specified for 'python webAPI_tornado.py <url>'\n"
+                print "\x1b[1;32;48mNo url parameter specified for 'python webAPI_tornado.py <url>'. Not opening browser.\x1b[0m\n"
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         print e.message

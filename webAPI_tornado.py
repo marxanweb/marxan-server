@@ -2438,7 +2438,7 @@ if __name__ == "__main__":
                 webbrowser.open(url, new=1, autoraise=True)
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":
-                print "\x1b[1;32;48mNo url parameter specified for 'python webAPI_tornado.py <url>'. Not opening browser.\x1b[0m\n"
+                print "\x1b[1;32;48mNo url parameter specified for 'python webAPI_tornado.py <url>'. Not opening a browser.\x1b[0m\n"
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         print e.message

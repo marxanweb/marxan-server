@@ -132,6 +132,7 @@ def _setGlobalVariables():
     print "\x1b[1;32;48mStarting marxan-server v" + MARXAN_SERVER_VERSION + " ..\x1b[0m"
     #print out which operating system is being used
     print " Operating system:\t" + platform.system() 
+    print " Tornado version:\t" + tornado.version
     #output the ssl information if it is being used
     if CERTFILE != "None":
         print " SSL certificate file:\t" + CERTFILE
@@ -179,7 +180,7 @@ def _setGlobalVariables():
         f = open(packageJson)
         MARXAN_CLIENT_VERSION = json.load(f)['version']
         f.close()
-        print "\x1b[1;32;48mmarxan-client v" + MARXAN_CLIENT_VERSION + " installed if required\x1b[0m"
+        print "\x1b[1;32;48mmarxan-client v" + MARXAN_CLIENT_VERSION + " installed\x1b[0m"
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
@@ -2433,19 +2434,22 @@ if __name__ == "__main__":
         #start listening on port 8081, and if there is an https certificate then use the certificate information from the server.dat file to return data securely
         if CERTFILE != "None":
             app.listen(8081,ssl_options={"certfile": CERTFILE,"keyfile": KEYFILE})
+            navigateTo = "https://<host>:8081/index.html"
         else:
             app.listen(8081)
+            navigateTo = "http://<host>:8081/index.html"
         #open the web browser if the call includes a url, e.g. python webAPI_tornado.py http://localhost:8081/index.html
         if len(sys.argv)>1:
             if MARXAN_CLIENT_VERSION == "Not installed":
-                print "\x1b[1;32;48mIgnoring start url parameter as the marxan-client is not installed\x1b[0m"
+                print "\x1b[1;32;48mIgnoring <url> parameter - the marxan-client is not installed\x1b[0m"
             else:
                 url = sys.argv[1] # normally "http://localhost:8081/index.html"
                 print "\x1b[1;32;48mOpening Marxan Web at '" + url + "' ..\x1b[0m\n"
                 webbrowser.open(url, new=1, autoraise=True)
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":
-                print "\x1b[1;32;48mNo url parameter specified for 'python webAPI_tornado.py <url>'. Not opening a browser.\x1b[0m\n"
+                print "\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m"
+                print "\x1b[1;32;48mOr run 'python webAPI_tornado.py " + navigateTo + "' to automatically open the Marxan Web in a browser\x1b[0m\n"
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         print e.message

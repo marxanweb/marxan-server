@@ -55,7 +55,7 @@ ROLE_UNAUTHORISED_METHODS = {                                                   
     "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.6.4"
+MARXAN_SERVER_VERSION = "0.6.5"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -1506,6 +1506,15 @@ class validateUser(MarxanRESTHandler):
             #invalid login
             raise MarxanServicesError("Invalid login")    
 
+#logs the user out and resets the cookies
+#https://marxan-server-blishten.c9users.io:8081/marxan-server/logout?callback=__jp2
+class logout(MarxanRESTHandler):
+    def get(self):
+        self.clear_cookie("user")
+        self.clear_cookie("role")
+        #set the response
+        self.send_response({'info': "User logged out"})
+    
 #resends the password to the passed email address (NOT CURRENTLY IMPLEMENTED)
 class resendPassword(MarxanRESTHandler):
     def get(self):
@@ -2413,6 +2422,7 @@ def make_app():
         ("/marxan-server/toggleEnableGuestUser", toggleEnableGuestUser),
         ("/marxan-server/createUser", createUser), 
         ("/marxan-server/validateUser", validateUser),
+        ("/marxan-server/logout", logout),
         ("/marxan-server/resendPassword", resendPassword),
         ("/marxan-server/getUser", getUser),
         ("/marxan-server/getUsers", getUsers),

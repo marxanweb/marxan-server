@@ -54,7 +54,7 @@ ROLE_UNAUTHORISED_METHODS = {                                                   
     "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.6.2"
+MARXAN_SERVER_VERSION = "0.6.3"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -184,7 +184,7 @@ def _setGlobalVariables():
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
-        print "\x1b[1;32;48mmarxan-client not installed\x1b[0m\n"
+        print "\x1b[1;32;48mmarxan-client is not installed\x1b[0m\n"
         
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
@@ -2043,36 +2043,36 @@ class runMarxan(MarxanWebSocketHandler):
                 #the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) instead of the tornado process - see here: https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
                 try:
                     if platform.system() != "Windows":
-                        #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM
-                        self.marxanProcess = MarxanSubprocess(["exec " + MARXAN_EXECUTABLE], stdout=MarxanSubprocess.STREAM, stdin=subprocess.PIPE, shell=True)
+                        #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM - the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) 
+                        self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=subprocess.PIPE, shell=True)
+                        #make sure that the marxan process will end by sending ENTER to the stdin
+                        self.marxanProcess.stdin.write('\n') 
+                        #add a callback when the process finishes
+                        self.marxanProcess.set_exit_callback(self.finishOutput)
                     else:
-                        #the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
+                        #custom class as the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
                         self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+                        #make sure that the marxan process will end by sending a new line character to the process in windows
+                        self.marxanProcess.proc.communicate(input='\n')
+                        #add a callback when the process finishes
+                        self.marxanProcess.set_exit_callback_windows(self.finishOutput)
                 except (WindowsError) as e: # pylint:disable=undefined-variable
                     if (e.winerror == 1260):
                         self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
                         #close the websocket
                         self.close()
-                else:
+                else: #no errors
                     #get the number of runs that were in the input.dat file
                     self.numRunsRequired = _getNumberOfRunsRequired(self)
-                    #log the run to the RUN_LOG_FILENAME file
+                    #log the run to the run log file
                     self.logRun()
-                    #print the details of the run out to the log
+                    #print the details of the run out to the tornado log stream
                     print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
                     #return the pid so that the process can be stopped
                     self.send_response({'pid': self.marxanProcess.pid, 'status':'pid'})
                     #callback on the next I/O loop
                     IOLoop.current().spawn_callback(self.stream_marxan_output)
-                    # to end the marxan process by sending ENTER to the stdin
-                    #self.marxanProcess.stdin.write('\n') 
-                    self.marxanProcess.proc.communicate(input='\n') # this works for windows
-                    #add a callback for when the process has finished
-                    if platform.system() != "Windows": # tornado.process.Subprocess.set_exit_callback does not work on Windows 
-                        self.marxanProcess.set_exit_callback(self.finishOutput)
-                    else:
-                        self.marxanProcess.set_exit_callback_windows(self.finishOutput)
-            else:
+            else: #project does not exist
                 self.send_response({'error': "Project '" + self.get_argument("project") + "' does not exist", 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
                 #close the websocket
                 self.close()
@@ -2106,37 +2106,36 @@ class runMarxan(MarxanWebSocketHandler):
                 print "StreamClosedError"
                 pass
 
-            ##close the websocket
-            #self.close()
-
     #writes the details of the started marxan job to the RUN_LOG_FILENAME file as a single line
     def logRun(self):
-        # user = self.get_argument('user')
-        # if not (user == '_clumping'): #pid, user, project, starttime, endtime, runtime, runs (e.g. 3/10), status = running, completed, stopped (by user), killed (by OS)
-        #create the data record
-        record = [str(self.marxanProcess.pid), self.get_argument('user'), self.get_argument('project'), datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"),'','', '0/' + str(self.numRunsRequired), 'Running']
-        #add the tab separators
-        recordLine = "\t".join(record)
-        #append the record to the run log file
-        _writeFileUnicode(MARXAN_FOLDER + RUN_LOG_FILENAME, recordLine + "\n", "a")
+        #get the user name
+        self.user = self.get_argument('user')
+        if not (self.user == '_clumping'): #dont show clumping runs to the user
+            self.project = self.get_argument('project')
+            #create the data record - pid, user, project, starttime, endtime, runtime, runs (e.g. 3/10), status = running, completed, stopped (by user), killed (by OS)
+            record = [str(self.marxanProcess.pid), self.user, self.project, datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"),'','', '0/' + str(self.numRunsRequired), 'Running']
+            #add the tab separators
+            recordLine = "\t".join(record)
+            #append the record to the run log file
+            _writeFileUnicode(MARXAN_FOLDER + RUN_LOG_FILENAME, recordLine + "\n", "a")
             
     #finishes writing the output of a stream and writes the run log
     def finishOutput(self, returnCode):
         try: 
             #log the end of the run
-            print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has finished running"
+            print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.user + "." + self.project + " has finished running"
             #get the number of runs completed
             numRunsCompleted = _getNumberOfRunsCompleted(self)
             #write the response depending on if the run completed or not
             if (numRunsCompleted == self.numRunsRequired):
                 _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Completed')
-                self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+                self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.project, 'user': self.user})
             else: #if the user stopped it then the run log should already have a status of Stopped
                 actualStatus = _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Killed')
                 if (actualStatus == 'Stopped'):
-                    self.send_response({'error': 'Run stopped by ' + self.get_argument("user"), 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+                    self.send_response({'error': 'Run stopped by ' + self.user, 'status': 'Finished', 'project': self.project, 'user': self.user})
                 else:
-                    self.send_response({'error': 'Run stopped by operating system', 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+                    self.send_response({'error': 'Run stopped by operating system', 'status': 'Finished', 'project': self.project, 'user': self.user})
             #close the websocket
             self.close()
 

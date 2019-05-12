@@ -47,10 +47,12 @@ import requests
 ####################################################################################################################################################################################################################################################################
 
 ##SECURITY SETTINGS
-DISABLE_SECURITY = False                                                            # Set to True to turn off all security, i.e. authentication and authorisation
-#domains that are allowed to access and update this server - add http://localhost:8081 if you want to allow access from all local installs
-PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsAndBoundingBoxes"]    # REST services that have no authentication/authorisation/CORS control
-ROLE_UNAUTHORISED_METHODS = {                                                       # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
+# Set to True to turn off all security, i.e. authentication and authorisation
+DISABLE_SECURITY = False
+# REST services that have do not need authentication/authorisation/CORS, e.g. can be accessed straight from the url
+PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
+# Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
+ROLE_UNAUTHORISED_METHODS = {
     "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs"],
     "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
@@ -1187,6 +1189,7 @@ class PostGIS():
 ####################################################################################################################################################################################################################################################################
 ## subclass of tornado.process.Subprocess to allow registering callbacks when processes complete on Windows (tornado.process.Subprocess.set_exit_callback is not supported on Windows)
 ####################################################################################################################################################################################################################################################################
+
 class MarxanSubprocess(tornado.process.Subprocess):
     #registers a callback function on Windows by creating another thread and polling the process to see when it is finished
     def set_exit_callback_windows(self, callback, *args, **kwargs):
@@ -1276,6 +1279,10 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
 ## RequestHandler subclasses
 ####################################################################################################################################################################################################################################################################
 
+class methodNotFound(MarxanRESTHandler):
+    def prepare(self):
+        raise tornado.web.HTTPError(501, "The method is not supported on this Marxan Server v" + MARXAN_SERVER_VERSION) # return a 501 - Not implemented
+    
 #toggles whether the guest user is enabled or not on this server
 class toggleEnableGuestUser(MarxanRESTHandler):
     def get(self):
@@ -2457,6 +2464,7 @@ def make_app():
         ("/marxan-server/clearRunLogs", clearRunLogs),
         ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
         ("/marxan-server/testTornado", testTornado),
+        ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
         (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
     ], cookie_secret=COOKIE_RANDOM_VALUE, websocket_ping_timeout=30, websocket_ping_interval=29)
 

@@ -130,6 +130,11 @@ def _setGlobalVariables():
     PERMITTED_DOMAINS = serverData['PERMITTED_DOMAINS'].split(",")
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
     print "\x1b[1;32;48mStarting marxan-server v" + MARXAN_SERVER_VERSION + " ..\x1b[0m"
+    #output the ssl information if it is being used
+    if CERTFILE != "None":
+        print " Using SSL certificate file '" + CERTFILE
+    if KEYFILE != "None":
+        print " Using private key file '" + KEYFILE
     #print out which operating system is being used
     print " Running under " + platform.system() + " operating system"
     print " Database: " + CONNECTION_STRING

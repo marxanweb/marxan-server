@@ -130,15 +130,17 @@ def _setGlobalVariables():
     PERMITTED_DOMAINS = serverData['PERMITTED_DOMAINS'].split(",")
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
     print "\x1b[1;32;48mStarting marxan-server v" + MARXAN_SERVER_VERSION + " ..\x1b[0m"
+    #print out which operating system is being used
+    print " Operating system:\t" + platform.system() 
     #output the ssl information if it is being used
     if CERTFILE != "None":
-        print " Using SSL certificate file '" + CERTFILE
+        print " SSL certificate file:\t" + CERTFILE
+    else:
+        print " No SSL certificate\t"
     if KEYFILE != "None":
-        print " Using private key file '" + KEYFILE
-    #print out which operating system is being used
-    print " Running under " + platform.system() + " operating system"
+        print " Private key file:\t" + KEYFILE
     print " Database: " + CONNECTION_STRING
-    print " " + DATABASE_VERSION_POSTGRESQL
+    print " PostgreSQL: " + DATABASE_VERSION_POSTGRESQL
     print " PostGIS: " + DATABASE_VERSION_POSTGIS
     print " Python executable: " + sys.executable
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
@@ -154,7 +156,7 @@ def _setGlobalVariables():
     #OGR2OGR_PATH = ""
     OGR2OGR_EXECUTABLE = OGR2OGR_PATH + ogr2ogr_executable
     if not os.path.exists(OGR2OGR_EXECUTABLE):
-        raise MarxanServicesError("The path to the ogr2ogr executable '" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
+        raise MarxanServicesError(" ogr2ogr executable: '" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
     else:
         print " ogr2ogr executable: " + OGR2OGR_EXECUTABLE
     #set the various folder paths

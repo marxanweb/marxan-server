@@ -19,6 +19,7 @@ import tornado.web
 import tornado.websocket
 import tornado.options
 import logging
+import fnmatch
 import json
 import psycopg2
 import pandas
@@ -129,7 +130,7 @@ def _setGlobalVariables():
     COOKIE_RANDOM_VALUE = serverData['COOKIE_RANDOM_VALUE']
     PERMITTED_DOMAINS = serverData['PERMITTED_DOMAINS'].split(",")
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
-    print "\x1b[1;32;48mStarting marxan-server v" + MARXAN_SERVER_VERSION + " ..\x1b[0m"
+    print "\x1b[1;32;48m\nStarting marxan-server v" + MARXAN_SERVER_VERSION + " ..\x1b[0m"
     #print out which operating system is being used
     print " Operating system:\t" + platform.system() 
     print " Tornado version:\t" + tornado.version
@@ -168,7 +169,7 @@ def _setGlobalVariables():
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     print " Marxan executable:\t" + MARXAN_EXECUTABLE
-    print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m"
+    print "\x1b[1;32;48mStarted at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m"
     print "\x1b[1;31;48mPress CTRL+C to stop the server\x1b[0m\n"
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
@@ -1775,6 +1776,39 @@ class getProjects(MarxanRESTHandler):
         #set the response
         self.send_response({"projects": self.projects})
 
+#gets all projects and their planning unit grids
+#https://marxan-server-blishten.c9users.io:8081/marxan-server/getProjectsWithGrids?&callback=__jp2
+class getProjectsWithGrids(MarxanRESTHandler):
+    def get(self):
+        matches = []
+        for root, dirnames, filenames in os.walk(MARXAN_USERS_FOLDER):
+            for filename in fnmatch.filter(filenames, 'input.dat'):
+                matches.append(os.path.join(root, filename))
+        projects = []
+        for match in matches:
+            #get the user from the matching filename
+            user = match[len(MARXAN_USERS_FOLDER):match[len(MARXAN_USERS_FOLDER):].find(os.sep) + len(MARXAN_USERS_FOLDER)]
+            #get the project from the matching filename
+            project = match[match.find(user) + len(user) + 1:match.rfind(os.sep)]
+            #open the input file and get the key values
+            values = _getKeyValuesFromFile(match)
+            projects.append({'user': user, 'project': project, 'feature_class_name': values['PLANNING_UNIT_NAME'], 'description': values['DESCRIPTION']})
+        #make the projects dict into a dataframe so we can join it to the data from the planning grids table
+        df = pandas.DataFrame(projects)
+        #set an index on the dataframe
+        df = df.set_index("feature_class_name")
+        #get the planning unit grids
+        grids = _getPlanningUnitGrids()
+        #make a dataframe of the planning grids records
+        df2 = pandas.DataFrame(grids)
+        #remove the duplicate description column
+        df2 = df2.drop(columns=['description','aoi_id','country_id','source'])
+        #set an index on the dataframe
+        df2 = df2.set_index("feature_class_name")
+        #join the projects to the planning grids
+        df = df.join(df2)
+        self.send_response({'info': "Projects data returned", 'data': df.to_dict(orient="records")})
+
 #updates the spec.dat file with the posted data
 class updateSpecFile(MarxanRESTHandler):
     def post(self):
@@ -2356,6 +2390,7 @@ def make_app():
     return tornado.web.Application([
         ("/marxan-server/getServerData", getServerData),
         ("/marxan-server/getProjects", getProjects),
+        ("/marxan-server/getProjectsWithGrids", getProjectsWithGrids),
         ("/marxan-server/getProject", getProject),
         ("/marxan-server/createProject", createProject),
         ("/marxan-server/createImportProject", createImportProject),

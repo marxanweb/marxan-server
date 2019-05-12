@@ -136,13 +136,13 @@ def _setGlobalVariables():
     if CERTFILE != "None":
         print " SSL certificate file:\t" + CERTFILE
     else:
-        print " No SSL certificate\t"
+        print " SSL certificate file:\tNone"
     if KEYFILE != "None":
         print " Private key file:\t" + KEYFILE
-    print " Database: " + CONNECTION_STRING
-    print " PostgreSQL: " + DATABASE_VERSION_POSTGRESQL
-    print " PostGIS: " + DATABASE_VERSION_POSTGIS
-    print " Python executable: " + sys.executable
+    print " Database:\t\t" + CONNECTION_STRING
+    print " PostgreSQL:\t\t" + DATABASE_VERSION_POSTGRESQL
+    print " PostGIS:\t\t" + DATABASE_VERSION_POSTGIS
+    print " Python executable:\t" + sys.executable
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
         ogr2ogr_executable = "ogr2ogr.exe"
@@ -156,9 +156,9 @@ def _setGlobalVariables():
     #OGR2OGR_PATH = ""
     OGR2OGR_EXECUTABLE = OGR2OGR_PATH + ogr2ogr_executable
     if not os.path.exists(OGR2OGR_EXECUTABLE):
-        raise MarxanServicesError(" ogr2ogr executable: '" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
+        raise MarxanServicesError(" ogr2ogr executable:\t'" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
     else:
-        print " ogr2ogr executable: " + OGR2OGR_EXECUTABLE
+        print " ogr2ogr executable:\t" + OGR2OGR_EXECUTABLE
     #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
@@ -166,8 +166,8 @@ def _setGlobalVariables():
     MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources" + os.sep
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
-    print " Marxan executable: " + MARXAN_EXECUTABLE
-    print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n"
+    print " Marxan executable:\t" + MARXAN_EXECUTABLE
+    print "\x1b[1;32;48mStarted " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m"
     print "\x1b[1;31;48mPress CTRL+C to stop the server\x1b[0m\n"
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 

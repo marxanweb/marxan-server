@@ -7,6 +7,7 @@ from tornado.web import StaticFileHandler
 from tornado.ioloop import IOLoop
 from tornado import concurrent
 from tornado import gen
+from subprocess import Popen, PIPE
 from threading import Thread
 from urlparse import urlparse
 from psycopg2 import sql
@@ -1189,10 +1190,10 @@ class PostGIS():
         self._cleanup()
 
 ####################################################################################################################################################################################################################################################################
-## subclass of tornado.process.Subprocess to allow registering callbacks when processes complete on Windows (tornado.process.Subprocess.set_exit_callback is not supported on Windows)
+## subclass of Popen to allow registering callbacks when processes complete on Windows (tornado.process.Subprocess.set_exit_callback is not supported on Windows)
 ####################################################################################################################################################################################################################################################################
 
-class MarxanSubprocess(tornado.process.Subprocess):
+class MarxanSubprocess(Popen):
     #registers a callback function on Windows by creating another thread and polling the process to see when it is finished
     def set_exit_callback_windows(self, callback, *args, **kwargs):
         #set a reference to the thread so we can free it when the process ends
@@ -1200,10 +1201,10 @@ class MarxanSubprocess(tornado.process.Subprocess):
 
     def _poll_completion(self, callback, args, kwargs):
         #poll the process to see when it ends
-        while self.proc.poll() is None:
+        while self.poll() is None:
             time.sleep(1)
         #call the callback function with the process return code
-        callback(self.proc.returncode)
+        callback(self.returncode)
         #free the thread memory
         self._thread = None
 
@@ -2096,16 +2097,16 @@ class runMarxan(MarxanWebSocketHandler):
                 try:
                     if platform.system() != "Windows":
                         #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM - the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) 
-                        self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=subprocess.PIPE, shell=True)
+                        self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=PIPE, shell=True)
                         #make sure that the marxan process will end by sending ENTER to the stdin
                         self.marxanProcess.stdin.write('\n') 
                         #add a callback when the process finishes
                         self.marxanProcess.set_exit_callback(self.finishOutput)
                     else:
                         #custom class as the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
-                        self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-                        #make sure that the marxan process will end by sending a new line character to the process in windows
-                        self.marxanProcess.proc.communicate(input='\n')
+                        self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdout=PIPE, stdin=PIPE)
+                        self.marxanProcess.stdin.close() #to ensure that the child process is stopped when it ends
+                        self.marxanProcess.stdout.close() #to ensure that the child process is stopped when it ends
                         #add a callback when the process finishes
                         self.marxanProcess.set_exit_callback_windows(self.finishOutput)
                 except (WindowsError) as e: # pylint:disable=undefined-variable
@@ -2144,11 +2145,17 @@ class runMarxan(MarxanWebSocketHandler):
                 pass
         else:
             try:
-                self.send_response({'info': "Log streaming is currently not supported on Windows", 'status':'RunningMarxan'})
-                #while True: #on Windows this is a blocking function
-                    ##read from the stdout file object
-                    #line = self.marxanProcess.stdout.readline()
-                    #self.send_response({'info': line, 'status':'RunningMarxan'})
+                self.send_response({'info': "Streaming log not currently supported on Windows\n", 'status':'RunningMarxan'})
+                # while True: #on Windows this is a blocking function
+                    # #read from the stdout file object
+                    # line = self.marxanProcess.stdout.readline()
+                    # self.send_response({'info': line, 'status':'RunningMarxan'})
+                    # #bit of a hack to see when it has finished running
+                    # if line.find("Press return to exit") > -1:
+                        # #make sure that the marxan process will end by sending a new line character to the process in windows
+                        # self.marxanProcess.communicate(input='\n')
+                        # break
+
             except (BufferError):
                 print "BufferError"
                 pass

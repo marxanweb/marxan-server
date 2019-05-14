@@ -9,7 +9,7 @@ General Parameters
 BLM 0.5
 PROP 0.5
 RANDSEED -1
-NUMREPS 50
+NUMREPS 10
 
 Annealing Parameters
 NUMITNS 1000000

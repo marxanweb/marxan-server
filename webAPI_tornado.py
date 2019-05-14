@@ -2118,7 +2118,8 @@ class runMarxan(MarxanWebSocketHandler):
                     #get the number of runs that were in the input.dat file
                     self.numRunsRequired = _getNumberOfRunsRequired(self)
                     #log the run to the run log file
-                    self.logRun()
+                    if not (self.user == '_clumping'): #dont log any clumping runs
+                        self.logRun()
                     #print the details of the run out to the tornado log stream
                     print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
                     #return the pid so that the process can be stopped
@@ -2169,32 +2170,34 @@ class runMarxan(MarxanWebSocketHandler):
     def logRun(self):
         #get the user name
         self.user = self.get_argument('user')
-        if not (self.user == '_clumping'): #dont show clumping runs to the user
-            self.project = self.get_argument('project')
-            #create the data record - pid, user, project, starttime, endtime, runtime, runs (e.g. 3/10), status = running, completed, stopped (by user), killed (by OS)
-            record = [str(self.marxanProcess.pid), self.user, self.project, datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"),'','', '0/' + str(self.numRunsRequired), 'Running']
-            #add the tab separators
-            recordLine = "\t".join(record)
-            #append the record to the run log file
-            _writeFileUnicode(MARXAN_FOLDER + RUN_LOG_FILENAME, recordLine + "\n", "a")
+        self.project = self.get_argument('project')
+        #create the data record - pid, user, project, starttime, endtime, runtime, runs (e.g. 3/10), status = running, completed, stopped (by user), killed (by OS)
+        record = [str(self.marxanProcess.pid), self.user, self.project, datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"),'','', '0/' + str(self.numRunsRequired), 'Running']
+        #add the tab separators
+        recordLine = "\t".join(record)
+        #append the record to the run log file
+        _writeFileUnicode(MARXAN_FOLDER + RUN_LOG_FILENAME, recordLine + "\n", "a")
             
     #finishes writing the output of a stream and writes the run log
     def finishOutput(self, returnCode):
         try: 
             #log the end of the run
             print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.user + "." + self.project + " has finished running"
-            #get the number of runs completed
-            numRunsCompleted = _getNumberOfRunsCompleted(self)
-            #write the response depending on if the run completed or not
-            if (numRunsCompleted == self.numRunsRequired):
-                _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Completed')
+            if not (self.user == '_clumping'): #dont show clumping runs to the user
+                #get the number of runs completed
+                numRunsCompleted = _getNumberOfRunsCompleted(self)
+                #write the response depending on if the run completed or not
+                if (numRunsCompleted == self.numRunsRequired):
+                    _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Completed')
+                    self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.project, 'user': self.user})
+                else: #if the user stopped it then the run log should already have a status of Stopped
+                    actualStatus = _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Killed')
+                    if (actualStatus == 'Stopped'):
+                        self.send_response({'error': 'Run stopped by ' + self.user, 'status': 'Finished', 'project': self.project, 'user': self.user})
+                    else:
+                        self.send_response({'error': 'Run stopped by operating system', 'status': 'Finished', 'project': self.project, 'user': self.user})
+            else:
                 self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.project, 'user': self.user})
-            else: #if the user stopped it then the run log should already have a status of Stopped
-                actualStatus = _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Killed')
-                if (actualStatus == 'Stopped'):
-                    self.send_response({'error': 'Run stopped by ' + self.user, 'status': 'Finished', 'project': self.project, 'user': self.user})
-                else:
-                    self.send_response({'error': 'Run stopped by operating system', 'status': 'Finished', 'project': self.project, 'user': self.user})
             #close the websocket
             self.close()
 

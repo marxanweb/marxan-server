@@ -1188,11 +1188,9 @@ class PostGIS():
         self._cleanup()
 
 ####################################################################################################################################################################################################################################################################
-## subclass of tornado.process.Subprocess to allow registering callbacks when processes complete on Windows (tornado.process.Subprocess.set_exit_callback is not supported on Windows)
 ## subclass of Popen to allow registering callbacks when processes complete on Windows (tornado.process.Subprocess.set_exit_callback is not supported on Windows)
 ####################################################################################################################################################################################################################################################################
 
-class MarxanSubprocess(tornado.process.Subprocess):
 class MarxanSubprocess(Popen):
     #registers a callback function on Windows by creating another thread and polling the process to see when it is finished
     def set_exit_callback_windows(self, callback, *args, **kwargs):

@@ -152,10 +152,12 @@ def _setGlobalVariables():
         ogr2ogr_executable = "ogr2ogr.exe"
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep + "library" + os.sep + "bin" + os.sep # sys.executable is the Python.exe file and will likely be in C:\Users\a_cottam\Miniconda2 folder - ogr2ogr is then in /library/bin on windows
         marxan_executable = "Marxan.exe"
+        stopCmd = "\x1b[1;31;48mPress CTRL+C or CTRL+Fn+Pause to stop the server\x1b[0m\n"
     else:
         ogr2ogr_executable = "ogr2ogr"
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep # sys.executable is the Python.exe file and will likely be in /home/ubuntu//miniconda2/bin/ - the same place as ogr2ogr
         marxan_executable = "MarOpt_v243_Linux64"
+        stopCmd = "\x1b[1;31;48mPress CTRL+C to stop the server\x1b[0m\n"
     #if the ogr2ogr executable path is not in the miniconda bin directory, then hard-code it here and uncomment the line
     #OGR2OGR_PATH = ""
     OGR2OGR_EXECUTABLE = OGR2OGR_PATH + ogr2ogr_executable
@@ -172,7 +174,7 @@ def _setGlobalVariables():
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     print " Marxan executable:\t" + MARXAN_EXECUTABLE
     print "\x1b[1;32;48mStarted at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m"
-    print "\x1b[1;31;48mPress CTRL+C to stop the server\x1b[0m\n"
+    print stopCmd
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-CLIENT SOFTWARE IF PRESENT
@@ -2501,7 +2503,7 @@ if __name__ == "__main__":
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":
                 print "\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m"
-                print "\x1b[1;32;48mOr run 'python webAPI_tornado.py " + navigateTo + "' to automatically open the Marxan Web in a browser\x1b[0m\n"
+                print "\x1b[1;32;48mOr run 'python webAPI_tornado.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n"
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         print e.message

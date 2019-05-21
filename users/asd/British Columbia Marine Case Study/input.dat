@@ -53,12 +53,12 @@ VERBOSITY 2
 SAVESOLUTIONSMATRIX 3
 
 
-DESCRIPTION This exercise is based on a hypothetical marine protected area planning scenario off the coast of British Columbia
+DESCRIPTION Clone of project 'British Columbia Marine Case Study'
  in Canada’s west coast. The exercise puts you in the place of a natural resource manager whose goal is to develop a cost-effective network of marine protected areas that represent 30% of each conservation feature in the area
  while minimizing the cost to fisheries. (imported from an existing Marxan project)
-CREATEDATE Tue Apr 30 2019 10:38:35 GMT+0200 (Central European Summer Time)
+CREATEDATE 21/05/19 11:54:39
 PLANNING_UNIT_NAME pu_41bf03773e994befb997059e82348
-IUCN_CATEGORY IUCN I-VI
+IUCN_CATEGORY None
 OLDVERSION True
 CLASSIFICATION jenks
 NUMCLASSES 9

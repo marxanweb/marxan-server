@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.6.5"
+MARXAN_SERVER_VERSION = "0.6.7"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -93,7 +93,8 @@ def _setGlobalVariables():
     global CLUMP_FOLDER 
     global MARXAN_EXECUTABLE 
     global MARXAN_WEB_RESOURCES_FOLDER
-    global START_PROJECT_FOLDER 
+    global START_PROJECT_FOLDER
+    global CASE_STUDY_PROJECT_FOLDER 
     global EMPTY_PROJECT_TEMPLATE_FOLDER 
     global OGR2OGR_EXECUTABLE
     global MARXAN_CLIENT_VERSION
@@ -172,6 +173,7 @@ def _setGlobalVariables():
     MARXAN_EXECUTABLE = MARXAN_FOLDER + marxan_executable
     MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources" + os.sep
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
+    CASE_STUDY_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "British Columbia Marine Case Study" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     print " Marxan executable:\t" + MARXAN_EXECUTABLE
     print "\x1b[1;32;48mStarted at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m"
@@ -1310,6 +1312,8 @@ class createUser(MarxanRESTHandler):
         _createUser(self, self.get_argument('user'), self.get_argument('fullname'), self.get_argument('email'), self.get_argument('password'), self.get_argument('mapboxaccesstoken'))
         #copy the start project into the users folder
         _cloneProject(START_PROJECT_FOLDER, MARXAN_USERS_FOLDER + self.get_argument('user') + os.sep)
+        #copy the british columbia marine case study into the users folder
+        _cloneProject(CASE_STUDY_PROJECT_FOLDER, MARXAN_USERS_FOLDER + self.get_argument('user') + os.sep)
         #set the response
         self.send_response({'info': "User '" + self.get_argument('user') + "' created"})
 

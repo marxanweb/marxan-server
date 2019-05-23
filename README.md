@@ -66,4 +66,4 @@ python marxan-server-<VERSION>/webAPI_tornado.py
 https://\<host>:8081/index.html
 
 ### Configuration  
-marxan-server can be configured to change various settings including linking to an existing database, configuring security etc. For more information see the [Administrator Guide](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html#configuration).  
+marxan-server can be configured to change various settings including linking to an existing database, configuring security etc. For more information see the [Administrator Guide - Configuration](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html#configuration).  

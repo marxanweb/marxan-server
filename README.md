@@ -26,6 +26,7 @@ conda install tornado psycopg2 pandas gdal colorama
 pip install mapbox  
 ```  
 ### Install Postgresql/PostGIS
+marxan-server requires Postgresql version 10.7 and PostGIS version 2.5.1.  
 ```
 sudo apt-get update  
 sudo apt-get install postgresql postgresql-contrib postgis postgresql-9.3-postgis-scripts  

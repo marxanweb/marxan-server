@@ -141,11 +141,13 @@ def _setGlobalVariables():
     #output the ssl information if it is being used
     if CERTFILE != "None":
         print " SSL certificate file:\t" + CERTFILE
+        testUrl = "https://<host>:8081/marxan-server/testTornado"
     else:
         print " SSL certificate file:\tNone"
+        testUrl = "http://<host>:8081/marxan-server/testTornado"
     if KEYFILE != "None":
         print " Private key file:\t" + KEYFILE
-    print " Database:\t\t" + CONNECTION_STRING
+    print " Database:\t\t" + "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='****************'"
     print " PostgreSQL:\t\t" + DATABASE_VERSION_POSTGRESQL
     print " PostGIS:\t\t" + DATABASE_VERSION_POSTGIS
     print " Python executable:\t" + sys.executable
@@ -177,6 +179,7 @@ def _setGlobalVariables():
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     print " Marxan executable:\t" + MARXAN_EXECUTABLE
     print "\x1b[1;32;48mStarted at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m"
+    print "\x1b[1;32;48m\nTo test marxan-server goto " + testUrl + "\x1b[0m"
     print stopCmd
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
@@ -2125,7 +2128,7 @@ class runMarxan(MarxanWebSocketHandler):
                     if not (self.user == '_clumping'): #dont log any clumping runs
                         self.logRun()
                     #print the details of the run out to the tornado log stream
-                    print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
+                    #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
                     #return the pid so that the process can be stopped
                     self.send_response({'pid': self.marxanProcess.pid, 'status':'pid'})
                     #callback on the next I/O loop
@@ -2186,7 +2189,7 @@ class runMarxan(MarxanWebSocketHandler):
     def finishOutput(self, returnCode):
         try: 
             #log the end of the run
-            print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.user + "." + self.project + " has finished running"
+            #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.user + "." + self.project + " has finished running"
             if not (self.user == '_clumping'): #dont show clumping runs to the user
                 #get the number of runs completed
                 numRunsCompleted = _getNumberOfRunsCompleted(self)

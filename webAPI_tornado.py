@@ -147,10 +147,7 @@ def _setGlobalVariables():
     else:
         print " SSL certificate file:\tNone"
         testUrl = "http://"
-    if (PORT == "8080"):
-        testUrl = testUrl + "<host>/marxan-server/testTornado"
-    else:
-        testUrl = testUrl + "<host>:" + PORT + "/marxan-server/testTornado"
+    testUrl = testUrl + "<host>:" + PORT + "/marxan-server/testTornado"
     if KEYFILE != "None":
         print " Private key file:\t" + KEYFILE
     print " Database:\t\t" + "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='****************'"
@@ -2516,10 +2513,7 @@ if __name__ == "__main__":
         else:
             app.listen(PORT)
             navigateTo = "http://"
-        if (PORT == "8080")            :
-            navigateTo = navigateTo + "<host>/index.html"
-        else:
-            navigateTo = navigateTo + "<host>:" + PORT + "/index.html"
+        navigateTo = navigateTo + "<host>:" + PORT + "/index.html"
         #open the web browser if the call includes a url, e.g. python webAPI_tornado.py http://localhost/index.html
         if len(sys.argv)>1:
             if MARXAN_CLIENT_VERSION == "Not installed":

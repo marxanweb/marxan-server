@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.7.0"
+MARXAN_SERVER_VERSION = "0.7.1"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -1782,6 +1782,7 @@ class getResults(MarxanRESTHandler):
             self.send_response({'info':'No results available'})
 
 #gets the data from the server.dat file as an abject
+#https://marxan-server-blishten.c9users.io/marxan-server/getServerData
 class getServerData(MarxanRESTHandler):
     def get(self):
         #get the data from the server.dat file

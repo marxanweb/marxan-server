@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.7.1"
+MARXAN_SERVER_VERSION = "0.7.2"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -119,22 +119,22 @@ def _setGlobalVariables():
     #get the data in the server configuration file
     serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
     #get the database connection string
-    SERVER_NAME = serverData['SERVER_NAME']
-    SERVER_DESCRIPTION = serverData['SERVER_DESCRIPTION']
-    DATABASE_NAME = serverData['DATABASE_NAME']
-    DATABASE_HOST = serverData['DATABASE_HOST']
-    DATABASE_USER = serverData['DATABASE_USER']
-    DATABASE_PASSWORD = serverData['DATABASE_PASSWORD']
-    DATABASE_NAME = serverData['DATABASE_NAME']
-    PORT = str(serverData['PORT'])
-    CERTFILE = serverData['CERTFILE']
-    KEYFILE = serverData['KEYFILE']
+    SERVER_NAME = _getDictValue(serverData,'SERVER_NAME')
+    SERVER_DESCRIPTION = _getDictValue(serverData,'SERVER_DESCRIPTION')
+    DATABASE_NAME = _getDictValue(serverData,'DATABASE_NAME')
+    DATABASE_HOST = _getDictValue(serverData,'DATABASE_HOST')
+    DATABASE_USER = _getDictValue(serverData,'DATABASE_USER')
+    DATABASE_PASSWORD = _getDictValue(serverData,'DATABASE_PASSWORD')
+    DATABASE_NAME = _getDictValue(serverData,'DATABASE_NAME')
+    PORT = str(_getDictValue(serverData, 'PORT'))
+    CERTFILE = _getDictValue(serverData,'CERTFILE')
+    KEYFILE = _getDictValue(serverData,'KEYFILE')
     CONNECTION_STRING = "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
     #get the database version
     postgis = PostGIS()
     DATABASE_VERSION_POSTGRESQL, DATABASE_VERSION_POSTGIS = postgis.execute("SELECT version(), PostGIS_Version();", None, "One")  
-    COOKIE_RANDOM_VALUE = serverData['COOKIE_RANDOM_VALUE']
-    PERMITTED_DOMAINS = serverData['PERMITTED_DOMAINS'].split(",")
+    COOKIE_RANDOM_VALUE = _getDictValue(serverData,'COOKIE_RANDOM_VALUE')
+    PERMITTED_DOMAINS = _getDictValue(serverData,'PERMITTED_DOMAINS').split(",")
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
     print "\x1b[1;32;48m\nStarting marxan-server v" + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..\x1b[0m"
     #print out which operating system is being used
@@ -707,6 +707,13 @@ def _getEndOfLine(text):
     except (ValueError):
         p = text.index("\n") #unix uses just line feed
     return p
+
+#returns the key value from a dict or raises an error if the key doesnt exist
+def _getDictValue(dict, key):
+    if key not in dict.keys():
+        raise MarxanServicesError("The key '" + key + "' does not exist in the dictionary")
+    else:
+        return dict[key]
 
 #returns all the keys from a set of KEY/VALUE pairs in a string expression
 def _getKeys(s):

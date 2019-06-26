@@ -47,7 +47,7 @@ sudo -u postgres psql -f dump.sql postgres://
 ```
 
 ### Create the server.dat file
-The server.dat.default file contains the default configuration information for your installation of marxan-server and must be copied to server.dat where you can customise it with your own organisations information (this customisation is optional - see #configuration). This file will not be overwritten when any future updates to the marxan-server repo are pulled from GitHub. 
+The server.dat.default file contains the default configuration information for your installation of marxan-server and must be copied to server.dat where you can customise it with your own organisations information (this customisation is optional - see [configuration](#configuration)). This file will not be overwritten when any future updates to the marxan-server repo are pulled from GitHub. 
 
 ### Cleanup
 Remove the downloaded files  
@@ -68,10 +68,6 @@ python marxan-server/webAPI_tornado.py
 ```
 
 NOTE: On some Cloud hosts like Google Cloud Platform, when the SSH connection is closed then the instances may be shut down, thus terminating the marxan-server. To avoid this, use Virtual Terminal software like screen. For more information see [here](https://www.tecmint.com/keep-remote-ssh-sessions-running-after-disconnection/).  
-
-### Test the installation 
-To test if marxan-server is running, in a browser goto:
-http://\<host>:8080/marxan-server/testTornado 
 
 ### Configuration  
 marxan-server can be configured to change various settings including linking to an existing database, configuring security etc. For more information see the [Administrator Guide - Configuration](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html#configuration).  

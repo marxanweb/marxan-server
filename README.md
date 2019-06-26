@@ -44,11 +44,12 @@ sudo -u postgres psql -f dump.sql postgres://
 ```
 
 ### Configure https
-If you want to enable the marxan-server to serve over SSL, then in the server.dat file put the following info:  
+If you want to enable the marxan-server to serve over SSL, then in the server.dat file add information for the CERTFILE and KEYFILE, e.g.  
+
 - CERTFILE /home/a_cottam/andrewcottam.com.crt
 - KEYFILE /home/a_cottam/andrewcottam_com.key  
 
-If you get an error 'SEC_ERROR_UNKNOWN_ISSUER' in Firefox it is because the crt certificate does not include the full chain of certificates. To fix this, copy the \*.crt certificate and paste it into the top of the full \*.ca-bundle certificate and save this as a new certificate, e.g. certificate_chain.crt. It should then work in Firefox.  
+For more information see the configuration section in the [Administrator Documentation](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html). If you get an error 'SEC_ERROR_UNKNOWN_ISSUER' in Firefox it is because the crt certificate does not include the full chain of certificates. To fix this, copy the \*.crt certificate and paste it into the top of the full \*.ca-bundle certificate and save this as a new certificate, e.g. certificate_chain.crt. It should then work in Firefox.  
 
 ### Create the server.dat file
 The server.dat.default file contains the default configuration information for your installation of marxan-server and must be copied to server.dat where you can customise it with your own organisations information (this customisation is optional). This file will not be overwritten when any future updates to the marxan-server repo are pulled from GitHub. For more information on the values in the configuration file see the [Administrator Documentation](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html).  

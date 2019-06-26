@@ -7,16 +7,13 @@ The following image shows the high level architecture of marxan-server.
 
 ## Installation
 The following installation was testing on Ubuntu 18.04.  
-### Download the required files  
+### Download the files  
 In the folder where you want to install marxan-server, type the following:
 ```
 git clone https://github.com/andrewcottam/marxan-server.git
 ```
-Then download the database:  
-```
-wget https://github.com/andrewcottam/marxan-server/releases/download/beta/dump.sql
-```
-### Install Python dependencies
+
+### Install Python and dependencies
 Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda2 by running conda init? [yes|no] ?):  
 ```
 wget https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh  
@@ -39,6 +36,12 @@ sudo -u postgres psql -c 'CREATE EXTENSION postgis_topology;'
 ```  
 
 ### Create database  
+Download the database:  
+```
+wget https://github.com/andrewcottam/marxan-server/releases/download/beta/dump.sql
+```
+
+Import the data:
 ```  
 sudo -u postgres psql -f dump.sql postgres://
 ```

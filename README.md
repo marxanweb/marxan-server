@@ -27,21 +27,22 @@ Install dependencies:
 conda install tornado psycopg2 pandas gdal colorama    
 pip install mapbox  
 ```  
+
 ### Install Postgresql/PostGIS
-marxan-server requires Postgresql version 10.7 and PostGIS version 2.5.1.  
+marxan-server requires Postgresql version 10+ and PostGIS version 2.4+  
 ```
 sudo apt-get update  
-sudo apt-get install postgresql postgresql-contrib postgis postgresql-9.3-postgis-scripts  
+sudo apt-get install postgresql postgis 
 sudo apt-get update  
-```
-### Create database  
-Create the database user, database and PostGIS functions and import the required data:
+sudo -u postgres psql -c 'CREATE EXTENSION postgis;'
+sudo -u postgres psql -c 'CREATE EXTENSION postgis_topology;'
 ```  
-createuser -P -s jrc
-createdb -T template0 marxanserver  
-psql -c 'CREATE EXTENSION IF NOT EXISTS postgis;'    
-psql -h 127.0.0.1 -d marxanserver -U jrc -f /home/ubuntu/workspace/dump.sql   
+
+### Create database  
+```  
+sudo -u postgres psql -f dump.sql postgres://
 ```
+
 ### Configure https
 In the server.dat file put the following info:
 CERTFILE /home/a_cottam/andrewcottam.com.crt

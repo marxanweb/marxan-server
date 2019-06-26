@@ -6,13 +6,15 @@ The following image shows the high level architecture of marxan-server.
 ![marxan-server architecture](architecture.png)  
 
 ## Installation
-The following installation was testing on Ubuntu 14.04. Replace \<VERSION> with the actual version, e.g. 1.1.  
-### Download and unzip the required files  
-Click on the releases link above, copy the link to the download files and download and unzip them.  
+The following installation was testing on Ubuntu 18.04.  
+### Download the required files  
+In the folder where you want to install marxan-server, type the following:
 ```
-wget https://github.com/andrewcottam/marxan-server/archive/v<VERSION>.zip    
-wget https://github.com/andrewcottam/marxan-server/releases/download/v<VERSION>/dump.sql  
-unzip v<VERSION>.zip   
+git clone https://github.com/andrewcottam/marxan-server.git
+```
+Then download the database:  
+```
+wget https://github.com/andrewcottam/marxan-server/releases/download/beta/dump.sql
 ```
 ### Install Python dependencies
 Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda2 in your /home/ubuntu/.bashrc ?):  

@@ -43,16 +43,8 @@ sudo -u postgres psql -c 'CREATE EXTENSION postgis_topology;'
 sudo -u postgres psql -f dump.sql postgres://
 ```
 
-### Configure https (optional step)
-If you want to enable the marxan-server to serve over SSL, then in the server.dat file add information for the CERTFILE and KEYFILE, e.g.  
-
-- CERTFILE /home/a_cottam/andrewcottam.com.crt
-- KEYFILE /home/a_cottam/andrewcottam_com.key  
-
-For more information, see the configuration section in the [Administrator Documentation](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html). If you get an error 'SEC_ERROR_UNKNOWN_ISSUER' in Firefox it is because the crt certificate does not include the full chain of certificates. To fix this, copy the \*.crt certificate and paste it into the top of the full \*.ca-bundle certificate and save this as a new certificate, e.g. certificate_chain.crt. It should then work in Firefox.  
-
 ### Create the server.dat file
-The server.dat.default file contains the default configuration information for your installation of marxan-server and must be copied to server.dat where you can customise it with your own organisations information (this customisation is optional). This file will not be overwritten when any future updates to the marxan-server repo are pulled from GitHub. For more information on the values in the configuration file see the [Administrator Documentation](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html).  
+The server.dat.default file contains the default configuration information for your installation of marxan-server and must be copied to server.dat where you can customise it with your own organisations information (this customisation is optional - see #configuration). This file will not be overwritten when any future updates to the marxan-server repo are pulled from GitHub. 
 
 ### Cleanup
 Remove the downloaded files  
@@ -62,15 +54,21 @@ rm Miniconda2-latest-Linux-x86_64.sh
 ```  
 
 ### Start the services
-Start the PostGIS instance (if it is not already running) and the Marxan Server:  
+Start the PostGIS instance (if it is not already running):  
 ```
 sudo service postgresql restart  
-python marxan-server-<VERSION>/webAPI_tornado.py  
+```  
+
+Start Marxan Server:  
 ```
+python marxan-server/webAPI_tornado.py  
+```
+
 NOTE: On some Cloud hosts like Google Cloud Platform, when the SSH connection is closed then the instances may be shut down, thus terminating the marxan-server. To avoid this, use Virtual Terminal software like screen. For more information see [here](https://www.tecmint.com/keep-remote-ssh-sessions-running-after-disconnection/).  
 
-### Navigate the marxan-client
-https://\<host>:8081/index.html
+### Test the installation 
+To test if marxan-server is running, in a browser goto:
+http://\<host>:8080/marxan-server/testTornado 
 
 ### Configuration  
 marxan-server can be configured to change various settings including linking to an existing database, configuring security etc. For more information see the [Administrator Guide - Configuration](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html#configuration).  

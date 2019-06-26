@@ -54,22 +54,21 @@ For more information, see the configuration section in the [Administrator Docume
 ### Create the server.dat file
 The server.dat.default file contains the default configuration information for your installation of marxan-server and must be copied to server.dat where you can customise it with your own organisations information (this customisation is optional). This file will not be overwritten when any future updates to the marxan-server repo are pulled from GitHub. For more information on the values in the configuration file see the [Administrator Documentation](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html).  
 
-### Deploying onto GCP
-Use screen otherwise when the ssh connection drops the python process will be killed.  
-
 ### Cleanup
 Remove the downloaded files  
 ```
 rm dump.sql   
 rm Miniconda2-latest-Linux-x86_64.sh   
-rm v<VERSION>.zip  
-``` 
+```  
+
 ### Start the services
-Start the PostGIS instance and the Marxan Server  
+Start the PostGIS instance (if it is not already running) and the Marxan Server:  
 ```
 sudo service postgresql restart  
 python marxan-server-<VERSION>/webAPI_tornado.py  
 ```
+NOTE: On some Cloud hosts like Google Cloud Platform, when the SSH connection is closed then the instances may be shut down, thus terminating the marxan-server. To avoid this, use Virtual Terminal software like screen. For more information see [here](https://www.tecmint.com/keep-remote-ssh-sessions-running-after-disconnection/).  
+
 ### Navigate the marxan-client
 https://\<host>:8081/index.html
 

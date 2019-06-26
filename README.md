@@ -17,7 +17,7 @@ Then download the database:
 wget https://github.com/andrewcottam/marxan-server/releases/download/beta/dump.sql
 ```
 ### Install Python dependencies
-Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda2 in your /home/ubuntu/.bashrc ?):  
+Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda2 by running conda init? [yes|no] ?):  
 ```
 wget https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh  
 bash Miniconda2-latest-Linux-x86_64.sh  

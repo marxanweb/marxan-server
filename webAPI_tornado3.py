@@ -1,4 +1,4 @@
-#!/home/ubuntu/miniconda2/bin/python
+#!/home/ubuntu/miniconda2/envs/python36/bin/python3.6 
 from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
 from tornado.process import Subprocess
@@ -10,7 +10,7 @@ from tornado import concurrent
 from tornado import gen
 from subprocess import Popen, PIPE 
 from threading import Thread 
-from urlparse import urlparse # The urlparse module is renamed to urllib.parse in Python 3. The 2to3 tool will automatically adapt imports when converting your sources to Python 3.
+from urllib.parse import urlparse # The urlparse module is renamed to urllib.parse in Python 3. The 2to3 tool will automatically adapt imports when converting your sources to Python 3.
 from psycopg2 import sql 
 from mapbox import Uploader 
 from mapbox import errors 
@@ -133,24 +133,24 @@ def _setGlobalVariables():
     COOKIE_RANDOM_VALUE = _getDictValue(serverData,'COOKIE_RANDOM_VALUE')
     PERMITTED_DOMAINS = _getDictValue(serverData,'PERMITTED_DOMAINS').split(",")
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
-    print "\x1b[1;32;48m\nStarting marxan-server v" + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..\x1b[0m"
+    print("\x1b[1;32;48m\nStarting marxan-server v" + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..\x1b[0m")
     #print out which operating system is being used
-    print " Operating system:\t" + platform.system() 
-    print " Tornado version:\t" + tornado.version
+    print(" Operating system:\t" + platform.system()) 
+    print(" Tornado version:\t" + tornado.version)
     #output the ssl information if it is being used
     if CERTFILE != "None":
-        print " SSL certificate file:\t" + CERTFILE
+        print(" SSL certificate file:\t" + CERTFILE)
         testUrl = "https://"
     else:
-        print " SSL certificate file:\tNone"
+        print(" SSL certificate file:\tNone")
         testUrl = "http://"
     testUrl = testUrl + "<host>:" + PORT + "/marxan-server/testTornado"
     if KEYFILE != "None":
-        print " Private key file:\t" + KEYFILE
-    print " Database:\t\t" + "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='****************'"
-    print " PostgreSQL:\t\t" + DATABASE_VERSION_POSTGRESQL
-    print " PostGIS:\t\t" + DATABASE_VERSION_POSTGIS
-    print " Python executable:\t" + sys.executable
+        print(" Private key file:\t" + KEYFILE)
+    print(" Database:\t\t" + "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='****************'")
+    print(" PostgreSQL:\t\t" + DATABASE_VERSION_POSTGRESQL)
+    print(" PostGIS:\t\t" + DATABASE_VERSION_POSTGIS)
+    print(" Python executable:\t" + sys.executable)
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
         ogr2ogr_executable = "ogr2ogr.exe"
@@ -168,7 +168,7 @@ def _setGlobalVariables():
     if not os.path.exists(OGR2OGR_EXECUTABLE):
         raise MarxanServicesError(" ogr2ogr executable:\t'" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
     else:
-        print " ogr2ogr executable:\t" + OGR2OGR_EXECUTABLE
+        print(" ogr2ogr executable:\t" + OGR2OGR_EXECUTABLE)
     #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
@@ -177,10 +177,10 @@ def _setGlobalVariables():
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
     CASE_STUDY_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "British Columbia Marine Case Study" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
-    print " Marxan executable:\t" + MARXAN_EXECUTABLE
-    print "\x1b[1;32;48mStarted at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m"
-    print "\x1b[1;32;48m\nTo test marxan-server goto " + testUrl + "\x1b[0m"
-    print stopCmd
+    print(" Marxan executable:\t" + MARXAN_EXECUTABLE)
+    print("\x1b[1;32;48mStarted at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m")
+    print("\x1b[1;32;48m\nTo test marxan-server goto " + testUrl + "\x1b[0m")
+    print(stopCmd)
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-CLIENT SOFTWARE IF PRESENT
@@ -191,11 +191,11 @@ def _setGlobalVariables():
         f = open(packageJson)
         MARXAN_CLIENT_VERSION = json.load(f)['version']
         f.close()
-        print "\x1b[1;32;48mmarxan-client v" + MARXAN_CLIENT_VERSION + " installed\x1b[0m"
+        print("\x1b[1;32;48mmarxan-client v" + MARXAN_CLIENT_VERSION + " installed\x1b[0m")
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
-        print "\x1b[1;32;48mmarxan-client is not installed\x1b[0m\n"
+        print("\x1b[1;32;48mmarxan-client is not installed\x1b[0m\n")
         
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
@@ -327,12 +327,12 @@ def _cloneProject(source_folder, destination_folder):
 
 #sets the various paths to the users folder and project folders using the request arguments in the passed object
 def _setFolderPaths(obj, arguments):
-    if "user" in arguments.keys():
+    if "user" in list(arguments.keys()):
         user = arguments["user"][0]
         obj.folder_user = MARXAN_USERS_FOLDER + user + os.sep
         obj.user = user
         #get the project folder and the input and output folders
-        if "project" in arguments.keys():
+        if "project" in list(arguments.keys()):
             obj.folder_project = obj.folder_user + arguments["project"][0] + os.sep
             obj.folder_input =  obj.folder_project + "input" + os.sep
             obj.folder_output = obj.folder_project + "output" + os.sep
@@ -440,7 +440,7 @@ def _getSpeciesData(obj):
         try:
             output_df = output_df[["alias", "feature_class_name", "description", "creation_date", "area", "tilesetid", "prop", "spf", "oid"]]
         except (KeyError) as e:
-            raise MarxanServicesError("Unable to load spec.dat data. " + e.message + ". Column names: " + ",".join(df.columns.to_list()).encode('unicode_escape')) #.encode('unicode_escape') in case there are tab characters which will be escaped to \\t
+            raise MarxanServicesError("Unable to load spec.dat data. " + e.args[0] + ". Column names: " + ",".join(df.columns.to_list()).encode('unicode_escape')) #.encode('unicode_escape') in case there are tab characters which will be escaped to \\t
     else:
         #get the postgis feature data
         df2 = PostGIS().getDataFrame("select * from marxan.get_features()")
@@ -560,7 +560,7 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
     records = []
     for i in range(len(ids)):
         if i not in removedIds:
-            records.append({'id': ids[i], 'prop': str(float(props[i])/100), 'spf': spfs[i]})
+            records.append({'id': ids[i], 'prop': str(float(props[i])//100), 'spf': spfs[i]})
     df = pandas.DataFrame(records)
     #sort the records by the id field
     df = df.sort_values(by=['id'])
@@ -685,7 +685,7 @@ def _updateParameters(data_file, newParams):
         #get the existing parameters 
         s = _readFileUnicode(data_file)
         #update any that are passed in as query params
-        for k, v in newParams.iteritems():
+        for k, v in newParams.items():
             try:
                 p1 = s.index(k) #get the first position of the parameter
                 if p1>-1:
@@ -707,7 +707,7 @@ def _getEndOfLine(text):
 
 #returns the key value from a dict or raises an error if the key doesnt exist
 def _getDictValue(dict, key):
-    if key not in dict.keys():
+    if key not in list(dict.keys()):
         raise MarxanServicesError("The key '" + key + "' does not exist in the dictionary")
     else:
         return dict[key]
@@ -784,7 +784,7 @@ def _txtIntsToList(txtInts):
 #checks that all of the arguments in argumentList are in the arguments dictionary
 def _validateArguments(arguments, argumentList):
     for argument in argumentList:
-        if argument not in arguments.keys():
+        if argument not in list(arguments.keys()):
             raise MarxanServicesError("Missing input argument:" + argument)
 
 #converts the raw arguments from the request.arguments parameter into a simple dict excluding those in omitArgumentList
@@ -798,7 +798,7 @@ def _getSimpleArguments(obj, omitArgumentList):
 
 #gets the passed argument name as an array of integers, e.g. ['12,15,4,6'] -> [12,15,4,6]
 def _getIntArrayFromArg(arguments, argName):
-    if argName in arguments.keys():
+    if argName in list(arguments.keys()):
         return [int(s) for s in arguments[argName][0].split(",")]
     else:
         return []
@@ -978,7 +978,7 @@ def _checkCORS(obj):
     if (obj.request.method == "GET" or DISABLE_SECURITY or obj.request.host[:9] == "localhost" or (obj.current_user == GUEST_USERNAME)):
         return 
     #get the referer
-    if "Referer" in obj.request.headers.keys():
+    if "Referer" in list(obj.request.headers.keys()):
         #get the referer url, e.g. https://marxan-client-blishten.c9users.io/ or https://beta.biopama.org/marxan-client/build/
         referer = obj.request.headers.get("Referer")
         #get the origin
@@ -1019,7 +1019,7 @@ def _authoriseUser(obj):
     if DISABLE_SECURITY:
         return 
     #if the call includes a user argument
-    if "user" in obj.request.arguments.keys():
+    if "user" in list(obj.request.arguments.keys()):
         #see if the user argument matches the obj.current_user and is not the _clumping project (this is the only exception as it is needed for the clumping)
         if ((obj.get_argument("user") != obj.current_user) and (obj.get_argument("user") != "_clumping") and (obj.current_user != GUEST_USERNAME)):
             #get the requested role
@@ -1040,7 +1040,7 @@ def _shapefileHasField(shapefile, fieldname):
         dataSource = ogr.Open(shapefile)
         daLayer = dataSource.GetLayer(0)
     except (RuntimeError) as e:
-        raise MarxanServicesError(e.message)
+        raise MarxanServicesError(e.args[0])
     else:
         layerDefinition = daLayer.GetLayerDefn()
         count = layerDefinition.GetFieldCount()
@@ -1162,7 +1162,7 @@ class PostGIS():
             return records
         except Exception as e:
             self._cleanup()
-            raise MarxanServicesError(e.message)
+            raise MarxanServicesError(e.args[0])
     
     #executes a query and writes the results to a text file
     def executeToText(self, sql, filename):
@@ -1172,7 +1172,7 @@ class PostGIS():
                 self.connection.commit()
         except Exception as e:
             self._cleanup()
-            raise MarxanServicesError(e.message)
+            raise MarxanServicesError(e.args[0])
         
     #imports a shapefile into PostGIS
     def importShapefile(self, shapefile, feature_class_name, epsgCode):
@@ -1189,14 +1189,14 @@ class PostGIS():
         except Exception as e:
             if not self.connection.closed:
                 self._cleanup()
-            raise MarxanServicesError(e.message)
+            raise MarxanServicesError(e.args[0])
                 
     #creates a primary key on the column in the passed feature_class
     def createPrimaryKey(self, feature_class_name, column):
         try:
             self.execute(sql.SQL("ALTER TABLE marxan.{tbl} ADD CONSTRAINT {key} PRIMARY KEY ({col});").format(tbl=sql.Identifier(feature_class_name), key=sql.Identifier("idx_" + uuid.uuid4().hex), col=sql.Identifier(column)))
         except Exception as e:
-            raise MarxanServicesError(e.message)
+            raise MarxanServicesError(e.args[0])
         
     def __del__(self):
         self._cleanup()
@@ -1263,11 +1263,11 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
             content = json.dumps(response)
         #sometimes the Marxan log causes json encoding issues
         except (UnicodeDecodeError) as e: 
-            if 'log' in response.keys():
+            if 'log' in list(response.keys()):
                 response.update({"log": "Server warning: Unable to encode the Marxan log. <br/>" + repr(e), "warning": "Unable to encode the Marxan log"})
                 content = json.dumps(response)        
         finally:
-            if "callback" in self.request.arguments.keys():
+            if "callback" in list(self.request.arguments.keys()):
                 self.write(self.get_argument("callback") + "(" + content + ")")
             else:
                 self.write(content)
@@ -1517,7 +1517,7 @@ class validateUser(MarxanRESTHandler):
             #get the user data from the user.dat file
             _getUserData(self)
         except (MarxanServicesError) as e:
-            raise MarxanServicesError(e.message)
+            raise MarxanServicesError(e.args[0])
         #compare the passed password to the one in the user.dat file
         if self.get_argument("password") == self.userData["PASSWORD"]:
             #set a response cookie for the authenticated user
@@ -1558,7 +1558,7 @@ class getUser(MarxanRESTHandler):
         role = self.userData["ROLE"]
         unauthorised = ROLE_UNAUTHORISED_METHODS[role]
         #set the response
-        self.send_response({'info': "User data received", "userData" : {k: v for k, v in self.userData.iteritems() if k != 'PASSWORD'}, "unauthorisedMethods": unauthorised})
+        self.send_response({'info': "User data received", "userData" : {k: v for k, v in self.userData.items() if k != 'PASSWORD'}, "unauthorisedMethods": unauthorised})
 
 #gets a list of all users
 #https://marxan-server-blishten.c9users.io/marxan-server/getUsers
@@ -1905,7 +1905,7 @@ class updateUserParameters(MarxanRESTHandler):
         #update the parameters
         _updateParameters(self.folder_user + USER_DATA_FILENAME, params)
         #set the response
-        self.send_response({'info': ",".join(params.keys()) + " parameters updated"})
+        self.send_response({'info': ",".join(list(params.keys())) + " parameters updated"})
 
 #updates parameters in the projects input.dat file       
 #POST ONLY
@@ -1918,7 +1918,7 @@ class updateProjectParameters(MarxanRESTHandler):
         #update the parameters
         _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, params)
         #set the response
-        self.send_response({'info': ",".join(params.keys()) + " parameters updated"})
+        self.send_response({'info': ",".join(list(params.keys())) + " parameters updated"})
         
 #uploads a feature class with the passed feature class name to MapBox as a tileset using the MapBox Uploads API
 #https://marxan-server-blishten.c9users.io/marxan-server/uploadTilesetToMapBox?feature_class_name=pu_ton_marine_hexagon_20&mapbox_layer_name=hexagon&callback=__jp9
@@ -2156,7 +2156,7 @@ class runMarxan(MarxanWebSocketHandler):
                     line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
                     self.send_response({'info':line, 'status':'RunningMarxan'})
             except (WebSocketClosedError):
-                print "The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid)
+                print("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):                
                 pass
         else:
@@ -2173,12 +2173,12 @@ class runMarxan(MarxanWebSocketHandler):
                         # break
 
             except (BufferError):
-                print "BufferError"
+                print("BufferError")
                 pass
             except (WebSocketClosedError):
-                print "The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid)
+                print("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):  
-                print "StreamClosedError"
+                print("StreamClosedError")
                 pass
 
     #writes the details of the started marxan job to the RUN_LOG_FILENAME file as a single line
@@ -2217,7 +2217,7 @@ class runMarxan(MarxanWebSocketHandler):
             self.close()
 
         except (WebSocketClosedError): #the websocket may already have been closed
-            print "The WebSocket was closed in finishOutput - unable to send a response to the client. pid = " + str(self.marxanProcess.pid)
+            print("The WebSocket was closed in finishOutput - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
         
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
@@ -2345,7 +2345,7 @@ class preprocessFeature(QueryWebSocketHandler):
             record = _getPuvsprStats(df, speciesId)
             _writeToDatFile(self.folder_input + FEATURE_PREPROCESSING_FILENAME, record)
         except (MarxanServicesError) as e:
-            self.send_response({'error': e.message, 'status':'Finished'})
+            self.send_response({'error': e.args[0], 'status':'Finished'})
         #update the input.dat file
         _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'PUVSPRNAME': PUVSPR_FILENAME})
         #set the response
@@ -2423,7 +2423,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
                 #set the response
                 self.send_response({'info': 'Boundary lengths calculated', 'status':'Finished'})
         except Exception as e:
-            print e.message
+            print(e.args[0])
 
 ####################################################################################################################################################################################################################################################################
 ## tornado functions
@@ -2521,15 +2521,15 @@ if __name__ == "__main__":
         #open the web browser if the call includes a url, e.g. python webAPI_tornado.py http://localhost/index.html
         if len(sys.argv)>1:
             if MARXAN_CLIENT_VERSION == "Not installed":
-                print "\x1b[1;32;48mIgnoring <url> parameter - the marxan-client is not installed\x1b[0m"
+                print("\x1b[1;32;48mIgnoring <url> parameter - the marxan-client is not installed\x1b[0m")
             else:
                 url = sys.argv[1] # normally "http://localhost/index.html"
-                print "\x1b[1;32;48mOpening Marxan Web at '" + url + "' ..\x1b[0m\n"
+                print("\x1b[1;32;48mOpening Marxan Web at '" + url + "' ..\x1b[0m\n")
                 webbrowser.open(url, new=1, autoraise=True)
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":
-                print "\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m"
-                print "\x1b[1;32;48mOr run 'python webAPI_tornado.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n"
+                print("\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m")
+                print("\x1b[1;32;48mOr run 'python webAPI_tornado.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
-        print e.message
+        print(e.args[0])

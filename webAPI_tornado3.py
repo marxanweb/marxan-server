@@ -10,7 +10,7 @@ from tornado import concurrent
 from tornado import gen
 from subprocess import Popen, PIPE 
 from threading import Thread 
-from urllib.parse import urlparse # The urlparse module is renamed to urllib.parse in Python 3. The 2to3 tool will automatically adapt imports when converting your sources to Python 3.
+from urllib.parse import urlparse
 from psycopg2 import sql 
 from mapbox import Uploader 
 from mapbox import errors 
@@ -30,6 +30,7 @@ import glob
 import time
 import datetime
 import select
+import subprocess
 import sys 
 import zipfile 
 import shutil 
@@ -286,7 +287,7 @@ def _getAllProjects():
 
 #gets the projects for the current user
 def _getProjects(obj):
-    if ((obj.user == GUEST_USERNAME) or (obj.get_secure_cookie("role") == "Admin")):
+    if ((obj.user == GUEST_USERNAME) or (obj.get_secure_cookie("role").decode("utf-8") == "Admin")):
         obj.projects = _getAllProjects()
     else:
         obj.projects = _getProjectsForUser(obj.user)
@@ -298,8 +299,8 @@ def _createProject(obj, name):
         raise MarxanServicesError("The project '" + name + "' already exists")
     #copy the _project_template folder to the new location
     _copyDirectory(EMPTY_PROJECT_TEMPLATE_FOLDER, obj.folder_user + name)
-    #set the paths to this project in the passed object - the arguments are normally passed as lists in tornado.get_argument
-    _setFolderPaths(obj, {'user': [obj.user], 'project': [name]})
+    #set the paths to this project in the passed object - the arguments are normally passed as lists in tornado.get_argument - and the _setFolderPaths expects bytes not strings as they normally come from self.request.arguments
+    _setFolderPaths(obj, {'user': [obj.user.encode("utf-8")], 'project': [name.encode("utf-8")]})
 
 #deletes a project
 def _deleteProject(obj):
@@ -328,12 +329,13 @@ def _cloneProject(source_folder, destination_folder):
 #sets the various paths to the users folder and project folders using the request arguments in the passed object
 def _setFolderPaths(obj, arguments):
     if "user" in list(arguments.keys()):
-        user = arguments["user"][0]
+        #argument values are bytes
+        user = arguments["user"][0].decode("utf-8") 
         obj.folder_user = MARXAN_USERS_FOLDER + user + os.sep
         obj.user = user
         #get the project folder and the input and output folders
         if "project" in list(arguments.keys()):
-            obj.folder_project = obj.folder_user + arguments["project"][0] + os.sep
+            obj.folder_project = obj.folder_user + arguments["project"][0].decode("utf-8")  + os.sep
             obj.folder_input =  obj.folder_project + "input" + os.sep
             obj.folder_output = obj.folder_project + "output" + os.sep
             obj.project = obj.get_argument("project")
@@ -560,7 +562,7 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
     records = []
     for i in range(len(ids)):
         if i not in removedIds:
-            records.append({'id': ids[i], 'prop': str(float(props[i])//100), 'spf': spfs[i]})
+            records.append({'id': ids[i], 'prop': str(props[i]/100), 'spf': spfs[i]})
     df = pandas.DataFrame(records)
     #sort the records by the id field
     df = df.sort_values(by=['id'])
@@ -799,7 +801,7 @@ def _getSimpleArguments(obj, omitArgumentList):
 #gets the passed argument name as an array of integers, e.g. ['12,15,4,6'] -> [12,15,4,6]
 def _getIntArrayFromArg(arguments, argName):
     if argName in list(arguments.keys()):
-        return [int(s) for s in arguments[argName][0].split(",")]
+        return [int(s) for s in arguments[argName][0].decode("utf-8").split(",")]
     else:
         return []
     
@@ -1008,7 +1010,7 @@ def _authoriseRole(obj, method):
     if DISABLE_SECURITY:
         return 
     #get the requested role
-    role = obj.get_secure_cookie("role")
+    role = obj.get_secure_cookie("role").decode("utf-8")
     #get the list of methods that this role cannot access
     unauthorised = ROLE_UNAUTHORISED_METHODS[role]
     if method in unauthorised:
@@ -1023,7 +1025,7 @@ def _authoriseUser(obj):
         #see if the user argument matches the obj.current_user and is not the _clumping project (this is the only exception as it is needed for the clumping)
         if ((obj.get_argument("user") != obj.current_user) and (obj.get_argument("user") != "_clumping") and (obj.current_user != GUEST_USERNAME)):
             #get the requested role
-            role = obj.get_secure_cookie("role")
+            role = obj.get_secure_cookie("role").decode("utf-8")
             if role != "Admin":
                 raise HTTPError(403, "The user '" + obj.current_user + "' has no permission to access a project of another user")    
     
@@ -1232,7 +1234,7 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
 
     #get the current user
     def get_current_user(self):
-        return self.get_secure_cookie("user")
+        return self.get_secure_cookie("user").decode("utf-8")
 
     #called before the request is processed - does the neccessary authentication/authorisation
     def prepare(self):
@@ -2050,7 +2052,7 @@ class testTornado(MarxanRESTHandler):
 class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
     #get the current user
     def get_current_user(self):
-        return self.get_secure_cookie("user")
+        return self.get_secure_cookie("user").decode("utf-8")
 
     #check CORS access for the websocket
     def check_origin(self, origin):
@@ -2114,7 +2116,8 @@ class runMarxan(MarxanWebSocketHandler):
                         #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM - the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) 
                         self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=PIPE, shell=True)
                         #make sure that the marxan process will end by sending ENTER to the stdin
-                        self.marxanProcess.stdin.write('\n') 
+                        self.marxanProcess.stdin.write('\n'.encode("utf-8")) 
+                        self.marxanProcess.stdin.close()
                         #add a callback when the process finishes
                         self.marxanProcess.set_exit_callback(self.finishOutput)
                     else:
@@ -2154,7 +2157,7 @@ class runMarxan(MarxanWebSocketHandler):
                 while True:
                     #read from the stdout stream
                     line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
-                    self.send_response({'info':line, 'status':'RunningMarxan'})
+                    self.send_response({'info':line.decode("utf-8"), 'status': 'RunningMarxan'})
             except (WebSocketClosedError):
                 print("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):                

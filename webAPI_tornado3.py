@@ -442,7 +442,7 @@ def _getSpeciesData(obj):
         try:
             output_df = output_df[["alias", "feature_class_name", "description", "creation_date", "area", "tilesetid", "prop", "spf", "oid"]]
         except (KeyError) as e:
-            raise MarxanServicesError("Unable to load spec.dat data. " + e.args[0] + ". Column names: " + ",".join(df.columns.to_list()).encode('unicode_escape')) #.encode('unicode_escape') in case there are tab characters which will be escaped to \\t
+            raise MarxanServicesError("Unable to load spec.dat data. " + e.args[1] + ". Column names: " + ",".join(df.columns.to_list()).encode('unicode_escape')) #.encode('unicode_escape') in case there are tab characters which will be escaped to \\t
     else:
         #get the postgis feature data
         df2 = PostGIS().getDataFrame("select * from marxan.get_features()")
@@ -1042,7 +1042,7 @@ def _shapefileHasField(shapefile, fieldname):
         dataSource = ogr.Open(shapefile)
         daLayer = dataSource.GetLayer(0)
     except (RuntimeError) as e:
-        raise MarxanServicesError(e.args[0])
+        raise MarxanServicesError(e.args[1])
     else:
         layerDefinition = daLayer.GetLayerDefn()
         count = layerDefinition.GetFieldCount()
@@ -1164,7 +1164,7 @@ class PostGIS():
             return records
         except Exception as e:
             self._cleanup()
-            raise MarxanServicesError(e.args[0])
+            raise MarxanServicesError(e.args[1])
     
     #executes a query and writes the results to a text file
     def executeToText(self, sql, filename):
@@ -1174,7 +1174,7 @@ class PostGIS():
                 self.connection.commit()
         except Exception as e:
             self._cleanup()
-            raise MarxanServicesError(e.args[0])
+            raise MarxanServicesError(e.args[1])
         
     #imports a shapefile into PostGIS
     def importShapefile(self, shapefile, feature_class_name, epsgCode):
@@ -1191,14 +1191,14 @@ class PostGIS():
         except Exception as e:
             if not self.connection.closed:
                 self._cleanup()
-            raise MarxanServicesError(e.args[0])
+            raise MarxanServicesError(e.args[1])
                 
     #creates a primary key on the column in the passed feature_class
     def createPrimaryKey(self, feature_class_name, column):
         try:
             self.execute(sql.SQL("ALTER TABLE marxan.{tbl} ADD CONSTRAINT {key} PRIMARY KEY ({col});").format(tbl=sql.Identifier(feature_class_name), key=sql.Identifier("idx_" + uuid.uuid4().hex), col=sql.Identifier(column)))
         except Exception as e:
-            raise MarxanServicesError(e.args[0])
+            raise MarxanServicesError(e.args[1])
         
     def __del__(self):
         self._cleanup()
@@ -1519,7 +1519,7 @@ class validateUser(MarxanRESTHandler):
             #get the user data from the user.dat file
             _getUserData(self)
         except (MarxanServicesError) as e:
-            raise MarxanServicesError(e.args[0])
+            raise MarxanServicesError(e.args[1])
         #compare the passed password to the one in the user.dat file
         if self.get_argument("password") == self.userData["PASSWORD"]:
             #set a response cookie for the authenticated user
@@ -2348,7 +2348,7 @@ class preprocessFeature(QueryWebSocketHandler):
             record = _getPuvsprStats(df, speciesId)
             _writeToDatFile(self.folder_input + FEATURE_PREPROCESSING_FILENAME, record)
         except (MarxanServicesError) as e:
-            self.send_response({'error': e.args[0], 'status':'Finished'})
+            self.send_response({'error': e.args[1], 'status':'Finished'})
         #update the input.dat file
         _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'PUVSPRNAME': PUVSPR_FILENAME})
         #set the response
@@ -2426,7 +2426,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
                 #set the response
                 self.send_response({'info': 'Boundary lengths calculated', 'status':'Finished'})
         except Exception as e:
-            print(e.args[0])
+            print(e.args[1])
 
 ####################################################################################################################################################################################################################################################################
 ## tornado functions
@@ -2535,4 +2535,4 @@ if __name__ == "__main__":
                 print("\x1b[1;32;48mOr run 'python webAPI_tornado.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
-        print(e.args[0])
+        print(e.args[1])

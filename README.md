@@ -16,8 +16,8 @@ git clone https://github.com/andrewcottam/marxan-server.git
 ### Install Python and dependencies
 Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda2 by running conda init? [yes|no] ?):  
 ```
-wget https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh  
-bash Miniconda2-latest-Linux-x86_64.sh  
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh  
+bash Miniconda3-latest-Linux-x86_64.sh  
 ```  
 Install dependencies:  
 ```  
@@ -53,16 +53,11 @@ The server.dat.default file contains the default configuration information for y
 Remove the downloaded files  
 ```
 rm dump.sql   
-rm Miniconda2-latest-Linux-x86_64.sh   
+rm Miniconda3-latest-Linux-x86_64.sh   
 ```  
 
-### Start the services
-Start the PostGIS instance (if it is not already running):  
-```
-sudo service postgresql restart  
-```  
+### Start marxan-server:
 
-Start Marxan Server:  
 ```
 python3 marxan-server/marxan-server.py  
 ```

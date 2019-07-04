@@ -64,7 +64,7 @@ sudo service postgresql restart
 
 Start Marxan Server:  
 ```
-python marxan-server/webAPI_tornado.py  
+python3 marxan-server/marxan-server.py  
 ```
 
 NOTE: On some Cloud hosts like Google Cloud Platform, when the SSH connection is closed then the instances may be shut down, thus terminating the marxan-server. To avoid this, use Virtual Terminal software like screen. For more information see [here](https://www.tecmint.com/keep-remote-ssh-sessions-running-after-disconnection/).  

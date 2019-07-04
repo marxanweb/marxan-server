@@ -2251,7 +2251,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
         try:
             self.send_response({'info': startedMessage, 'status':'Started'})
             #connect to postgis asyncronously
-            self.conn = psycopg2.connect(CONNECTION_STRING, async = True)
+            self.conn = psycopg2.connect(CONNECTION_STRING, async_ = True) #async was renamed 
             #wait for the connection to be ready
             self.wait()
             #get a cursor

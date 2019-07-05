@@ -6,7 +6,7 @@ iball@maths.adelaide.edu.au
 hpossing@maths.adelaide.edu.au
 
 General Parameters
-BLM 0.5
+BLM 0.1
 PROP 0.5
 RANDSEED -1
 NUMREPS 10

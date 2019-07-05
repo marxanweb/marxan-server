@@ -56,7 +56,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.7.2"
+MARXAN_SERVER_VERSION = "0.8.0"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."

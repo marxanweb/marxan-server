@@ -53,7 +53,7 @@ PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
     "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs"],
-    "User": ["testRoleAuthorisation","deleteProject","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
+    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
 MARXAN_SERVER_VERSION = "0.8.0"
@@ -1234,7 +1234,8 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
 
     #get the current user
     def get_current_user(self):
-        return self.get_secure_cookie("user").decode("utf-8")
+        if self.get_secure_cookie("user"):
+            return self.get_secure_cookie("user").decode("utf-8")
 
     #called before the request is processed - does the neccessary authentication/authorisation
     def prepare(self):

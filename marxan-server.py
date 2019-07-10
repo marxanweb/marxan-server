@@ -158,14 +158,15 @@ def _setGlobalVariables():
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep + "library" + os.sep + "bin" + os.sep # sys.executable is the Python.exe file and will likely be in C:\Users\a_cottam\Miniconda2 folder - ogr2ogr is then in /library/bin on windows
         marxan_executable = "Marxan.exe"
         stopCmd = "\x1b[1;31;48mPress CTRL+C or CTRL+Fn+Pause to stop the server\x1b[0m\n"
+        OGR2OGR_EXECUTABLE = '"' + OGR2OGR_PATH + ogr2ogr_executable + '"' #double quotes are needed for running on Windows from the command line
     else:
         ogr2ogr_executable = "ogr2ogr"
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep # sys.executable is the Python.exe file and will likely be in /home/ubuntu//miniconda2/bin/ - the same place as ogr2ogr
         marxan_executable = "MarOpt_v243_Linux64"
         stopCmd = "\x1b[1;31;48mPress CTRL+C to stop the server\x1b[0m\n"
+        OGR2OGR_EXECUTABLE =OGR2OGR_PATH + ogr2ogr_executable
     #if the ogr2ogr executable path is not in the miniconda bin directory, then hard-code it here and uncomment the line
     #OGR2OGR_PATH = ""
-    OGR2OGR_EXECUTABLE = OGR2OGR_PATH + ogr2ogr_executable
     if not os.path.exists(OGR2OGR_EXECUTABLE):
         raise MarxanServicesError(" ogr2ogr executable:\t'" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
     else:
@@ -834,7 +835,7 @@ def _unzipFile(filename):
 
 def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
-    cmd = OGR2OGR_EXECUTABLE + ' -f "ESRI Shapefile" ' + MARXAN_FOLDER + feature_class_name + '.shp' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
+    cmd = OGR2OGR_EXECUTABLE + ' -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
     try:
         subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
     #catch any unforeseen circumstances
@@ -1182,7 +1183,7 @@ class PostGIS():
             #drop the feature class if it already exists
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
-            cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" ' + MARXAN_FOLDER + shapefile + ' -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode
+            cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode
             #run the import
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
         #catch any unforeseen circumstances

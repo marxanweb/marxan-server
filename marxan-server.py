@@ -158,19 +158,20 @@ def _setGlobalVariables():
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep + "library" + os.sep + "bin" + os.sep # sys.executable is the Python.exe file and will likely be in C:\Users\a_cottam\Miniconda2 folder - ogr2ogr is then in /library/bin on windows
         marxan_executable = "Marxan.exe"
         stopCmd = "\x1b[1;31;48mPress CTRL+C or CTRL+Fn+Pause to stop the server\x1b[0m\n"
-        OGR2OGR_EXECUTABLE = '"' + OGR2OGR_PATH + ogr2ogr_executable + '"' #double quotes are needed for running on Windows from the command line
     else:
         ogr2ogr_executable = "ogr2ogr"
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep # sys.executable is the Python.exe file and will likely be in /home/ubuntu//miniconda2/bin/ - the same place as ogr2ogr
         marxan_executable = "MarOpt_v243_Linux64"
         stopCmd = "\x1b[1;31;48mPress CTRL+C to stop the server\x1b[0m\n"
-        OGR2OGR_EXECUTABLE =OGR2OGR_PATH + ogr2ogr_executable
     #if the ogr2ogr executable path is not in the miniconda bin directory, then hard-code it here and uncomment the line
     #OGR2OGR_PATH = ""
+    OGR2OGR_EXECUTABLE = OGR2OGR_PATH + ogr2ogr_executable 
     if not os.path.exists(OGR2OGR_EXECUTABLE):
         raise MarxanServicesError(" ogr2ogr executable:\t'" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
     else:
         print(" ogr2ogr executable:\t" + OGR2OGR_EXECUTABLE)
+    if platform.system() == "Windows":
+        OGR2OGR_EXECUTABLE = '"' + OGR2OGR_EXECUTABLE + '"' #double quotes needed on windows
     #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep

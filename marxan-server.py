@@ -839,7 +839,7 @@ def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
         subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
     #catch any unforeseen circumstances
     except subprocess.CalledProcessError as e:
-        raise MarxanServicesError("Error exporting shapefile. " + e.output)
+        raise MarxanServicesError("Error exporting shapefile. " + e.output.decode("utf-8"))
     #zip the shapefile to upload to Mapbox
     lstFilenames = glob.glob(MARXAN_FOLDER + feature_class_name + '.*')
     zipfilename = MARXAN_FOLDER + feature_class_name + ".zip"
@@ -1187,7 +1187,7 @@ class PostGIS():
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
         #catch any unforeseen circumstances
         except subprocess.CalledProcessError as e:
-            raise MarxanServicesError("Error importing shapefile.\n" + e.output)
+            raise MarxanServicesError("Error importing shapefile.\n" + e.output.decode("utf-8"))
         except Exception as e:
             if not self.connection.closed:
                 self._cleanup()

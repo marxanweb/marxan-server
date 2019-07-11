@@ -14,7 +14,7 @@ git clone https://github.com/andrewcottam/marxan-server.git
 ```
 
 ### Install Python and dependencies
-Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda2 by running conda init? [yes|no] ?):  
+Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda3 by running conda init? [yes|no]? [yes|no] ?):  
 ```
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh  
 bash Miniconda3-latest-Linux-x86_64.sh  

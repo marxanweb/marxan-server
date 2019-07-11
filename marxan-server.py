@@ -167,11 +167,9 @@ def _setGlobalVariables():
     #OGR2OGR_PATH = ""
     OGR2OGR_EXECUTABLE = OGR2OGR_PATH + ogr2ogr_executable 
     if not os.path.exists(OGR2OGR_EXECUTABLE):
-        raise MarxanServicesError(" ogr2ogr executable:\t'" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the webAPI_tornado.py file.")
+        raise MarxanServicesError(" ogr2ogr executable:\t'" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the marxan-server.py file.")
     else:
         print(" ogr2ogr executable:\t" + OGR2OGR_EXECUTABLE)
-    if platform.system() == "Windows":
-        OGR2OGR_EXECUTABLE = '"' + OGR2OGR_EXECUTABLE + '"' #double quotes needed on windows
     #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
@@ -836,7 +834,7 @@ def _unzipFile(filename):
 
 def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
-    cmd = OGR2OGR_EXECUTABLE + ' -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
+    cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
     try:
         subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
     #catch any unforeseen circumstances
@@ -1184,7 +1182,7 @@ class PostGIS():
             #drop the feature class if it already exists
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
-            cmd = OGR2OGR_EXECUTABLE + ' -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode
             #run the import
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
         #catch any unforeseen circumstances
@@ -2524,7 +2522,7 @@ if __name__ == "__main__":
             app.listen(PORT)
             navigateTo = "http://"
         navigateTo = navigateTo + "<host>:" + PORT + "/index.html"
-        #open the web browser if the call includes a url, e.g. python webAPI_tornado.py http://localhost/index.html
+        #open the web browser if the call includes a url, e.g. python marxan-server.py http://localhost/index.html
         if len(sys.argv)>1:
             if MARXAN_CLIENT_VERSION == "Not installed":
                 print("\x1b[1;32;48mIgnoring <url> parameter - the marxan-client is not installed\x1b[0m")
@@ -2535,7 +2533,7 @@ if __name__ == "__main__":
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":
                 print("\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m")
-                print("\x1b[1;32;48mOr run 'python webAPI_tornado.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
+                print("\x1b[1;32;48mOr run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         print(e.args[1])

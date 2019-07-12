@@ -56,7 +56,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.0"
+MARXAN_SERVER_VERSION = "0.8.1"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -827,10 +827,16 @@ def _unzipFile(filename):
         raise MarxanServicesError("The zip file '" + filename + "' does not exist")
     zip_ref = zipfile.ZipFile(MARXAN_FOLDER + filename, 'r')
     filenames = zip_ref.namelist()
-    rootfilename = filenames[0][:-4]
-    zip_ref.extractall(MARXAN_FOLDER)
-    zip_ref.close()
-    return rootfilename
+    #do not accept zip files that contain nested files/folders
+    try:
+        filenames[0].index(os.sep)
+    except (ValueError): # no separator found - fine to continue
+        rootfilename = filenames[0][:-4]
+        zip_ref.extractall(MARXAN_FOLDER)
+        zip_ref.close()
+        return rootfilename
+    else: # nested files/folders - raise an error
+        raise MarxanServicesError("The zipped file should not contain directories. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#importing-existing-marxan-projects' target='blank'>here</a>")
 
 def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
@@ -1162,9 +1168,12 @@ class PostGIS():
             elif numberToFetch == "All":
                 records = self.cursor.fetchall()
             return records
+        except psycopg2.IntegrityError as e:
+            self._cleanup()
+            raise MarxanServicesError("Database integrity error: " + e.args[0])
         except Exception as e:
             self._cleanup()
-            raise MarxanServicesError(e.args[1])
+            raise MarxanServicesError(e.args[0])
     
     #executes a query and writes the results to a text file
     def executeToText(self, sql, filename):
@@ -1182,23 +1191,23 @@ class PostGIS():
             #drop the feature class if it already exists
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
-            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode + ' -lco precision=NO'
             #run the import
-            subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-        #catch any unforeseen circumstances
-        except subprocess.CalledProcessError as e:
-            raise MarxanServicesError("Error importing shapefile.\n" + e.output.decode("utf-8"))
+            output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+            # if (output!=''):
+            #     print(cmd)
+            #     raise MarxanServicesError("Error importing shapefile.\n" + output.decode("utf-8"))
         except Exception as e:
             if not self.connection.closed:
                 self._cleanup()
-            raise MarxanServicesError(e.args[1])
+            raise MarxanServicesError(e.args[0])
                 
     #creates a primary key on the column in the passed feature_class
     def createPrimaryKey(self, feature_class_name, column):
         try:
             self.execute(sql.SQL("ALTER TABLE marxan.{tbl} ADD CONSTRAINT {key} PRIMARY KEY ({col});").format(tbl=sql.Identifier(feature_class_name), key=sql.Identifier("idx_" + uuid.uuid4().hex), col=sql.Identifier(column)))
         except Exception as e:
-            raise MarxanServicesError(e.args[1])
+            raise MarxanServicesError(e.args[0])
         
     def __del__(self):
         self._cleanup()

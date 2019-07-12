@@ -14,7 +14,7 @@ git clone https://github.com/andrewcottam/marxan-server.git
 ```
 
 ### Install Python and dependencies
-Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda2 by running conda init? [yes|no] ?):  
+Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda3 by running conda init? [yes|no] ?):  
 ```
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh  
 bash Miniconda3-latest-Linux-x86_64.sh  
@@ -59,7 +59,7 @@ rm Miniconda3-latest-Linux-x86_64.sh
 ### Start marxan-server:
 
 ```
-python3 marxan-server/marxan-server.py  
+python marxan-server/marxan-server.py  
 ```
 
 NOTE: On some Cloud hosts like Google Cloud Platform, when the SSH connection is closed then the instances may be shut down, thus terminating the marxan-server. To avoid this, use Virtual Terminal software like screen. For more information see [here](https://www.tecmint.com/keep-remote-ssh-sessions-running-after-disconnection/).  

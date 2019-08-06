@@ -56,7 +56,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.1"
+MARXAN_SERVER_VERSION = "0.8.2"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -433,7 +433,10 @@ def _getSpeciesData(obj):
     if obj.projectData["metadata"]["OLDVERSION"]:
         #return the data from the spec.dat file with additional fields manually added
         output_df['tmp'] = 'Unique identifer: '
-        output_df['alias'] = output_df['tmp'].str.cat((output_df['oid']).apply(str)) # returns: 'Unique identifer: 4702435'
+        if ('name' in output_df.columns):
+            output_df['alias'] = output_df['name']
+        else:
+            output_df['alias'] = output_df['tmp'].str.cat((output_df['oid']).apply(str)) # returns: 'Unique identifer: 4702435'
         output_df['feature_class_name'] = output_df['oid']
         output_df['description'] = "No description"
         output_df['creation_date'] = "Unknown"
@@ -1368,7 +1371,7 @@ class createImportProject(MarxanRESTHandler):
         self.send_response({'info': "Project '" + self.get_argument('project') + "' created", 'name': self.get_argument('project')})
 
 #updates a project from the Marxan old version to the new version
-#https://marxan-server-blishten.c9users.io/marxan-server/upgradeProject?user=andrew&project=test2&callback=__jp7
+#https://andrewcottam.com:8080/marxan-server/upgradeProject?user=andrew&project=test2&callback=__jp7
 class upgradeProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1393,7 +1396,7 @@ class upgradeProject(MarxanRESTHandler):
         self.send_response({'info': "Project '" + self.get_argument("project") + "' updated", 'project': self.get_argument("project")})
 
 #deletes a project
-#https://marxan-server-blishten.c9users.io/marxan-server/deleteProject?user=andrew&project=test2&callback=__jp7
+#https://andrewcottam.com:8080/marxan-server/deleteProject?user=andrew&project=test2&callback=__jp7
 class deleteProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1407,7 +1410,7 @@ class deleteProject(MarxanRESTHandler):
         self.send_response({'info': "Project '" + self.get_argument("project") + "' deleted", 'project': self.get_argument("project")})
 
 #clones the project
-#https://marxan-server-blishten.c9users.io/marxan-server/cloneProject?user=andrew&project=Tonga%20marine%2030km2&callback=__jp15
+#https://andrewcottam.com:8080/marxan-server/cloneProject?user=admin&project=Start%20project&callback=__jp15
 class cloneProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1418,7 +1421,7 @@ class cloneProject(MarxanRESTHandler):
         self.send_response({'info': "Project '" + clonedName + "' created", 'name': clonedName})
 
 #creates n clones of the project with a range of BLM values in the _clumping folder
-#https://marxan-server-blishten.c9users.io/marxan-server/createProjectGroup?user=andrew&project=Tonga%20marine%2030km2&copies=5&blmValues=0.1,0.2,0.3,0.4,0.5&callback=__jp15
+#https://andrewcottam.com:8080/marxan-server/createProjectGroup?user=admin&project=Start%20project&copies=5&blmValues=0.1,0.2,0.3,0.4,0.5&callback=__jp15
 class createProjectGroup(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1442,7 +1445,7 @@ class createProjectGroup(MarxanRESTHandler):
         self.send_response({'info': "Project group created", 'data': projects})
 
 #deletes a project cluster
-#https://marxan-server-blishten.c9users.io/marxan-server/deleteProjects?projectNames=2dabf1b862da4c2e87b2cd9d8b38bb73,81eda0a43a3248a8b4881caae160667a,313b0d3f733142e3949cf6129855be19,739f40f4d1c94907b2aa814470bcd7f7,15210235bec341238a816ce43eb2b341&callback=__jp15
+#https://andrewcottam.com:8080/marxan-server/deleteProjects?projectNames=2dabf1b862da4c2e87b2cd9d8b38bb73,81eda0a43a3248a8b4881caae160667a,313b0d3f733142e3949cf6129855be19,739f40f4d1c94907b2aa814470bcd7f7,15210235bec341238a816ce43eb2b341&callback=__jp15
 class deleteProjects(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1457,7 +1460,7 @@ class deleteProjects(MarxanRESTHandler):
         self.send_response({'info': "Projects deleted"})
 
 #renames a project
-#https://marxan-server-blishten.c9users.io/marxan-server/renameProject?user=andrew&project=Tonga%20marine%2030km2&newName=Tonga%20marine%2030km&callback=__jp5
+#https://andrewcottam.com:8080/marxan-server/renameProject?user=andrew&project=Tonga%20marine%2030km2&newName=Tonga%20marine%2030km&callback=__jp5
 class renameProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1469,19 +1472,19 @@ class renameProject(MarxanRESTHandler):
         #set the response
         self.send_response({"info": "Project renamed to '" + self.get_argument("newName") + "'", 'project': self.get_argument("project")})
 
-#https://marxan-server-blishten.c9users.io/marxan-server/getCountries?callback=__jp0
+#https://andrewcottam.com:8080/marxan-server/getCountries?callback=__jp0
 class getCountries(MarxanRESTHandler):
     def get(self):
         content = PostGIS().getDict("SELECT iso3, original_n FROM marxan.gaul_2015_simplified_1km where original_n not like '%|%' and iso3 not like '%|%' order by 2;")
         self.send_response({'records': content})        
 
-#https://marxan-server-blishten.c9users.io/marxan-server/getPlanningUnitGrids?callback=__jp0
+#https://andrewcottam.com:8080/marxan-server/getPlanningUnitGrids?callback=__jp0
 class getPlanningUnitGrids(MarxanRESTHandler):
     def get(self):
         planningUnitGrids = _getPlanningUnitGrids()
         self.send_response({'info': 'Planning unit grids retrieved', 'planning_unit_grids': planningUnitGrids})        
         
-#https://marxan-server-blishten.c9users.io/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon&callback=__jp10        
+#https://andrewcottam.com:8080/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon&callback=__jp10        
 class createPlanningUnitGrid(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1495,7 +1498,7 @@ class createPlanningUnitGrid(MarxanRESTHandler):
         #set the response
         self.send_response({'info':'Planning unit grid created', 'planning_unit_grid': data[0]})
 
-#https://marxan-server-blishten.c9users.io/marxan-server/deletePlanningUnitGrid?planning_grid_name=pu_sample&callback=__jp10        
+#https://andrewcottam.com:8080/marxan-server/deletePlanningUnitGrid?planning_grid_name=pu_sample&callback=__jp10        
 class deletePlanningUnitGrid(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1517,7 +1520,7 @@ class deletePlanningUnitGrid(MarxanRESTHandler):
             self.send_response({'info': "Nothing deleted - the planning grid does not exist"})
 
 #validates a user with the passed credentials
-#https://marxan-server-blishten.c9users.io/marxan-server/validateUser?user=andrew&password=thargal88&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/validateUser?user=andrew&password=thargal88&callback=__jp2
 class validateUser(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1543,7 +1546,7 @@ class validateUser(MarxanRESTHandler):
             raise MarxanServicesError("Invalid login")    
 
 #logs the user out and resets the cookies
-#https://marxan-server-blishten.c9users.io/marxan-server/logout?callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/logout?callback=__jp2
 class logout(MarxanRESTHandler):
     def get(self):
         self.clear_cookie("user")
@@ -1559,7 +1562,7 @@ class resendPassword(MarxanRESTHandler):
         
 
 #gets a users information from the user folder
-#curl 'https://marxan-server-blishten.c9users.io/marxan-server/getUser?user=andrew&callback=__jp1' -H 'If-None-Match: "0798406453417c47c0b5ab5bd11d56a60fb4df7d"' -H 'Accept-Encoding: gzip, deflate, br' -H 'Accept-Language: en-US,en;q=0.9,fr;q=0.8' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36' -H 'Accept: */*' -H 'Referer: https://marxan-client-blishten.c9users.io/' -H 'Cookie: c9.live.user.jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJjb2RlIjoiOWNBUzdEQldsdWYwU2oyU01ZaEYiLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.yJ9mPz4bM7L3htL8vXVFMCcQpTO0pkRvhNHJP9WnJo8; c9.live.user.sso=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.ifW5qlkpC19iyMNBgZLtGZzxuMRyHKWldGg3He-__gI; role="2|1:0|10:1548151226|4:role|8:QWRtaW4=|d703b0f18c81cf22c85f41c536f99589ce11492925d85833e78d3d66f4d7fd62"; user="2|1:0|10:1548151226|4:user|8:YW5kcmV3|e5ed3b87979273b1b8d1b8983310280507941fe05fb665847e7dd5dacf36348d"' -H 'Connection: keep-alive' --compressed
+#curl 'https://andrewcottam.com:8080/marxan-server/getUser?user=andrew&callback=__jp1' -H 'If-None-Match: "0798406453417c47c0b5ab5bd11d56a60fb4df7d"' -H 'Accept-Encoding: gzip, deflate, br' -H 'Accept-Language: en-US,en;q=0.9,fr;q=0.8' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36' -H 'Accept: */*' -H 'Referer: https://marxan-client-blishten.c9users.io/' -H 'Cookie: c9.live.user.jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJjb2RlIjoiOWNBUzdEQldsdWYwU2oyU01ZaEYiLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.yJ9mPz4bM7L3htL8vXVFMCcQpTO0pkRvhNHJP9WnJo8; c9.live.user.sso=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.ifW5qlkpC19iyMNBgZLtGZzxuMRyHKWldGg3He-__gI; role="2|1:0|10:1548151226|4:role|8:QWRtaW4=|d703b0f18c81cf22c85f41c536f99589ce11492925d85833e78d3d66f4d7fd62"; user="2|1:0|10:1548151226|4:user|8:YW5kcmV3|e5ed3b87979273b1b8d1b8983310280507941fe05fb665847e7dd5dacf36348d"' -H 'Connection: keep-alive' --compressed
 class getUser(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1573,7 +1576,7 @@ class getUser(MarxanRESTHandler):
         self.send_response({'info': "User data received", "userData" : {k: v for k, v in self.userData.items() if k != 'PASSWORD'}, "unauthorisedMethods": unauthorised})
 
 #gets a list of all users
-#https://marxan-server-blishten.c9users.io/marxan-server/getUsers
+#https://andrewcottam.com:8080/marxan-server/getUsers
 class getUsers(MarxanRESTHandler):
     def get(self):
         #get the users
@@ -1584,7 +1587,7 @@ class getUsers(MarxanRESTHandler):
         self.send_response({'info': 'Users data received', 'users': usersData})
 
 #deletes a user
-#https://marxan-server-blishten.c9users.io/marxan-server/deleteUser?user=asd2
+#https://andrewcottam.com:8080/marxan-server/deleteUser?user=asd2
 class deleteUser(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1594,7 +1597,7 @@ class deleteUser(MarxanRESTHandler):
         self.send_response({'info': 'User deleted'})
     
 #gets project information from the input.dat file
-#https://marxan-server-blishten.c9users.io/marxan-server/getProject?user=andrew&project=Tonga%20marine%2030km2&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getProject?user=admin&project=Start%20project&callback=__jp2
 class getProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1630,7 +1633,7 @@ class getProject(MarxanRESTHandler):
             self.send_response({'user': self.get_argument("user"), 'project': self.projectData["project"], 'metadata': self.projectData["metadata"], 'files': self.projectData["files"], 'runParameters': self.projectData["runParameters"], 'renderer': self.projectData["renderer"], 'features': self.speciesData.to_dict(orient="records"), 'feature_preprocessing': self.speciesPreProcessingData.to_dict(orient="split")["data"], 'planning_units': self.planningUnitsData, 'protected_area_intersections': self.protectedAreaIntersectionsData})
 
 #gets feature information from postgis
-#https://marxan-server-blishten.c9users.io/marxan-server/getFeature?oid=63407942&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getFeature?oid=63407942&callback=__jp2
 class getFeature(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1641,7 +1644,7 @@ class getFeature(MarxanRESTHandler):
         self.send_response({"data": self.data.to_dict(orient="records")})
 
 #gets the features planning unit ids from the puvspr.dat file
-#https://marxan-server-blishten.c9users.io/marxan-server/getFeaturePlanningUnits?user=andrew&project=Tonga%20marine%2030Km2&oid=63407942&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getFeaturePlanningUnits?user=andrew&project=Tonga%20marine%2030Km2&oid=63407942&callback=__jp2
 class getFeaturePlanningUnits(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1654,7 +1657,7 @@ class getFeaturePlanningUnits(MarxanRESTHandler):
         self.send_response({"data": puids})
 
 #gets species information for a specific project from the spec.dat file
-#https://marxan-server-blishten.c9users.io/marxan-server/getSpeciesData?user=andrew&project=Tonga%20marine%2030Km2&callback=__jp3
+#https://andrewcottam.com:8080/marxan-server/getSpeciesData?user=admin&project=Start%20project&callback=__jp3
 class getSpeciesData(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1665,7 +1668,7 @@ class getSpeciesData(MarxanRESTHandler):
         self.send_response({"data": self.speciesData.to_dict(orient="records")})
 
 #gets all species information from the PostGIS database
-#https://marxan-server-blishten.c9users.io/marxan-server/getAllSpeciesData?callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getAllSpeciesData?callback=__jp2
 class getAllSpeciesData(MarxanRESTHandler):
     def get(self):
         #get all the species data
@@ -1674,7 +1677,7 @@ class getAllSpeciesData(MarxanRESTHandler):
         self.send_response({"info": "All species data received", "data": self.allSpeciesData.to_dict(orient="records")})
 
 #gets the species preprocessing information from the feature_preprocessing.dat file
-#https://marxan-server-blishten.c9users.io/marxan-server/getSpeciesPreProcessingData?user=andrew&project=Tonga%20marine%2030km2&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getSpeciesPreProcessingData?user=admin&project=Start%20project&callback=__jp2
 class getSpeciesPreProcessingData(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1685,7 +1688,7 @@ class getSpeciesPreProcessingData(MarxanRESTHandler):
         self.send_response({"data": self.speciesPreProcessingData.to_dict(orient="split")["data"]})
 
 #gets the planning units information from the pu.dat file
-#https://marxan-server-blishten.c9users.io/marxan-server/getPlanningUnitsData?user=andrew&project=Tonga%20marine%2030km2&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getPlanningUnitsData?user=admin&project=Start%20project&callback=__jp2
 class getPlanningUnitsData(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1696,7 +1699,7 @@ class getPlanningUnitsData(MarxanRESTHandler):
         self.send_response({"data": self.planningUnitsData})
 
 #gets the intersections of the planning units with the protected areas from the protected_area_intersections.dat file
-#https://marxan-server-blishten.c9users.io/marxan-server/getProtectedAreaIntersectionsData?user=andrew&project=Tonga%20marine%2030km2&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getProtectedAreaIntersectionsData?user=admin&project=Start%20project&callback=__jp2
 class getProtectedAreaIntersectionsData(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1707,7 +1710,7 @@ class getProtectedAreaIntersectionsData(MarxanRESTHandler):
         self.send_response({"data": self.protectedAreaIntersectionsData})
 
 #gets the Marxan log for the project
-#https://marxan-server-blishten.c9users.io/marxan-server/getMarxanLog?user=andrew&project=Tonga%20marine%2030km2&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getMarxanLog?user=admin&project=Start%20project&callback=__jp2
 class getMarxanLog(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1718,7 +1721,7 @@ class getMarxanLog(MarxanRESTHandler):
         self.send_response({"log": self.marxanLog})
 
 #gets the best solution for the project
-#https://marxan-server-blishten.c9users.io/marxan-server/getBestSolution?user=andrew&project=Tonga%20marine%2030km2&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getBestSolution?user=admin&project=Start%20project&callback=__jp2
 class getBestSolution(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1729,7 +1732,7 @@ class getBestSolution(MarxanRESTHandler):
         self.send_response({"data": self.bestSolution.to_dict(orient="split")["data"]})
 
 #gets the output summary for the project
-#https://marxan-server-blishten.c9users.io/marxan-server/getOutputSummary?user=andrew&project=Tonga%20marine%2030km2&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getOutputSummary?user=admin&project=Start%20project&callback=__jp2
 class getOutputSummary(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1740,7 +1743,7 @@ class getOutputSummary(MarxanRESTHandler):
         self.send_response({"data": self.outputSummary.to_dict(orient="split")["data"]})
 
 #gets the summed solution for the project
-#https://marxan-server-blishten.c9users.io/marxan-server/getSummedSolution?user=andrew&project=Tonga%20marine%2030km2&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getSummedSolution?user=admin&project=Start%20project&callback=__jp2
 class getSummedSolution(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1751,7 +1754,7 @@ class getSummedSolution(MarxanRESTHandler):
         self.send_response({"data": self.summedSolution})
 
 #gets an individual solution
-#https://marxan-server-blishten.c9users.io/marxan-server/getSolution?user=andrew&project=Tonga%20marine%2030km2&solution=1&callback=__jp7
+#https://andrewcottam.com:8080/marxan-server/getSolution?user=admin&project=Start%20project&solution=1&callback=__jp7
 class getSolution(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1764,7 +1767,7 @@ class getSolution(MarxanRESTHandler):
         self.send_response({'solution': self.solution, 'mv': self.missingValues, 'user': self.get_argument("user"), 'project': self.get_argument("project")})
  
 #gets the missing values for a single solution
-#https://marxan-server-blishten.c9users.io/marxan-server/getMissingValues?user=andrew&project=Tonga%20marine%2030km2&solution=1&callback=__jp7
+#https://andrewcottam.com:8080/marxan-server/getMissingValues?user=admin&project=Start%20project&solution=1&callback=__jp7
 class getMissingValues(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1775,7 +1778,7 @@ class getMissingValues(MarxanRESTHandler):
         self.send_response({'missingValues': self.missingValues})
  
 #gets the combined results for the project
-#https://marxan-server-blishten.c9users.io/marxan-server/getResults?user=andrew&project=Tonga%20marine%2030km2&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getResults?user=admin&project=Start%20project&callback=__jp2
 class getResults(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1795,7 +1798,7 @@ class getResults(MarxanRESTHandler):
             self.send_response({'info':'No results available'})
 
 #gets the data from the server.dat file as an abject
-#https://marxan-server-blishten.c9users.io/marxan-server/getServerData
+#https://andrewcottam.com:8080/marxan-server/getServerData
 class getServerData(MarxanRESTHandler):
     def get(self):
         #get the data from the server.dat file
@@ -1812,7 +1815,7 @@ class getServerData(MarxanRESTHandler):
         self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
 
 #gets a list of projects for the user
-#https://marxan-server-blishten.c9users.io/marxan-server/getProjects?user=andrew&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getProjects?user=andrew&callback=__jp2
 class getProjects(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1823,7 +1826,7 @@ class getProjects(MarxanRESTHandler):
         self.send_response({"projects": self.projects})
 
 #gets all projects and their planning unit grids
-#https://marxan-server-blishten.c9users.io/marxan-server/getProjectsWithGrids?&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getProjectsWithGrids?&callback=__jp2
 class getProjectsWithGrids(MarxanRESTHandler):
     def get(self):
         matches = []
@@ -1880,7 +1883,7 @@ class updatePUFile(MarxanRESTHandler):
         self.send_response({'info': "pu.dat file updated"})
 
 #returns a set of features for the planning unit id
-#https://marxan-server-blishten.c9users.io/marxan-server/getPUSpeciesList?user=admin&project=PNG&puid=36500&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/getPUSpeciesList?user=admin&project=PNG&puid=36500&callback=__jp2
 class getPUSpeciesList(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1896,7 +1899,7 @@ class getPUSpeciesList(MarxanRESTHandler):
         self.send_response({"info": 'Feature list returned', 'data': features.to_dict(orient="records")})
 
 #used to populate the feature_preprocessing.dat file from an imported puvspr.dat file
-#https://marxan-server-blishten.c9users.io/marxan-server/createFeaturePreprocessingFileFromImport?user=andrew&project=test&callback=__jp2
+#https://andrewcottam.com:8080/marxan-server/createFeaturePreprocessingFileFromImport?user=andrew&project=test&callback=__jp2
 class createFeaturePreprocessingFileFromImport(MarxanRESTHandler): #not currently used
     def get(self):
         #validate the input arguments
@@ -1933,7 +1936,7 @@ class updateProjectParameters(MarxanRESTHandler):
         self.send_response({'info': ",".join(list(params.keys())) + " parameters updated"})
         
 #uploads a feature class with the passed feature class name to MapBox as a tileset using the MapBox Uploads API
-#https://marxan-server-blishten.c9users.io/marxan-server/uploadTilesetToMapBox?feature_class_name=pu_ton_marine_hexagon_20&mapbox_layer_name=hexagon&callback=__jp9
+#https://andrewcottam.com:8080/marxan-server/uploadTilesetToMapBox?feature_class_name=pu_ton_marine_hexagon_20&mapbox_layer_name=hexagon&callback=__jp9
 class uploadTilesetToMapBox(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1965,7 +1968,7 @@ class uploadFile(MarxanRESTHandler):
         self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
             
 #imports a shapefile which has been uploaded to the marxan root folder into PostGIS as a new feature dataset
-#https://marxan-server-blishten.c9users.io/marxan-server/importFeature?filename=netafu.zip&name=Netafu%20island%20habitat&description=Digitised%20in%20ArcGIS%20Pro&callback=__jp5
+#https://andrewcottam.com:8080/marxan-server/importFeature?filename=netafu.zip&name=Netafu%20island%20habitat&description=Digitised%20in%20ArcGIS%20Pro&callback=__jp5
 class importFeature(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1976,7 +1979,7 @@ class importFeature(MarxanRESTHandler):
         self.send_response({'info': "File '" + self.get_argument('filename') + "' imported", 'file': self.get_argument('filename'), 'id': results['id'], 'feature_class_name': results['feature_class_name'], 'uploadId': results['uploadId']})
 
 #deletes a feature from the PostGIS database
-#https://marxan-server-blishten.c9users.io/marxan-server/deleteFeature?feature_name=test_feature1&callback=__jp5
+#https://andrewcottam.com:8080/marxan-server/deleteFeature?feature_name=test_feature1&callback=__jp5
 class deleteFeature(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -2002,7 +2005,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         self.send_response({'info': "Feature '" + feature_class_name + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
         
 #imports a zipped planning unit shapefile which has been uploaded to the marxan root folder into PostGIS as a planning unit grid feature class
-#https://marxan-server-blishten.c9users.io/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5
+#https://andrewcottam.com:8080/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5
 class importPlanningUnitGrid(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -2013,7 +2016,7 @@ class importPlanningUnitGrid(MarxanRESTHandler):
         self.send_response({'info': "File '" + self.get_argument('filename') + "' imported", 'feature_class_name': data['feature_class_name'], 'uploadId': data['uploadId']})
 
 #kills a running marxan job
-#https://marxan-server-blishten.c9users.io/marxan-server/stopMarxan?pid=12345&callback=__jp5
+#https://andrewcottam.com:8080/marxan-server/stopMarxan?pid=12345&callback=__jp5
 class stopMarxan(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -2030,14 +2033,14 @@ class stopMarxan(MarxanRESTHandler):
             
             
 #gets the run log
-#https://marxan-server-blishten.c9users.io/marxan-server/getRunLogs?
+#https://andrewcottam.com:8080/marxan-server/getRunLogs?
 class getRunLogs(MarxanRESTHandler):
     def get(self):
         runlog = _getRunLogs()
         self.send_response({'info': "Run log returned", 'data': runlog.to_dict(orient="records")})
 
 #clears the run log
-#https://marxan-server-blishten.c9users.io/marxan-server/clearRunLogs?
+#https://andrewcottam.com:8080/marxan-server/clearRunLogs?
 class clearRunLogs(MarxanRESTHandler):
     def get(self):
         runlog = _getRunLogs()
@@ -2045,7 +2048,7 @@ class clearRunLogs(MarxanRESTHandler):
         self.send_response({'info': "Run log cleared"})
 
 #for testing role access to servivces            
-#https://marxan-server-blishten.c9users.io/marxan-server/testRoleAuthorisation&callback=__jp5
+#https://andrewcottam.com:8080/marxan-server/testRoleAuthorisation&callback=__jp5
 class testRoleAuthorisation(MarxanRESTHandler):
     def get(self):
         self.send_response({'info': "Service successful"})
@@ -2103,7 +2106,7 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
 ## MarxanWebSocketHandler subclasses
 ####################################################################################################################################################################################################################################################################
 
-#wss://marxan-server-blishten.c9users.io/marxan-server/runMarxan?user=andrew&project=Tonga%20marine%2030km2
+#wss://andrewcottam.com:8080/marxan-server/runMarxan?user=admin&project=Start%20project
 #starts a Marxan run on the server and streams back the output as websockets
 class runMarxan(MarxanWebSocketHandler):
     #authenticate and get the user folder and project folders
@@ -2125,18 +2128,17 @@ class runMarxan(MarxanWebSocketHandler):
                     if platform.system() != "Windows":
                         #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM - the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) 
                         self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=PIPE, shell=True)
-                        #make sure that the marxan process will end by sending ENTER to the stdin
-                        self.marxanProcess.stdin.write('\n'.encode("utf-8")) 
-                        self.marxanProcess.stdin.close()
                         #add a callback when the process finishes
                         self.marxanProcess.set_exit_callback(self.finishOutput)
                     else:
                         #custom class as the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
                         self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdout=PIPE, stdin=PIPE)
-                        self.marxanProcess.stdin.close() #to ensure that the child process is stopped when it ends
-                        self.marxanProcess.stdout.close() #to ensure that the child process is stopped when it ends
-                        #add a callback when the process finishes
+                        self.marxanProcess.stdout.close() #to ensure that the child process is stopped when it ends on windows
+                        #add a callback when the process finishes on windows
                         self.marxanProcess.set_exit_callback_windows(self.finishOutput)
+                    #make sure that the marxan process will end by sending ENTER to the stdin
+                    self.marxanProcess.stdin.write('\n'.encode("utf-8")) 
+                    self.marxanProcess.stdin.close()
                 except (WindowsError) as e: # pylint:disable=undefined-variable
                     if (e.winerror == 1260):
                         self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
@@ -2303,7 +2305,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
 ####################################################################################################################################################################################################################################################################
 
 #preprocesses the features by intersecting them with the planning units
-#wss://marxan-server-blishten.c9users.io/marxan-server/preprocessFeature?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30&feature_class_name=volcano&alias=volcano&id=63408475
+#wss://andrewcottam.com:8080/marxan-server/preprocessFeature?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30&feature_class_name=volcano&alias=volcano&id=63408475
 class preprocessFeature(QueryWebSocketHandler):
 
     #run the preprocessing
@@ -2367,7 +2369,7 @@ class preprocessFeature(QueryWebSocketHandler):
         self.close()
 
 #preprocesses the protected areas by intersecting them with the planning units
-#wss://marxan-server-blishten.c9users.io/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30
+#wss://andrewcottam.com:8080/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30
 class preprocessProtectedAreas(QueryWebSocketHandler):
 
     #run the preprocessing
@@ -2397,7 +2399,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
         self.send_response({'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData, 'status':'Finished'})
     
 #preprocesses the planning units to get the boundary lengths where they intersect - produces the bounds.dat file
-#wss://marxan-server-blishten.c9users.io/marxan-server/preprocessPlanningUnits?user=andrew&project=Tonga%20marine%2030km2
+#wss://andrewcottam.com:8080/marxan-server/preprocessPlanningUnits?user=admin&project=Start%20project
 class preprocessPlanningUnits(QueryWebSocketHandler):
 
     #run the preprocessing

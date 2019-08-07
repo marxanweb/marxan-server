@@ -8,7 +8,7 @@ from tornado.web import StaticFileHandler
 from tornado.ioloop import IOLoop 
 from tornado import concurrent
 from tornado import gen
-from subprocess import Popen, PIPE 
+from subprocess import Popen, PIPE, CalledProcessError
 from threading import Thread 
 from urllib.parse import urlparse
 from psycopg2 import sql 
@@ -847,7 +847,7 @@ def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     try:
         subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
     #catch any unforeseen circumstances
-    except subprocess.CalledProcessError as e:
+    except CalledProcessError as e:
         raise MarxanServicesError("Error exporting shapefile. " + e.output.decode("utf-8"))
     #zip the shapefile to upload to Mapbox
     lstFilenames = glob.glob(MARXAN_FOLDER + feature_class_name + '.*')
@@ -900,12 +900,14 @@ def _importFeature(filename, name, description):
         id = _importUndissolvedFeature(feature_class_name, name, description, "Import shapefile")
         #upload the feature class to Mapbox
         uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
-    except (MarxanServicesError):
-        raise
-    else:
-        #no error so delete the shapefile and the zip file
-        _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
+    except (MarxanServicesError) as e:
+        if 'source layer has no\ncoordinate system' in e.args[0]:
+            raise MarxanServicesError("The input shapefile does not have a coordinate system defined. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
+        else:
+            raise
     finally:
+        # delete the shapefile and the zip file
+        _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
         pass
     return {'feature_class_name': feature_class_name, 'uploadId': uploadId, 'id': id}
 
@@ -948,10 +950,9 @@ def _importPlanningUnitGrid(filename, name, description):
         uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
     except (MarxanServicesError):
         raise
-    else:
+    finally:
         #delete the shapefile and the zip file
         _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
-    finally:
         pass
     return {'feature_class_name': feature_class_name, 'uploadId': uploadId}
     
@@ -1196,14 +1197,17 @@ class PostGIS():
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
             cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode + ' -lco precision=NO'
             #run the import
-            output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-            # if (output!=''):
-            #     print(cmd)
-            #     raise MarxanServicesError("Error importing shapefile.\n" + output.decode("utf-8"))
-        except Exception as e:
+            subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+        except CalledProcessError as e: # ogr2ogr error
             if not self.connection.closed:
                 self._cleanup()
-            raise MarxanServicesError(e.args[0])
+            raise MarxanServicesError(e.output.decode("utf-8"))
+        #shapefile imported - check that the geometries are valid
+        isValid = self.execute(sql.SQL("SELECT ST_IsValid(geometry) FROM marxan.{};").format(sql.Identifier(feature_class_name)), None, "One")[0]
+        if not isValid:
+            #delete the feature class
+            self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
+            raise MarxanServicesError("The input shapefile has invalid geometries. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
                 
     #creates a primary key on the column in the passed feature_class
     def createPrimaryKey(self, feature_class_name, column):

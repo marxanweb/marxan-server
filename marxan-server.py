@@ -469,11 +469,17 @@ def _getAllSpeciesData(obj):
 def _getSpeciesPreProcessingData(obj):
     obj.speciesPreProcessingData = _loadCSV(obj.folder_input + FEATURE_PREPROCESSING_FILENAME)
 
-#get the planning units information
+#get the planning units status information
 def _getPlanningUnitsData(obj):
     df = _getProjectInputData(obj, "PUNAME")
     #normalise the planning unit data to make the payload smaller        
     obj.planningUnitsData = _normaliseDataFrame(df, "status", "id")
+
+#get the planning units cost information
+def _getPlanningUnitsCostData(obj):
+    df = _getProjectInputData(obj, "PUNAME")
+    #normalise the planning unit cost data to make the payload smaller        
+    obj.planningUnitsData = _normaliseDataFrame(df, "cost", "id")
 
 #gets the data for the planning grids
 def _getPlanningUnitGrids():
@@ -1709,7 +1715,7 @@ class getSpeciesPreProcessingData(MarxanRESTHandler):
         #set the response
         self.send_response({"data": self.speciesPreProcessingData.to_dict(orient="split")["data"]})
 
-#gets the planning units information from the pu.dat file
+#gets the planning units status information from the pu.dat file
 #https://andrewcottam.com:8080/marxan-server/getPlanningUnitsData?user=admin&project=Start%20project&callback=__jp2
 class getPlanningUnitsData(MarxanRESTHandler):
     def get(self):
@@ -1717,6 +1723,17 @@ class getPlanningUnitsData(MarxanRESTHandler):
         _validateArguments(self.request.arguments, ['user','project'])    
         #get the planning units information
         _getPlanningUnitsData(self)
+        #set the response
+        self.send_response({"data": self.planningUnitsData})
+
+#gets the planning units cost information from the pu.dat file
+#https://andrewcottam.com:8080/marxan-server/getPlanningUnitsCostData?user=admin&project=Start%20project&callback=__jp2
+class getPlanningUnitsCostData(MarxanRESTHandler):
+    def get(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['user','project'])    
+        #get the planning units cost information
+        _getPlanningUnitsCostData(self)
         #set the response
         self.send_response({"data": self.planningUnitsData})
 
@@ -2505,6 +2522,7 @@ def make_app():
         ("/marxan-server/createFeatureFromLinestring", createFeatureFromLinestring),
         ("/marxan-server/getFeaturePlanningUnits", getFeaturePlanningUnits),
         ("/marxan-server/getPlanningUnitsData", getPlanningUnitsData), #currently not used
+        ("/marxan-server/getPlanningUnitsCostData", getPlanningUnitsCostData), 
         ("/marxan-server/updatePUFile", updatePUFile),
         ("/marxan-server/getPUSpeciesList", getPUSpeciesList),
         ("/marxan-server/getSpeciesData", getSpeciesData), #currently not used

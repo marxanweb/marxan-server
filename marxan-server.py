@@ -547,6 +547,8 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
     else:
         #get the current list of features
         df = _getProjectInputData(obj, "SPECNAME")
+        #get the current list of columns
+        cols = list(df.columns.values)
         if df.empty:
             currentIds = []
         else:
@@ -566,11 +568,19 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
     for i in range(len(ids)):
         if i not in removedIds:
             records.append({'id': ids[i], 'prop': str(props[i]/100), 'spf': spfs[i]})
-    df = pandas.DataFrame(records)
+    #create a data frame with the records        
+    new_df = pandas.DataFrame(records)
+    #now merge the new data with any existing data in the spec.dat file, e.g. there may be optional columns like target, targetocc or name etc.
+    #first drop the columns that have new data
+    df = df.drop(columns=['prop','spf'])
+    #now merge the two data frames
+    output_df = pandas.merge(df, new_df, on='id')
+    #output the fields in the correct order id,prop,spf
+    output_df = output_df[cols]
     #sort the records by the id field
-    df = df.sort_values(by=['id'])
+    output_df = output_df.sort_values(by=['id'])
     #write the data to file
-    _writeCSV(obj, "SPECNAME", df)
+    _writeCSV(obj, "SPECNAME", output_df)
 
 #create the array of the puids 
 def _puidsArrayToPuDatFormat(puid_array, pu_status):
@@ -903,7 +913,7 @@ def _importFeature(filename, name, description):
     except (MarxanServicesError) as e:
         if 'source layer has no\ncoordinate system' in e.args[0]:
             raise MarxanServicesError("The input shapefile does not have a coordinate system defined. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
-        else:
+        else: #invalid geometries 
             raise
     finally:
         # delete the shapefile and the zip file
@@ -912,18 +922,20 @@ def _importFeature(filename, name, description):
     return {'feature_class_name': feature_class_name, 'uploadId': uploadId, 'id': id}
 
 #imports the undissolved feature class into the marxan schema with the featureclassname and inserts a record in the metadata_interest_features table
-def _importUndissolvedFeature(featureclassname, name, description, source):
+def _importUndissolvedFeature(feature_class_name, name, description, source):
     #get the Mapbox tilesetId 
-    tilesetId = MAPBOX_USER + "." + featureclassname
+    tilesetId = MAPBOX_USER + "." + feature_class_name
     #dissolve the feature class
     postgis = PostGIS()
-    postgis.execute(sql.SQL("SELECT ST_Union(geometry) geometry INTO marxan.{} FROM marxan.undissolved;").format(sql.Identifier(featureclassname)))   
+    postgis.execute(sql.SQL("SELECT ST_Union(geometry) geometry INTO marxan.{} FROM marxan.undissolved;").format(sql.Identifier(feature_class_name)))   
     #create an index
-    postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(featureclassname)))
+    postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
     #drop the undissolved feature class
     postgis.execute("DROP TABLE IF EXISTS marxan.undissolved;") 
+    #shapefile imported - check that the geometries are valid and if not raise an error
+    postgis.isValid(feature_class_name, True, "The dissolved input shapefile has invalid geometries. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
     #create a record for this new feature in the metadata_interest_features table
-    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(featureclassname)), [featureclassname, name, description, tilesetId, source], "One")[0]
+    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source], "One")[0]
     return id
 
 #imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox - this is for importing marxan old version files
@@ -1202,13 +1214,19 @@ class PostGIS():
             if not self.connection.closed:
                 self._cleanup()
             raise MarxanServicesError(e.output.decode("utf-8"))
-        #shapefile imported - check that the geometries are valid
+        #shapefile imported - check that the geometries are valid and if not raise an error
+        self.isValid(feature_class_name, True, "The input shapefile has invalid geometries. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
+                
+    #tests to see if a feature class is valid - returns whether it is or not or raises an error if required
+    def isValid(self, feature_class_name, raiseError, errorMessage):
         isValid = self.execute(sql.SQL("SELECT ST_IsValid(geometry) FROM marxan.{};").format(sql.Identifier(feature_class_name)), None, "One")[0]
         if not isValid:
             #delete the feature class
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
-            raise MarxanServicesError("The input shapefile has invalid geometries. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
-                
+            if raiseError:
+                raise MarxanServicesError(errorMessage)
+        return isValid
+    
     #creates a primary key on the column in the passed feature_class
     def createPrimaryKey(self, feature_class_name, column):
         try:

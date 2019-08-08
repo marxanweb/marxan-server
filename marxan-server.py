@@ -933,7 +933,7 @@ def _importUndissolvedFeature(feature_class_name, name, description, source):
     tilesetId = MAPBOX_USER + "." + feature_class_name
     #dissolve the feature class
     postgis = PostGIS()
-    postgis.execute(sql.SQL("SELECT ST_Union(geometry) geometry INTO marxan.{} FROM marxan.undissolved;").format(sql.Identifier(feature_class_name)))   
+    postgis.execute(sql.SQL("SELECT ST_MakeValid(ST_Union(geometry)) geometry INTO marxan.{} FROM marxan.undissolved;").format(sql.Identifier(feature_class_name)))   
     #create an index
     postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
     #drop the undissolved feature class

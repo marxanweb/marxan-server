@@ -576,17 +576,18 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
             records.append({'id': ids[i], 'prop': str(props[i]/100), 'spf': spfs[i]})
     #create a data frame with the records        
     new_df = pandas.DataFrame(records)
-    #now merge the new data with any existing data in the spec.dat file, e.g. there may be optional columns like target, targetocc or name etc.
-    #first drop the columns that have new data
-    df = df.drop(columns=['prop','spf'])
-    #now merge the two data frames
-    output_df = pandas.merge(df, new_df, on='id')
-    #output the fields in the correct order id,prop,spf
-    output_df = output_df[cols]
+    #if there are optional columns like target, targetocc or name etc., merge the new data with any existing data in the spec.dat file
+    if (len(cols) != 3):
+        #first drop the columns that have new data
+        df = df.drop(columns=['prop','spf'])
+        #now merge the two data frames
+        new_df = pandas.merge(df, new_df, on='id')
+        #output the fields in the correct order id,prop,spf
+        new_df = new_df[cols]
     #sort the records by the id field
-    output_df = output_df.sort_values(by=['id'])
+    new_df = new_df.sort_values(by=['id'])
     #write the data to file
-    _writeCSV(obj, "SPECNAME", output_df)
+    _writeCSV(obj, "SPECNAME", new_df)
 
 #create the array of the puids 
 def _puidsArrayToPuDatFormat(puid_array, pu_status):
@@ -2390,8 +2391,8 @@ class preprocessFeature(QueryWebSocketHandler):
         df = df[~df.species.isin([speciesId])]
         #append the intersection data to the existing data
         df = df.append(intersectionData)
-        #sort the values by the species column then pu column
-        df = df.sort_values(by=['pu'])
+        #sort the values by the pu column then the species column 
+        df = df.sort_values(by=['pu','species'])
         try: 
             #write the data to the PUVSPR.dat file
             _writeCSV(self, "PUVSPRNAME", df)

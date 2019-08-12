@@ -11,6 +11,7 @@ from tornado import gen
 from subprocess import Popen, PIPE, CalledProcessError
 from threading import Thread 
 from urllib.parse import urlparse
+from urllib import request 
 from psycopg2 import sql 
 from mapbox import Uploader 
 from mapbox import errors 
@@ -56,7 +57,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.2"
+MARXAN_SERVER_VERSION = "0.8.3"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -78,6 +79,7 @@ FEATURE_PREPROCESSING_FILENAME = "feature_preprocessing.dat"
 PROTECTED_AREA_INTERSECTIONS_FILENAME = "protected_area_intersections.dat"
 SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
+WDPA_DOWNLOAD_FILE = "wdpa.zip"
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -2123,9 +2125,10 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         #set the start time of the websocket
         self.startTime = datetime.datetime.now()
         #set the folder paths for the user and optionally project
-        _setFolderPaths(self, self.request.arguments)
-        #get the project data
-        _getProjectData(self)
+        if "user" in self.request.arguments.keys():
+            _setFolderPaths(self, self.request.arguments)
+            #get the project data
+            _getProjectData(self)
         #check the request is authenticated
         _authenticate(self)
         #get the requested method
@@ -2274,6 +2277,79 @@ class runMarxan(MarxanWebSocketHandler):
         except (WebSocketClosedError): #the websocket may already have been closed
             print("The WebSocket was closed in finishOutput - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
         
+
+#updates the WDPA table in PostGIS using the publically available downloadUrl
+class updateWDPA(MarxanWebSocketHandler):
+    #authenticate and get the user folder and project folders
+    def open(self):
+        try:
+            super(updateWDPA, self).open()
+        except (HTTPError) as e:
+            self.send_response({'error': e.reason, 'status': 'Finished'})
+        else:
+            self.send_response({'info': "Updating WDPA..", 'status':'Started'})
+            try:
+                #download the new wdpa zip
+                self.downloadFile(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                #download finished - upzip the file
+                rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE) 
+                #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
+                postgis = PostGIS()
+                #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
+                feature_class_name = _getUniqueFeatureclassName("pu_")
+                #import the wdpa to a tmp feature class
+                postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
+                #rename the existing wdpa feature class
+                postgis.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
+                #rename the tmp feature class
+                postgis.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
+                #delete the old wdpa feature class
+                postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
+            except (OSError) as e: # could be no space left on device
+                print (e.args[1])
+                self.send_response({'error': e.args[1], 'status':' Finished'})
+            except (Exception) as e: # pylint:disable=undefined-variable
+                self.send_response({'error': e.args[0], 'status': 'Finished', 'info':''})
+                #close the websocket
+                self.close()
+            else: #no errors
+                #update the WDPA_VERSION variable in the server.dat file
+                _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
+                #send the response
+                self.send_response({'info': 'Update completed', 'status': 'Finished'})
+            finally:
+                #delete the shapefile
+                _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
+                
+
+    # downloads a file from the url with the default block size of 100Mb
+    def downloadFile(self, url, file, block_sz=100000000):
+        try:
+            req = request.Request(url, headers={'User-Agent': 'Mozilla/5.0'}) 
+            resp = request.urlopen(req)
+            #get the file size
+            file_size = resp.info()["Content-Length"]
+            #initialise a variable to hold the size downloaded
+            file_size_dl = 0
+        except (Exception) as e:
+            pass
+        else:
+            try:
+                f = open(file, 'wb')
+                while True:
+                    buffer = resp.read(block_sz)
+                    if not buffer:
+                        break
+                    file_size_dl += len(buffer)
+                    f.write(buffer)
+                    self.send_response({'info': "Updating WDPA..", 'status':'Downloading..', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
+                return 
+            except (OSError) as e:
+                print (e.args[1])
+                self.send_response({'error': e.args[1], 'status':' Finished'})
+            finally:
+                f.close()
+
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
 ####################################################################################################################################################################################################################################################################
@@ -2545,6 +2621,7 @@ def make_app():
         ("/marxan-server/stopMarxan", stopMarxan),
         ("/marxan-server/getRunLogs", getRunLogs),
         ("/marxan-server/clearRunLogs", clearRunLogs),
+        ("/marxan-server/updateWDPA", updateWDPA),
         ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
         ("/marxan-server/testTornado", testTornado),
         ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server

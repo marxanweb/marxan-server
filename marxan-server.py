@@ -843,24 +843,33 @@ def _deleteZippedShapefile(folder, zipfile, archivename):
     if (os.path.exists(folder + zipfile)):
         os.remove(folder + zipfile)
 
-#unzips a zip file
-def _unzipFile(filename):
+#unzips a zip file and returns the rootname - if searchTerm is specified then only the files that match the searchTerm will be extracted 
+def _unzipFile(filename, searchTerm = None):
     #unzip the shapefile
     if not os.path.exists(MARXAN_FOLDER + filename):
         raise MarxanServicesError("The zip file '" + filename + "' does not exist")
     zip_ref = zipfile.ZipFile(MARXAN_FOLDER + filename, 'r')
     filenames = zip_ref.namelist()
+    #if a search term is specified then only get those files with the matching search term
+    if searchTerm:
+        filenames = [f for f in filenames if searchTerm in f]
     #do not accept zip files that contain nested files/folders
     try:
         filenames[0].index(os.sep)
     except (ValueError): # no separator found - fine to continue
+        #get the root filename
         rootfilename = filenames[0][:-4]
-        zip_ref.extractall(MARXAN_FOLDER)
+        #if a search term is specified then only extract files that include the search term
+        if searchTerm:
+            for f in filenames:
+                zip_ref.extract(f)
+        else:            
+            zip_ref.extractall(MARXAN_FOLDER)
         zip_ref.close()
         return rootfilename
     else: # nested files/folders - raise an error
         raise MarxanServicesError("The zipped file should not contain directories. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#importing-existing-marxan-projects' target='blank'>here</a>")
-
+        
 def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
     cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
@@ -2301,6 +2310,7 @@ class updateWDPA(MarxanWebSocketHandler):
                 try:
                     #download finished - upzip the file
                     rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE) 
+                    self.send_response({'info': "Updating WDPA..", 'status':'Unzipped shapefile'})
                     #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
                     postgis = PostGIS()
                     #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
@@ -2342,6 +2352,7 @@ class updateWDPA(MarxanWebSocketHandler):
                 file_size_dl += len(buffer)
                 f.write(buffer)
                 self.send_response({'info': "Updating WDPA..", 'status':'Downloading..', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
+            self.send_response({'info': "Updating WDPA..", 'status':'Downloaded'})
             return 
         except (OSError) as e:
             self.send_response({'error': e.args[1], 'status':' Finished'})

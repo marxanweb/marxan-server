@@ -2331,8 +2331,8 @@ class updateWDPA(MarxanWebSocketHandler):
             file_size = resp.info()["Content-Length"]
             #initialise a variable to hold the size downloaded
             file_size_dl = 0
-        except (Exception) as e:
-            pass
+        except (HTTPError) as e:
+            self.send_response({'error': e.args[1], 'status':' Finished'})
         else:
             try:
                 f = open(file, 'wb')
@@ -2345,7 +2345,6 @@ class updateWDPA(MarxanWebSocketHandler):
                     self.send_response({'info': "Updating WDPA..", 'status':'Downloading..', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
                 return 
             except (OSError) as e:
-                print (e.args[1])
                 self.send_response({'error': e.args[1], 'status':' Finished'})
             finally:
                 f.close()

@@ -2319,7 +2319,8 @@ class updateWDPA(MarxanWebSocketHandler):
                 self.send_response({'info': 'Update completed', 'status': 'Finished'})
             finally:
                 #delete the shapefile
-                _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
+                if rootfilename:
+                    _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
                 
 
     # downloads a file from the url with the default block size of 100Mb
@@ -2332,7 +2333,7 @@ class updateWDPA(MarxanWebSocketHandler):
             #initialise a variable to hold the size downloaded
             file_size_dl = 0
         except (HTTPError) as e:
-            self.send_response({'error': e.args[1], 'status':' Finished'})
+            self.send_response({'error': e.msg, 'status':' Finished'})
         else:
             try:
                 f = open(file, 'wb')

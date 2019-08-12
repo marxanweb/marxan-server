@@ -16,6 +16,7 @@ from psycopg2 import sql
 from mapbox import Uploader 
 from mapbox import errors 
 from osgeo import ogr 
+import urllib
 import tornado.options 
 import webbrowser 
 import logging 
@@ -2291,64 +2292,61 @@ class updateWDPA(MarxanWebSocketHandler):
             try:
                 #download the new wdpa zip
                 self.downloadFile(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
-                #download finished - upzip the file
-                rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE) 
-                #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
-                postgis = PostGIS()
-                #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
-                feature_class_name = _getUniqueFeatureclassName("pu_")
-                #import the wdpa to a tmp feature class
-                postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
-                #rename the existing wdpa feature class
-                postgis.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
-                #rename the tmp feature class
-                postgis.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
-                #delete the old wdpa feature class
-                postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
-            except (OSError) as e: # could be no space left on device
-                print (e.args[1])
-                self.send_response({'error': e.args[1], 'status':' Finished'})
-            except (Exception) as e: # pylint:disable=undefined-variable
-                self.send_response({'error': e.args[0], 'status': 'Finished', 'info':''})
-                #close the websocket
-                self.close()
-            else: #no errors
-                #update the WDPA_VERSION variable in the server.dat file
-                _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
-                #send the response
-                self.send_response({'info': 'Update completed', 'status': 'Finished'})
-            finally:
-                #delete the shapefile
-                if rootfilename:
+            except (urllib.error.HTTPError) as e: # file not found
+                if (e.msg == "Not Found"):
+                    self.send_response({'error': "The url '" + self.get_argument("downloadUrl") + "' cannot be opened", 'status':' Finished'})
+                else:
+                    self.send_response({'error': e.msg, 'status':' Finished'})
+            else:
+                try:
+                    #download finished - upzip the file
+                    rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE) 
+                    #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
+                    postgis = PostGIS()
+                    #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
+                    feature_class_name = _getUniqueFeatureclassName("pu_")
+                    #import the wdpa to a tmp feature class
+                    postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
+                    #rename the existing wdpa feature class
+                    postgis.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
+                    #rename the tmp feature class
+                    postgis.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
+                    #delete the old wdpa feature class
+                    postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
+                except (OSError) as e: # probably no space left on device
+                    self.send_response({'error': e.args[1], 'status':' Finished'})
+                else: #no errors
+                    #update the WDPA_VERSION variable in the server.dat file
+                    _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
+                    #send the response
+                    self.send_response({'info': 'Update completed', 'status': 'Finished'})
+                finally:
+                    #delete the shapefile
                     _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
                 
 
     # downloads a file from the url with the default block size of 100Mb
     def downloadFile(self, url, file, block_sz=100000000):
+        req = request.Request(url, headers={'User-Agent': 'Mozilla/5.0'}) 
+        resp = request.urlopen(req)
+        #get the file size
+        file_size = resp.info()["Content-Length"]
+        #initialise a variable to hold the size downloaded
+        file_size_dl = 0
         try:
-            req = request.Request(url, headers={'User-Agent': 'Mozilla/5.0'}) 
-            resp = request.urlopen(req)
-            #get the file size
-            file_size = resp.info()["Content-Length"]
-            #initialise a variable to hold the size downloaded
-            file_size_dl = 0
-        except (HTTPError) as e:
-            self.send_response({'error': e.msg, 'status':' Finished'})
-        else:
-            try:
-                f = open(file, 'wb')
-                while True:
-                    buffer = resp.read(block_sz)
-                    if not buffer:
-                        break
-                    file_size_dl += len(buffer)
-                    f.write(buffer)
-                    self.send_response({'info': "Updating WDPA..", 'status':'Downloading..', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
-                return 
-            except (OSError) as e:
-                self.send_response({'error': e.args[1], 'status':' Finished'})
-            finally:
-                f.close()
+            f = open(file, 'wb')
+            while True:
+                buffer = resp.read(block_sz)
+                if not buffer:
+                    break
+                file_size_dl += len(buffer)
+                f.write(buffer)
+                self.send_response({'info': "Updating WDPA..", 'status':'Downloading..', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
+            return 
+        except (OSError) as e:
+            self.send_response({'error': e.args[1], 'status':' Finished'})
+        finally:
+            f.close()
 
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets

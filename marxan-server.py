@@ -2309,7 +2309,7 @@ class updateWDPA(MarxanWebSocketHandler):
             else:
                 try:
                     #download finished - upzip the file
-                    rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE) 
+                    rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE, "polygons") 
                     self.send_response({'info': "Updating WDPA..", 'status':'Unzipped shapefile'})
                     #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
                     postgis = PostGIS()

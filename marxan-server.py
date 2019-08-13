@@ -853,20 +853,28 @@ def _unzipFile(filename, searchTerm = None):
     #if a search term is specified then only get those files with the matching search term
     if searchTerm:
         filenames = [f for f in filenames if searchTerm in f]
+        if (len(filenames) == 0):
+            raise MarxanServicesError("There were no files in the zip file matching the text '" + searchTerm + "'")
     #do not accept zip files that contain nested files/folders
-    try:
-        filenames[0].index(os.sep)
-    except (ValueError): # no separator found - fine to continue
+    if (filenames[0].find(os.sep)==-1):
         #get the root filename
         rootfilename = filenames[0][:-4]
         #if a search term is specified then only extract files that include the search term
-        if searchTerm:
+        try:
+            if searchTerm:
+                for f in filenames:
+                    zip_ref.extract(f, MARXAN_FOLDER)
+            else:            
+                zip_ref.extractall(MARXAN_FOLDER)
+        except (OSError) as e:
+            #delete the already extracted files
             for f in filenames:
-                zip_ref.extract(f)
-        else:            
-            zip_ref.extractall(MARXAN_FOLDER)
-        zip_ref.close()
-        return rootfilename
+                if os.path.exists(MARXAN_FOLDER + f):
+                    os.remove(MARXAN_FOLDER + f)
+            raise MarxanServicesError("No space left on device extracting the file '" + rootfilename + "'")
+        else:
+            zip_ref.close()
+            return rootfilename
     else: # nested files/folders - raise an error
         raise MarxanServicesError("The zipped file should not contain directories. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#importing-existing-marxan-projects' target='blank'>here</a>")
         
@@ -2295,69 +2303,80 @@ class updateWDPA(MarxanWebSocketHandler):
         try:
             super(updateWDPA, self).open()
         except (HTTPError) as e:
-            self.send_response({'error': e.reason, 'status': 'Finished'})
+            self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'WDPA not updated'})
         else:
             self.send_response({'info': "Updating WDPA..", 'status':'Started'})
             try:
                 #download the new wdpa zip
                 self.downloadFile(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
-            except (urllib.error.HTTPError) as e: # file not found
-                if (e.msg == "Not Found"):
-                    self.send_response({'error': "The url '" + self.get_argument("downloadUrl") + "' cannot be opened", 'status':' Finished'})
-                else:
-                    self.send_response({'error': e.msg, 'status':' Finished'})
+            except (MarxanServicesError) as e: #download failed
+                self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'WDPA not updated'})
             else:
+                self.send_response({'info': "Updating WDPA..", 'status':'Downloaded'})
                 try:
-                    #download finished - upzip the file
+                    #download finished - upzip the polygons shapefile
                     rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE, "polygons") 
+                except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
+                    self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'WDPA not updated'})
+                else:
                     self.send_response({'info': "Updating WDPA..", 'status':'Unzipped shapefile'})
-                    #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
-                    postgis = PostGIS()
-                    #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
-                    feature_class_name = _getUniqueFeatureclassName("pu_")
-                    #import the wdpa to a tmp feature class
-                    postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
-                    #rename the existing wdpa feature class
-                    postgis.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
-                    #rename the tmp feature class
-                    postgis.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
-                    #delete the old wdpa feature class
-                    postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
-                except (OSError) as e: # probably no space left on device
-                    self.send_response({'error': e.args[1], 'status':' Finished'})
-                else: #no errors
-                    #update the WDPA_VERSION variable in the server.dat file
-                    _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
-                    #send the response
-                    self.send_response({'info': 'Update completed', 'status': 'Finished'})
-                finally:
-                    #delete the shapefile
-                    _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
-                
+                    #delete the zip file
+                    os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                    try:
+                        #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
+                        postgis = PostGIS()
+                        #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
+                        feature_class_name = _getUniqueFeatureclassName("wdpa_")
+                        #import the wdpa to a tmp feature class
+                        postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
+                        #rename the existing wdpa feature class
+                        postgis.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
+                        #rename the tmp feature class
+                        postgis.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
+                        #delete the old wdpa feature class
+                        postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
+                    except (OSError) as e: #TODO Add the exception classes
+                        self.send_response({'error': 'No space left on device importing the WDPA into PostGIS', 'status':'Finished', 'info': 'WDPA not updated'})
+                    else: 
+                        #update the WDPA_VERSION variable in the server.dat file
+                        _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
+                        #send the response
+                        self.send_response({'info': 'Update completed', 'status': 'Finished'})
+                    finally:
+                        #delete the shapefile
+                        _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
 
     # downloads a file from the url with the default block size of 100Mb
     def downloadFile(self, url, file, block_sz=100000000):
-        req = request.Request(url, headers={'User-Agent': 'Mozilla/5.0'}) 
-        resp = request.urlopen(req)
-        #get the file size
-        file_size = resp.info()["Content-Length"]
-        #initialise a variable to hold the size downloaded
-        file_size_dl = 0
         try:
-            f = open(file, 'wb')
-            while True:
-                buffer = resp.read(block_sz)
-                if not buffer:
-                    break
-                file_size_dl += len(buffer)
-                f.write(buffer)
-                self.send_response({'info': "Updating WDPA..", 'status':'Downloading..', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
-            self.send_response({'info': "Updating WDPA..", 'status':'Downloaded'})
-            return 
-        except (OSError) as e:
-            self.send_response({'error': e.args[1], 'status':' Finished'})
-        finally:
-            f.close()
+            req = request.Request(url, headers={'User-Agent': 'Mozilla/5.0'}) 
+            resp = request.urlopen(req)
+            #get the file size
+            file_size = resp.info()["Content-Length"]
+            #initialise a variable to hold the size downloaded
+            file_size_dl = 0
+        except (urllib.error.HTTPError) as e: # file not found
+            if (e.msg == "Not Found"):
+                raise MarxanServicesError("The url '" + self.get_argument("downloadUrl") + "' cannot be opened")
+            else:
+                raise MarxanServicesError(e.msg)
+        else:
+            try:
+                f = open(file, 'wb')
+                while True:
+                    buffer = resp.read(block_sz)
+                    if not buffer:
+                        break
+                    file_size_dl += len(buffer)
+                    f.write(buffer)
+                    self.send_response({'info': "Updating WDPA..", 'status':'Downloading..', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
+                #downloaded succesfully
+                f.close()
+                
+            except (OSError) as e: # out of disk space probably
+                f.close()
+                os.remove(file)
+                raise MarxanServicesError("Out of disk space on device")
 
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets

@@ -1229,7 +1229,7 @@ class PostGIS():
             raise MarxanServicesError(e.args[1])
         
     #imports a shapefile into PostGIS
-    def importShapefile(self, shapefile, feature_class_name, epsgCode):
+    def importShapefile(self, shapefile, feature_class_name, epsgCode, checkGeometry = True):
         try:
             #drop the feature class if it already exists
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
@@ -1242,7 +1242,8 @@ class PostGIS():
                 self._cleanup()
             raise MarxanServicesError(e.output.decode("utf-8"))
         #shapefile imported - check that the geometries are valid and if not raise an error
-        self.isValid(feature_class_name, True, "The input shapefile has invalid geometries. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
+        if checkGeometry:
+            self.isValid(feature_class_name, True, "The input shapefile has invalid geometries. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
                 
     #tests to see if a feature class is valid - returns whether it is or not or raises an error if required
     def isValid(self, feature_class_name, raiseError, errorMessage):
@@ -2315,6 +2316,7 @@ class updateWDPA(MarxanWebSocketHandler):
                 self.send_response({'info': "Updating WDPA..", 'status':'Downloaded'})
                 try:
                     #download finished - upzip the polygons shapefile
+                    self.send_response({'info': "Updating WDPA..", 'status':'Unzipping shapefile'})
                     rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE, "polygons") 
                 except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
                     self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'WDPA not updated'})
@@ -2327,14 +2329,22 @@ class updateWDPA(MarxanWebSocketHandler):
                         postgis = PostGIS()
                         #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
                         feature_class_name = _getUniqueFeatureclassName("wdpa_")
+                        self.send_response({'info': "Updating WDPA..", 'status': "Importing '" + rootfilename + "' into PostGIS"})
                         #import the wdpa to a tmp feature class
-                        postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
+                        postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326", False)
+                        self.send_response({'info': "Updating WDPA..", 'status': "Imported into '" + feature_class_name + "'"})
                         #rename the existing wdpa feature class
                         postgis.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
+                        self.send_response({'info': "Updating WDPA..", 'status': "Renamed 'wdpa' to 'wdpa_old'"})
                         #rename the tmp feature class
                         postgis.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
+                        self.send_response({'info': "Updating WDPA..", 'status': "Renamed '" + feature_class_name + "' to 'wdpa'"})
+                        #drop the tables that are not needed
+                        postgis.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpaid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso,DROP COLUMN IF EXISTS iso3;")
+                        self.send_response({'info': "Updating WDPA..", 'status': "Removed unneccesary columns"})
                         #delete the old wdpa feature class
                         postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
+                        self.send_response({'info': "Updating WDPA..", 'status': "Deleted 'wdpa_old' table"})
                     except (OSError) as e: #TODO Add the exception classes
                         self.send_response({'error': 'No space left on device importing the WDPA into PostGIS', 'status':'Finished', 'info': 'WDPA not updated'})
                     else: 

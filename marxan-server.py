@@ -2538,7 +2538,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
             #get the project data
             _getProjectData(self)
             #do the intersection with the protected areas
-            future = self.executeQueryAsynchronously(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM (SELECT iucn_cat, geom FROM marxan.wdpa) AS wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geom, ST_Transform(grid.geometry, 4326)) ORDER BY 1,2;").format(sql.Identifier(self.get_argument('planning_grid_name'))), None, "Preprocessing protected areas", "  Preprocessing protected areas..", "  Preprocessing finished")
+            future = self.executeQueryAsynchronously(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM (SELECT iucn_cat, geometry FROM marxan.wdpa) AS wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geom, ST_Transform(grid.geometry, 4326)) ORDER BY 1,2;").format(sql.Identifier(self.get_argument('planning_grid_name'))), None, "Preprocessing protected areas", "  Preprocessing protected areas..", "  Preprocessing finished")
             future.add_done_callback(self.preprocessProtectedAreasComplete) # pylint:disable=no-member
     
     #callback which is called when the intersection has been done

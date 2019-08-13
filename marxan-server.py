@@ -552,7 +552,7 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
     spfs = spf_values.split(",") 
     if create:
         #there are no existing ids as we are creating a new pu.dat file
-        removedIds = []    
+        removedIds = []   
     else:
         #get the current list of features
         df = _getProjectInputData(obj, "SPECNAME")
@@ -580,13 +580,14 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
     #create a data frame with the records        
     new_df = pandas.DataFrame(records)
     #if there are optional columns like target, targetocc or name etc., merge the new data with any existing data in the spec.dat file
-    if (len(cols) != 3):
-        #first drop the columns that have new data
-        df = df.drop(columns=['prop','spf'])
-        #now merge the two data frames
-        new_df = pandas.merge(df, new_df, on='id')
-        #output the fields in the correct order id,prop,spf
-        new_df = new_df[cols]
+    if create == False:
+        if (len(cols) != 3):
+            #first drop the columns that have new data
+            df = df.drop(columns=['prop','spf'])
+            #now merge the two data frames
+            new_df = pandas.merge(df, new_df, on='id')
+            #output the fields in the correct order id,prop,spf
+            new_df = new_df[cols]
     #sort the records by the id field
     new_df = new_df.sort_values(by=['id'])
     #write the data to file
@@ -2340,7 +2341,7 @@ class updateWDPA(MarxanWebSocketHandler):
                         postgis.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
                         self.send_response({'info': "Updating WDPA..", 'status': "Renamed '" + feature_class_name + "' to 'wdpa'"})
                         #drop the tables that are not needed
-                        postgis.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpaid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso,DROP COLUMN IF EXISTS iso3;")
+                        postgis.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso,DROP COLUMN IF EXISTS iso3;")
                         self.send_response({'info': "Updating WDPA..", 'status': "Removed unneccesary columns"})
                         #delete the old wdpa feature class
                         postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 

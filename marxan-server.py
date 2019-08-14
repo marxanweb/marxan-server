@@ -2315,15 +2315,15 @@ class updateWDPA(MarxanWebSocketHandler):
             except (MarxanServicesError) as e: #download failed
                 self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'WDPA not updated'})
             else:
-                self.send_response({'info': "Updating WDPA..", 'status':'Downloaded'})
+                self.send_response({'info': "Downloaded", 'status':'Updating WDPA'})
                 try:
                     #download finished - upzip the polygons shapefile
-                    self.send_response({'info': "Updating WDPA..", 'status':'Unzipping shapefile'})
+                    self.send_response({'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'", 'status':'Updating WDPA'})
                     rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE, "polygons") 
                 except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
                     self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'WDPA not updated'})
                 else:
-                    self.send_response({'info': "Updating WDPA..", 'status':'Unzipped shapefile'})
+                    self.send_response({'info': "Unzipped shapefile", 'status':'Updating WDPA'})
                     #delete the zip file
                     os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
                     try:
@@ -2331,29 +2331,29 @@ class updateWDPA(MarxanWebSocketHandler):
                         postgis = PostGIS()
                         #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
                         feature_class_name = _getUniqueFeatureclassName("wdpa_")
-                        self.send_response({'info': "Updating WDPA..", 'status': "Importing '" + rootfilename + "' into PostGIS"})
+                        self.send_response({'info': "Importing '" + rootfilename + "' into PostGIS..", 'status': "Updating WDPA"})
                         #import the wdpa to a tmp feature class
                         postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326", False)
-                        self.send_response({'info': "Updating WDPA..", 'status': "Imported into '" + feature_class_name + "'"})
+                        self.send_response({'info': "Imported into '" + feature_class_name + "'", 'status': "Updating WDPA"})
                         #rename the existing wdpa feature class
                         postgis.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
-                        self.send_response({'info': "Updating WDPA..", 'status': "Renamed 'wdpa' to 'wdpa_old'"})
+                        self.send_response({'info': "Renamed 'wdpa' to 'wdpa_old'", 'status': "Updating WDPA"})
                         #rename the tmp feature class
                         postgis.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
-                        self.send_response({'info': "Updating WDPA..", 'status': "Renamed '" + feature_class_name + "' to 'wdpa'"})
+                        self.send_response({'info': "Renamed '" + feature_class_name + "' to 'wdpa'", 'status': "Updating WDPA"})
                         #drop the tables that are not needed
                         postgis.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso,DROP COLUMN IF EXISTS iso3;")
-                        self.send_response({'info': "Updating WDPA..", 'status': "Removed unneccesary columns"})
+                        self.send_response({'info': "Removed unneccesary columns", 'status': "Updating WDPA"})
                         #delete the old wdpa feature class
                         postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
-                        self.send_response({'info': "Updating WDPA..", 'status': "Deleted 'wdpa_old' table"})
+                        self.send_response({'info': "Deleted 'wdpa_old' table", 'status': "Updating WDPA"})
                     except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
                         self.send_response({'error': 'No space left on device importing the WDPA into PostGIS', 'status':'Finished', 'info': 'WDPA not updated'})
                     else: 
                         #update the WDPA_VERSION variable in the server.dat file
                         _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
                         #send the response
-                        self.send_response({'info': 'Update completed', 'status': 'Finished'})
+                        self.send_response({'info': 'WDPA update completed succesfully', 'status': 'Finished'})
                     finally:
                         #delete the shapefile
                         _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
@@ -2381,7 +2381,7 @@ class updateWDPA(MarxanWebSocketHandler):
                         break
                     file_size_dl += len(buffer)
                     f.write(buffer)
-                    self.send_response({'info': "Updating WDPA..", 'status':'Downloading..', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
+                    self.send_response({'info': "Downloading " + url, 'status':'Updating WDPA', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
                 #downloaded succesfully
                 f.close()
                 

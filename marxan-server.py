@@ -54,11 +54,11 @@ DISABLE_SECURITY = False
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs"],
-    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA"],
+    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.3"
+MARXAN_SERVER_VERSION = "0.8.4"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -81,6 +81,7 @@ PROTECTED_AREA_INTERSECTIONS_FILENAME = "protected_area_intersections.dat"
 SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
+ERRORS_PAGE = "https://andrewcottam.github.io/marxan-web/documentation/docs_errors.html"
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -940,7 +941,7 @@ def _importFeature(filename, name, description):
         uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
     except (MarxanServicesError) as e:
         if 'source layer has no\ncoordinate system' in e.args[0]:
-            raise MarxanServicesError("The input shapefile does not have a coordinate system defined. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
+            raise MarxanServicesError("The input shapefile does not have a coordinate system defined. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-does-not-have-a-coordinate-system-defined' target='blank'>here</a>")
         else: #invalid geometries 
             raise
     finally:
@@ -961,7 +962,7 @@ def _importUndissolvedFeature(feature_class_name, name, description, source):
     #drop the undissolved feature class
     postgis.execute("DROP TABLE IF EXISTS marxan.undissolved;") 
     #shapefile imported - check that the geometries are valid and if not raise an error
-    postgis.isValid(feature_class_name, True, "The dissolved input shapefile has invalid geometries. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
+    postgis.isValid(feature_class_name, True, "The dissolved input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
     #create a record for this new feature in the metadata_interest_features table
     id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source], "One")[0]
     return id
@@ -1244,7 +1245,7 @@ class PostGIS():
             raise MarxanServicesError(e.output.decode("utf-8"))
         #shapefile imported - check that the geometries are valid and if not raise an error
         if checkGeometry:
-            self.isValid(feature_class_name, True, "The input shapefile has invalid geometries. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#requirements-for-importing-spatial-data' target='blank'>here</a>")
+            self.isValid(feature_class_name, True, "The input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
                 
     #tests to see if a feature class is valid - returns whether it is or not or raises an error if required
     def isValid(self, feature_class_name, raiseError, errorMessage):
@@ -2346,7 +2347,7 @@ class updateWDPA(MarxanWebSocketHandler):
                         #delete the old wdpa feature class
                         postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
                         self.send_response({'info': "Updating WDPA..", 'status': "Deleted 'wdpa_old' table"})
-                    except (OSError) as e: #TODO Add the exception classes
+                    except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
                         self.send_response({'error': 'No space left on device importing the WDPA into PostGIS', 'status':'Finished', 'info': 'WDPA not updated'})
                     else: 
                         #update the WDPA_VERSION variable in the server.dat file

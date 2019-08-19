@@ -45,9 +45,9 @@ wget https://github.com/andrewcottam/marxan-server/releases/download/beta/dump.s
 
 Import the data:
 ```  
-psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPERUSER IN GROUP postgres" postgresql://postgres:postgres@localhost:5432/
-psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0 ENCODING='UTF8'" postgresql://postgres:postgres@localhost:5432/
-sudo -u postgres psql -f dump.sql postgresql://postgres:postgres@localhost:5432/marxanserver
+sudo -u postgres psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPERUSER IN GROUP postgres" postgres://
+sudo -u postgres psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0 ENCODING='UTF8'" postgres://
+sudo -u postgres pg_restore dump.sql -d marxanserver
 ```
 
 ### Create the server.dat file

@@ -34,8 +34,8 @@ marxan-server requires Postgresql version 10+ and PostGIS version 2.4+
 sudo apt-get update  
 sudo apt-get install postgresql postgis 
 sudo apt-get update  
-sudo -u postgres psql -c 'CREATE EXTENSION postgis;'
-sudo -u postgres psql -c 'CREATE EXTENSION postgis_topology;'
+sudo -u postgres psql -c "CREATE EXTENSION postgis;"
+sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"
 ```  
 
 ### Create database  
@@ -46,8 +46,8 @@ wget https://github.com/andrewcottam/marxan-server/releases/download/beta/dump.s
 
 Import the data:
 ```  
-sudo -u postgres psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPERUSER IN GROUP postgres" postgres://
-sudo -u postgres psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0 ENCODING='UTF8'" postgres://
+sudo -u postgres psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPERUSER IN GROUP postgres;"
+sudo -u postgres psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0 ENCODING='UTF8';"
 sudo -u postgres pg_restore dump.sql -d marxanserver
 ```
 

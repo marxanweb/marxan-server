@@ -1,0 +1,2441 @@
+Marxan v 2.43 begin execution
+
+LoadOptions
+RandSeed iseed -1 RandSeed1 -1566206506
+before LoadPUData
+after LoadPUData
+prob field not present
+before LoadSpeciesData
+after LoadSpeciesData
+before build search arrays
+after build search arrays
+before ReadConnections
+after ReadConnections
+before LoadSparseMatrix
+after LoadSparseMatrix
+Prob2D is off
+before process block definitions
+after process block definitions
+before CalcTotalAreas
+after CalcTotalAreas
+before ApplySpecProp
+ApplySpecProp spname 4361820 target 7948945.446943
+ApplySpecProp spname 4361818 target 185868955.447226
+ApplySpecProp spname 4361794 target 2882061.849598
+ApplySpecProp spname 4361793 target 1126599.673114
+ApplySpecProp spname 4361792 target 3023351.433488
+ApplySpecProp spname 4361790 target 3485980.025518
+ApplySpecProp spname 4361788 target 187886.065182
+ApplySpecProp spname 4361787 target 59446.772211
+ApplySpecProp spname 4361776 target 4320161.074814
+ApplySpecProp spname 4361774 target 3478078.870803
+ApplySpecProp spname 4361773 target 459311.256639
+ApplySpecProp spname 4361772 target 1241833.031584
+ApplySpecProp spname 4361703 target 7435411.093550
+ApplySpecProp spname 4361701 target 10369137.014190
+ApplySpecProp spname 4361700 target 16322579.594019
+ApplySpecProp spname 4361698 target 4802648.447308
+ApplySpecProp spname 4361696 target 5229877.360352
+ApplySpecProp spname 4361695 target 118615.702480
+ApplySpecProp spname 4361693 target 854744.770633
+ApplySpecProp spname 4361691 target 2509982.011570
+ApplySpecProp spname 4361690 target 5536706.394725
+ApplySpecProp spname 4361688 target 45007.371109
+ApplySpecProp spname 4361687 target 444225.221604
+ApplySpecProp spname 4361619 target 1564961.886751
+ApplySpecProp spname 4361617 target 482842.800590
+ApplySpecProp spname 4361616 target 923553.608827
+ApplySpecProp spname 4361615 target 5213.637214
+ApplySpecProp spname 4361611 target 515423.649500
+ApplySpecProp spname 4361603 target 548946.958990
+ApplySpecProp spname 4361598 target 86297.138110
+ApplySpecProp spname 4361583 target 756433.372057
+ApplySpecProp spname 4361581 target 461600.271279
+ApplySpecProp spname 4361580 target 2048304.759589
+ApplySpecProp spname 4361575 target 486876.900944
+ApplySpecProp spname 4361565 target 139083.984962
+ApplySpecProp spname 4361562 target 1034902.397215
+ApplySpecProp spname 4361521 target 266503.904621
+ApplySpecProp spname 4361519 target 309026.757372
+ApplySpecProp spname 3351793 target 434250.715884
+ApplySpecProp spname 3351774 target 2545495.969892
+ApplySpecProp spname 3351772 target 1498478.656992
+ApplySpecProp spname 3351771 target 115005.441223
+ApplySpecProp spname 3351768 target 70989.410880
+ApplySpecProp spname 3351766 target 88982.764214
+ApplySpecProp spname 3351765 target 514728.962600
+ApplySpecProp spname 3351764 target 299784.790690
+ApplySpecProp spname 3351763 target 233928.221050
+ApplySpecProp spname 3351731 target 8989616.213169
+ApplySpecProp spname 3351729 target 17685126.848047
+ApplySpecProp spname 3351728 target 1899892.108729
+ApplySpecProp spname 3351727 target 113875.664200
+ApplySpecProp spname 3351726 target 1231365.313540
+ApplySpecProp spname 3351724 target 452744.144950
+ApplySpecProp spname 3351721 target 353146.306251
+ApplySpecProp spname 3351720 target 2703086.057528
+ApplySpecProp spname 3351719 target 18846532.041837
+ApplySpecProp spname 3351716 target 178781.804617
+ApplySpecProp spname 3351703 target 7791786.989687
+ApplySpecProp spname 3351702 target 497147.080230
+ApplySpecProp spname 3351701 target 10897706.033175
+ApplySpecProp spname 3351700 target 4760041.149420
+ApplySpecProp spname 3351699 target 69940.396840
+ApplySpecProp spname 3351698 target 8960582.092410
+ApplySpecProp spname 3351696 target 2184529.850649
+ApplySpecProp spname 3351692 target 2406862.236574
+ApplySpecProp spname 3351691 target 3561181.938010
+ApplySpecProp spname 3351690 target 2788316.743323
+ApplySpecProp spname 3351687 target 418750.132921
+ApplySpecProp spname 3351636 target 7905048.322531
+ApplySpecProp spname 3351634 target 2251806.970860
+ApplySpecProp spname 3351633 target 706688.921669
+ApplySpecProp spname 3351631 target 2242411.478784
+ApplySpecProp spname 3351629 target 1324065.945949
+ApplySpecProp spname 3351627 target 617839.147420
+ApplySpecProp spname 3351626 target 260243.591207
+ApplySpecProp spname 3351625 target 3563932.675510
+ApplySpecProp spname 3351624 target 12386784.601089
+ApplySpecProp spname 3351621 target 279823.706228
+ApplySpecProp spname 3351620 target 97819.209482
+ApplySpecProp spname 3351619 target 4247535.161693
+ApplySpecProp spname 3351618 target 91853.624380
+ApplySpecProp spname 3351617 target 1978254.960852
+ApplySpecProp spname 3351616 target 1248565.521060
+ApplySpecProp spname 3351615 target 12595.932612
+ApplySpecProp spname 3351611 target 1470063.618620
+ApplySpecProp spname 3351610 target 623726.253790
+ApplySpecProp spname 3351608 target 1163429.747480
+ApplySpecProp spname 3351604 target 111823.199330
+ApplySpecProp spname 3351603 target 11462191.624918
+ApplySpecProp spname 3351601 target 1026488.512087
+ApplySpecProp spname 3351598 target 75087.256037
+ApplySpecProp spname 3351597 target 78985.990986
+ApplySpecProp spname 3351593 target 134418.174241
+ApplySpecProp spname 3351583 target 89822.124370
+ApplySpecProp spname 3351580 target 217478.777838
+ApplySpecProp spname 3351579 target 33278.153822
+ApplySpecProp spname 3351575 target 57237.958870
+ApplySpecProp spname 3351574 target 226787.066300
+ApplySpecProp spname 3351573 target 79645.681714
+ApplySpecProp spname 3351572 target 69206.031760
+ApplySpecProp spname 3351568 target 306746.562210
+ApplySpecProp spname 3351565 target 446679.400575
+ApplySpecProp spname 3351561 target 155055.190556
+ApplySpecProp spname 3351541 target 111375.042733
+ApplySpecProp spname 3351529 target 149413.313750
+ApplySpecProp spname 3351526 target 3958.864641
+ApplySpecProp spname 3351523 target 2040404.823657
+ApplySpecProp spname 3351521 target 5926294.461185
+ApplySpecProp spname 3351519 target 1891421.056242
+ApplySpecProp spname 3351494 target 201532.852126
+ApplySpecProp spname 3351483 target 82327.938500
+ApplySpecProp spname 3351333 target 10173.864531
+ApplySpecProp spname 3351331 target 116412.530650
+ApplySpecProp spname 3351330 target 71756.508744
+ApplySpecProp spname 3351323 target 429908.732640
+ApplySpecProp spname 3351322 target 1680093.809400
+ApplySpecProp spname 3351320 target 24215286.522030
+ApplySpecProp spname 3351318 target 645759.596592
+ApplySpecProp spname 3351316 target 659286.455010
+ApplySpecProp spname 3351314 target 586967.677860
+ApplySpecProp spname 3351313 target 4222261.204266
+ApplySpecProp spname 3351311 target 2756087.354940
+ApplySpecProp spname 3351310 target 37907.726640
+ApplySpecProp spname 3351309 target 1536642.172995
+ApplySpecProp spname 3351308 target 1818605.245150
+ApplySpecProp spname 3351304 target 77345.889960
+ApplySpecProp spname 3281619 target 148126.410910
+ApplySpecProp spname 3281618 target 279041.627845
+ApplySpecProp spname 3281617 target 646408.363628
+ApplySpecProp spname 3281616 target 797263.656058
+ApplySpecProp spname 3281611 target 1135404.738690
+ApplySpecProp spname 3281565 target 70510.795083
+ApplySpecProp spname 3281550 target 80578.227170
+ApplySpecProp spname 3281544 target 407011.940700
+ApplySpecProp spname 3281541 target 1473877.283932
+ApplySpecProp spname 3281540 target 1901484.507608
+ApplySpecProp spname 3281539 target 5798710.891448
+ApplySpecProp spname 3281538 target 4774223.659975
+ApplySpecProp spname 3281537 target 11356952.187222
+ApplySpecProp spname 3281535 target 3868748.735374
+ApplySpecProp spname 3281534 target 62868.927931
+ApplySpecProp spname 3281523 target 455916.595910
+ApplySpecProp spname 3281521 target 1226859.364839
+ApplySpecProp spname 3281520 target 134536.457171
+ApplySpecProp spname 3281519 target 960270.634605
+ApplySpecProp spname 3281479 target 5476862.532524
+ApplySpecProp spname 3281478 target 1942484.655218
+ApplySpecProp spname 3281477 target 7407654.671871
+ApplySpecProp spname 3281476 target 3772142.221619
+ApplySpecProp spname 3281475 target 196321.857184
+ApplySpecProp spname 3281474 target 126048.501870
+ApplySpecProp spname 3281471 target 844029.136533
+ApplySpecProp spname 3281465 target 17291.712740
+ApplySpecProp spname 3281463 target 8907650.506679
+ApplySpecProp spname 3281461 target 56564.540260
+ApplySpecProp spname 3281445 target 3498969.094840
+ApplySpecProp spname 3281444 target 2595847.452830
+ApplySpecProp spname 3281443 target 383680.441627
+ApplySpecProp spname 3281441 target 3188183.825620
+ApplySpecProp spname 3281437 target 40437.840107
+ApplySpecProp spname 3281435 target 970703.744160
+ApplySpecProp spname 3281434 target 215181.502058
+ApplySpecProp spname 3281432 target 189871.336050
+ApplySpecProp spname 3281430 target 61865.721550
+ApplySpecProp spname 3281426 target 27291.944372
+ApplySpecProp spname 3281423 target 891699.460779
+ApplySpecProp spname 3281422 target 1259299.521529
+ApplySpecProp spname 3281420 target 324029.149903
+ApplySpecProp spname 3281417 target 417325.818305
+ApplySpecProp spname 3281385 target 14874680.529511
+ApplySpecProp spname 3281384 target 3478969.689392
+ApplySpecProp spname 3281383 target 30859716.459317
+ApplySpecProp spname 3281382 target 21369794.917150
+ApplySpecProp spname 3281381 target 777179.856040
+ApplySpecProp spname 3281380 target 17662815.313282
+ApplySpecProp spname 3281379 target 890578.548914
+ApplySpecProp spname 3281378 target 13401311.367658
+ApplySpecProp spname 3281377 target 579981.053538
+ApplySpecProp spname 3281376 target 703256.077740
+ApplySpecProp spname 3281375 target 1182282.511554
+ApplySpecProp spname 3281374 target 10428121.075572
+ApplySpecProp spname 3281373 target 9813347.759489
+ApplySpecProp spname 3281370 target 13418.460114
+ApplySpecProp spname 3281369 target 1386101.132713
+ApplySpecProp spname 3281364 target 582642548.397554
+ApplySpecProp spname 3281330 target 38256.022541
+ApplySpecProp spname 3281323 target 276117.325680
+ApplySpecProp spname 3281322 target 2576545.759710
+ApplySpecProp spname 3281320 target 12406383.388060
+ApplySpecProp spname 3281318 target 628128.673376
+ApplySpecProp spname 3281316 target 2000404.379600
+ApplySpecProp spname 3281314 target 2161.588968
+ApplySpecProp spname 3281313 target 3206211.446029
+ApplySpecProp spname 3281311 target 5422400.374469
+ApplySpecProp spname 3281309 target 223648.102603
+ApplySpecProp spname 3281308 target 1497153.563304
+ApplySpecProp spname 3281304 target 96913.584258
+ApplySpecProp spname 3271818 target 141471.436287
+ApplySpecProp spname 3271794 target 1021552.263935
+ApplySpecProp spname 3271790 target 39719.507776
+ApplySpecProp spname 3271782 target 52238.600899
+ApplySpecProp spname 3271775 target 3310928.207754
+ApplySpecProp spname 3271774 target 7672148.134123
+ApplySpecProp spname 3271772 target 1626372.664132
+ApplySpecProp spname 3271771 target 211947.281768
+ApplySpecProp spname 3271703 target 70781.320580
+ApplySpecProp spname 3271700 target 39893.014440
+ApplySpecProp spname 3271696 target 12877.390307
+ApplySpecProp spname 3271636 target 971395.998460
+ApplySpecProp spname 3271633 target 440403.718034
+ApplySpecProp spname 3271631 target 7288.890842
+ApplySpecProp spname 3271624 target 690369.460416
+ApplySpecProp spname 3271619 target 3475575.547771
+ApplySpecProp spname 3271616 target 5184513.090566
+ApplySpecProp spname 3271613 target 111113.844624
+ApplySpecProp spname 3271612 target 96898.591120
+ApplySpecProp spname 3271611 target 49041.479957
+ApplySpecProp spname 3271610 target 675115.182250
+ApplySpecProp spname 3271608 target 558142.441813
+ApplySpecProp spname 3271603 target 4341327.244545
+ApplySpecProp spname 3271580 target 14547.543190
+ApplySpecProp spname 3271565 target 97167.378775
+ApplySpecProp spname 3271541 target 171407.056900
+ApplySpecProp spname 3271523 target 5189135.293579
+ApplySpecProp spname 3271521 target 10124363.858464
+ApplySpecProp spname 3271519 target 5930280.426598
+ApplySpecProp spname 3271518 target 144717.431404
+ApplySpecProp spname 3271494 target 1437962.477870
+ApplySpecProp spname 3271476 target 99238.368232
+ApplySpecProp spname 3271461 target 8635.011947
+ApplySpecProp spname 3261817 target 30305634.273647
+ApplySpecProp spname 3261812 target 773076.457870
+ApplySpecProp spname 3261811 target 209661759.873892
+ApplySpecProp spname 3261810 target 5936.109231
+ApplySpecProp spname 3261807 target 127239.625014
+ApplySpecProp spname 3261703 target 2082085.311670
+ApplySpecProp spname 3261701 target 1893499.374087
+ApplySpecProp spname 3261700 target 1054108.107345
+ApplySpecProp spname 3261696 target 1179014.521670
+ApplySpecProp spname 3261687 target 1098208.417043
+ApplySpecProp spname 3261636 target 3115117.774453
+ApplySpecProp spname 3261634 target 834594.270750
+ApplySpecProp spname 3261633 target 2827544.826880
+ApplySpecProp spname 3261631 target 349280.433294
+ApplySpecProp spname 3261629 target 624937.784650
+ApplySpecProp spname 3261626 target 241763.829700
+ApplySpecProp spname 3261624 target 16169361.115230
+ApplySpecProp spname 3261619 target 4791894.510917
+ApplySpecProp spname 3261616 target 1900776.968716
+ApplySpecProp spname 3261611 target 598220.560613
+ApplySpecProp spname 3261610 target 212017.359966
+ApplySpecProp spname 3261608 target 372768.788360
+ApplySpecProp spname 3261603 target 60939343.340460
+ApplySpecProp spname 3261565 target 199029.810900
+ApplySpecProp spname 3261541 target 4636008.596443
+ApplySpecProp spname 3261531 target 1552838.201900
+ApplySpecProp spname 3261530 target 1649799.235651
+ApplySpecProp spname 3261529 target 1384109.964200
+ApplySpecProp spname 3261527 target 605003.179590
+ApplySpecProp spname 3261526 target 201307.907244
+ApplySpecProp spname 3261523 target 1481790.605926
+ApplySpecProp spname 3261521 target 1951741.795488
+ApplySpecProp spname 3261519 target 2522067.775901
+ApplySpecProp spname 3261518 target 14396.379765
+ApplySpecProp spname 3261517 target 150496.320700
+ApplySpecProp spname 3261497 target 501686.786858
+ApplySpecProp spname 3261495 target 33236.136190
+ApplySpecProp spname 3261494 target 258044.785259
+ApplySpecProp spname 3261489 target 299744.938153
+ApplySpecProp spname 3261481 target 863241.653294
+ApplySpecProp spname 3261479 target 276596.936440
+ApplySpecProp spname 3261476 target 10357.495730
+ApplySpecProp spname 3261461 target 5133.771045
+ApplySpecProp spname 3261457 target 149155.464890
+ApplySpecProp spname 3261385 target 1480341.527380
+ApplySpecProp spname 3261384 target 82143.204860
+ApplySpecProp spname 3261383 target 1175226.035291
+ApplySpecProp spname 3261382 target 1678326.455450
+ApplySpecProp spname 3261380 target 3454683.127690
+ApplySpecProp spname 3261378 target 1723008.632706
+ApplySpecProp spname 3261375 target 95016.763278
+ApplySpecProp spname 3261373 target 3449925.861780
+ApplySpecProp spname 3261372 target 5027643.088280
+ApplySpecProp spname 3261370 target 24498.918797
+ApplySpecProp spname 3261369 target 227063.857948
+ApplySpecProp spname 3261367 target 797223.730440
+ApplySpecProp spname 3261366 target 16682305.002806
+ApplySpecProp spname 3261364 target 6487364.207690
+ApplySpecProp spname 3261337 target 6989568.392900
+ApplySpecProp spname 3261333 target 28003.066868
+ApplySpecProp spname 3261331 target 200884.778587
+ApplySpecProp spname 3261330 target 259231.102032
+ApplySpecProp spname 3261327 target 12338.218698
+ApplySpecProp spname 3261322 target 3356959.985660
+ApplySpecProp spname 3261320 target 45645555.904020
+ApplySpecProp spname 3261318 target 1078751.564905
+ApplySpecProp spname 3261316 target 1723104.946296
+ApplySpecProp spname 3261313 target 980212.294949
+ApplySpecProp spname 3261311 target 1158752.037591
+ApplySpecProp spname 3261309 target 81759.312210
+ApplySpecProp spname 3261308 target 592021.739470
+ApplySpecProp spname 3261303 target 2793349.722393
+ApplySpecProp spname 3261302 target 491930.683960
+ApplySpecProp spname 3261300 target 30537268.903500
+ApplySpecProp spname 3251818 target 2701846.673840
+ApplySpecProp spname 3251794 target 134011.412932
+ApplySpecProp spname 3251792 target 4584.319321
+ApplySpecProp spname 3251790 target 208288.281128
+ApplySpecProp spname 3251784 target 4231.967562
+ApplySpecProp spname 3251782 target 377611.428590
+ApplySpecProp spname 3251780 target 24529.435172
+ApplySpecProp spname 3251776 target 31150.327487
+ApplySpecProp spname 3251774 target 2748364.505926
+ApplySpecProp spname 3251772 target 1249788.841902
+ApplySpecProp spname 3251771 target 126597.513406
+ApplySpecProp spname 3251770 target 90396.074080
+ApplySpecProp spname 3251769 target 2698.619738
+ApplySpecProp spname 3251756 target 44041.665478
+ApplySpecProp spname 3251755 target 815591.451677
+ApplySpecProp spname 3251754 target 289019.875043
+ApplySpecProp spname 3251700 target 314005.488070
+ApplySpecProp spname 3251698 target 51239.793902
+ApplySpecProp spname 3251696 target 91333.503736
+ApplySpecProp spname 3251687 target 881572.080280
+ApplySpecProp spname 3251680 target 131038.653680
+ApplySpecProp spname 3251619 target 233751.514790
+ApplySpecProp spname 3251616 target 756735.512074
+ApplySpecProp spname 3251611 target 134397.867833
+ApplySpecProp spname 3251605 target 9080.540959
+ApplySpecProp spname 3251601 target 47167.108869
+ApplySpecProp spname 3251598 target 77876.915625
+ApplySpecProp spname 3251593 target 22185.438786
+ApplySpecProp spname 3251580 target 171859.909001
+ApplySpecProp spname 3251565 target 60926.332923
+ApplySpecProp spname 2371804 target 28340.278790
+ApplySpecProp spname 2371794 target 1000769.773528
+ApplySpecProp spname 2371790 target 529330.504980
+ApplySpecProp spname 2371788 target 69000.252025
+ApplySpecProp spname 2371784 target 194598.187560
+ApplySpecProp spname 2371782 target 3286179.761638
+ApplySpecProp spname 2371779 target 398306.934880
+ApplySpecProp spname 2371774 target 98209.293947
+ApplySpecProp spname 2371764 target 48493.771940
+ApplySpecProp spname 2371756 target 32659.343738
+ApplySpecProp spname 2371755 target 89251.049290
+ApplySpecProp spname 2371703 target 511973.911122
+ApplySpecProp spname 2371700 target 288554.763723
+ApplySpecProp spname 2371696 target 247893.326843
+ApplySpecProp spname 2371688 target 6481.425583
+ApplySpecProp spname 2371687 target 124517.024000
+ApplySpecProp spname 2371619 target 1692419.055902
+ApplySpecProp spname 2371616 target 37455.687801
+ApplySpecProp spname 2371611 target 18006.758652
+ApplySpecProp spname 2371603 target 2577328.543720
+ApplySpecProp spname 2371601 target 944674.586487
+ApplySpecProp spname 2371599 target 102844.942100
+ApplySpecProp spname 2371598 target 2547467.292077
+ApplySpecProp spname 2371593 target 220566.876672
+ApplySpecProp spname 2371587 target 82952.905500
+ApplySpecProp spname 2371584 target 479595.838222
+ApplySpecProp spname 2371583 target 40032.276504
+ApplySpecProp spname 2371580 target 155452.076620
+ApplySpecProp spname 2371565 target 35011.247946
+ApplySpecProp spname 2371531 target 202596.628800
+ApplySpecProp spname 2371529 target 217096.641732
+ApplySpecProp spname 2371523 target 262596.046756
+ApplySpecProp spname 2371521 target 2838557.635025
+ApplySpecProp spname 2371519 target 627210.056448
+ApplySpecProp spname 2371518 target 118409.778200
+ApplySpecProp spname 2371515 target 96351.249183
+ApplySpecProp spname 2371512 target 42958.546831
+ApplySpecProp spname 2371507 target 10087.177960
+ApplySpecProp spname 2371500 target 23110877.441510
+ApplySpecProp spname 2371497 target 728623.901511
+ApplySpecProp spname 2371494 target 1014184.715040
+ApplySpecProp spname 2371489 target 113553.414868
+ApplySpecProp spname 2371461 target 30075.587065
+ApplySpecProp spname 2371385 target 469606.328605
+ApplySpecProp spname 2371382 target 584218.780780
+ApplySpecProp spname 2371378 target 85094.991459
+ApplySpecProp spname 2371375 target 7023.810428
+ApplySpecProp spname 2371369 target 108056.671838
+ApplySpecProp spname 2371364 target 254426.545260
+ApplySpecProp spname 2241818 target 4255905.212150
+ApplySpecProp spname 2241794 target 151973.888330
+ApplySpecProp spname 2241790 target 380927.144934
+ApplySpecProp spname 2241788 target 31434.172720
+ApplySpecProp spname 2241787 target 124335.198910
+ApplySpecProp spname 2241774 target 1466463.721470
+ApplySpecProp spname 2241772 target 566960.492926
+ApplySpecProp spname 2241771 target 348306.269076
+ApplySpecProp spname 2241703 target 222248.240216
+ApplySpecProp spname 2241700 target 262879.272384
+ApplySpecProp spname 2241698 target 80400.095451
+ApplySpecProp spname 2241696 target 78344.831573
+ApplySpecProp spname 2241693 target 54830.700398
+ApplySpecProp spname 2241687 target 219322.865536
+ApplySpecProp spname 2241619 target 105372.136065
+ApplySpecProp spname 2241616 target 29091.384300
+ApplySpecProp spname 2241601 target 1980.561230
+ApplySpecProp spname 2241583 target 1080.835751
+ApplySpecProp spname 2241580 target 113626.020185
+ApplySpecProp spname 2241579 target 42225.739192
+ApplySpecProp spname 2241565 target 47717.570829
+ApplySpecProp spname 2241539 target 16926.087620
+ApplySpecProp spname 2241529 target 769038.191126
+ApplySpecProp spname 2241527 target 195142.502472
+ApplySpecProp spname 2241521 target 1756617.182808
+ApplySpecProp spname 2241519 target 462922.701110
+ApplySpecProp spname 2241518 target 141113.448421
+ApplySpecProp spname 2241515 target 26030.495403
+ApplySpecProp spname 2241512 target 42051.811905
+ApplySpecProp spname 2241497 target 53398.574112
+ApplySpecProp spname 2241385 target 585901.301770
+ApplySpecProp spname 2241382 target 48364.878940
+ApplySpecProp spname 2241351 target 661924.254200
+ApplySpecProp spname 2241346 target 306958.507637
+ApplySpecProp spname 2231818 target 4346963.989530
+ApplySpecProp spname 2231795 target 507504.004930
+ApplySpecProp spname 2231794 target 4458448.404794
+ApplySpecProp spname 2231793 target 1704721.112493
+ApplySpecProp spname 2231792 target 377530.459455
+ApplySpecProp spname 2231790 target 294799.786329
+ApplySpecProp spname 2231784 target 1274040.245341
+ApplySpecProp spname 2231782 target 6095724.454303
+ApplySpecProp spname 2231780 target 255126.347949
+ApplySpecProp spname 2231779 target 70239.350191
+ApplySpecProp spname 2231746 target 96418.372660
+ApplySpecProp spname 2231745 target 848465.391290
+ApplySpecProp spname 2231743 target 44892.318560
+ApplySpecProp spname 2231736 target 209096.625780
+ApplySpecProp spname 2231735 target 291397.217920
+ApplySpecProp spname 2231703 target 701955.426630
+ApplySpecProp spname 2231700 target 1127178.158425
+ApplySpecProp spname 2231698 target 154465.285515
+ApplySpecProp spname 2231696 target 619964.507091
+ApplySpecProp spname 2231693 target 23040.865739
+ApplySpecProp spname 2231676 target 108498.717400
+ApplySpecProp spname 2231675 target 13831.967960
+ApplySpecProp spname 2231674 target 345623.434783
+ApplySpecProp spname 2231669 target 65116.725300
+ApplySpecProp spname 2231667 target 73118.178961
+ApplySpecProp spname 2231666 target 39969.822848
+ApplySpecProp spname 2231616 target 52908.329372
+ApplySpecProp spname 2231601 target 1684545.202504
+ApplySpecProp spname 2231598 target 4700981.481210
+ApplySpecProp spname 2231595 target 97090.334917
+ApplySpecProp spname 2231593 target 730935.431929
+ApplySpecProp spname 2231592 target 632447.191320
+ApplySpecProp spname 2231590 target 1052758.818629
+ApplySpecProp spname 2231587 target 13307.239948
+ApplySpecProp spname 2231583 target 104558.808935
+ApplySpecProp spname 2231580 target 424731.485680
+ApplySpecProp spname 2231565 target 103622.389586
+ApplySpecProp spname 2231561 target 770630.100653
+ApplySpecProp spname 2231558 target 5209.625003
+ApplySpecProp spname 2231537 target 56903.216500
+ApplySpecProp spname 2231531 target 614813.572137
+ApplySpecProp spname 2231529 target 2284739.186544
+ApplySpecProp spname 2231527 target 1082081.536941
+ApplySpecProp spname 2231526 target 89660.972738
+ApplySpecProp spname 2231515 target 119511.937498
+ApplySpecProp spname 2231512 target 100710.100232
+ApplySpecProp spname 2231507 target 81294.663082
+ApplySpecProp spname 2231501 target 3776.435068
+ApplySpecProp spname 2231494 target 25360.950419
+ApplySpecProp spname 2231461 target 6924.520723
+ApplySpecProp spname 2231382 target 474039.699239
+ApplySpecProp spname 2231364 target 185182.632526
+ApplySpecProp spname 2231330 target 539.907996
+ApplySpecProp spname 2231320 target 699989.090800
+ApplySpecProp spname 2231318 target 449.933155
+ApplySpecProp spname 2231311 target 166561.394600
+ApplySpecProp spname 2231240 target 2880.395019
+ApplySpecProp spname 2221821 target 117327.010000
+ApplySpecProp spname 2221794 target 43311.240200
+ApplySpecProp spname 2221784 target 344095.324335
+ApplySpecProp spname 2221782 target 491360.998048
+ApplySpecProp spname 2221780 target 415705.327811
+ApplySpecProp spname 2221774 target 532700.880351
+ApplySpecProp spname 2221772 target 579673.446816
+ApplySpecProp spname 2221771 target 3692.512991
+ApplySpecProp spname 2221745 target 67172.649680
+ApplySpecProp spname 2221740 target 28543.886440
+ApplySpecProp spname 2221703 target 14947.188040
+ApplySpecProp spname 2221698 target 22690.943010
+ApplySpecProp spname 2221617 target 13509.018580
+ApplySpecProp spname 2221616 target 140580.496390
+ApplySpecProp spname 2221611 target 23863.328140
+ApplySpecProp spname 2221601 target 11886.149732
+ApplySpecProp spname 2221580 target 24581.906040
+ApplySpecProp spname 2221565 target 38996.057660
+ApplySpecProp spname 2221539 target 85289.946870
+ApplySpecProp spname 2221537 target 363225.294630
+ApplySpecProp spname 2221531 target 2469436.088600
+ApplySpecProp spname 2221527 target 186792.108499
+ApplySpecProp spname 2221521 target 324791.789200
+ApplySpecProp spname 2221519 target 79779.413072
+ApplySpecProp spname 2221518 target 14406.564740
+ApplySpecProp spname 2221497 target 5043.454199
+ApplySpecProp spname 2221494 target 114649.392080
+ApplySpecProp spname 2221489 target 70698.861600
+ApplySpecProp spname 2221477 target 78714.418540
+ApplySpecProp spname 2221435 target 59981.390980
+ApplySpecProp spname 2221434 target 366105.285384
+ApplySpecProp spname 2221432 target 191653.731870
+ApplySpecProp spname 2221430 target 9546.559853
+ApplySpecProp spname 2221369 target 277304.199600
+ApplySpecProp spname 2221364 target 1263769.185830
+ApplySpecProp spname 2221254 target 599299.804829
+ApplySpecProp spname 2221252 target 568483.702308
+ApplySpecProp spname 2221245 target 21345.449129
+ApplySpecProp spname 2211270 target 23410.576360
+ApplySpecProp spname 2211262 target 16206.339840
+ApplySpecProp spname 2211256 target 128849.659346
+ApplySpecProp spname 2211254 target 1972538.775517
+ApplySpecProp spname 2211253 target 1620.729072
+ApplySpecProp spname 2211252 target 146029.355903
+ApplySpecProp spname 2211250 target 114810.461243
+ApplySpecProp spname 2211245 target 113271.868574
+ApplySpecProp spname 2211244 target 4498.513353
+ApplySpecProp spname 2211116 target 13675.873290
+ApplySpecProp spname 2211115 target 114081.570790
+ApplySpecProp spname 2201296 target 7288485.015705
+ApplySpecProp spname 2201282 target 259275.860190
+ApplySpecProp spname 2201274 target 1548844.738741
+ApplySpecProp spname 2201273 target 79509.340680
+ApplySpecProp spname 2201272 target 4031558.903477
+ApplySpecProp spname 2201271 target 3745704.409547
+ApplySpecProp spname 2201270 target 2207218.676018
+ApplySpecProp spname 2201268 target 254111.045967
+ApplySpecProp spname 2201265 target 406269.220640
+ApplySpecProp spname 2201256 target 2295488.535114
+ApplySpecProp spname 2201254 target 8164209.120275
+ApplySpecProp spname 2201252 target 3717316.313216
+ApplySpecProp spname 2201251 target 435353.549461
+ApplySpecProp spname 2201248 target 139561.671116
+ApplySpecProp spname 2201246 target 102593.053454
+ApplySpecProp spname 2201245 target 310269.394490
+ApplySpecProp spname 2201240 target 117604.866120
+ApplySpecProp spname 2201212 target 368423.264206
+ApplySpecProp spname 2201210 target 471199.627390
+ApplySpecProp spname 2201209 target 844170.017942
+ApplySpecProp spname 2201208 target 13115.140378
+ApplySpecProp spname 2201204 target 455000.701088
+ApplySpecProp spname 2201197 target 1092742.606240
+ApplySpecProp spname 2201194 target 639066.075147
+ApplySpecProp spname 2201190 target 706503.786024
+ApplySpecProp spname 2201169 target 3429131.490746
+ApplySpecProp spname 2201168 target 4821873.898785
+ApplySpecProp spname 2201167 target 4522719.092921
+ApplySpecProp spname 2201166 target 1795789.270500
+ApplySpecProp spname 2201165 target 3450436.327168
+ApplySpecProp spname 2201161 target 436814.261600
+ApplySpecProp spname 2201160 target 203307.046500
+ApplySpecProp spname 2201159 target 24003.078694
+ApplySpecProp spname 2201158 target 15557.375180
+ApplySpecProp spname 2201156 target 178885.832334
+ApplySpecProp spname 2201155 target 846992.540820
+ApplySpecProp spname 2201150 target 360899.991548
+ApplySpecProp spname 2201147 target 37862.634376
+ApplySpecProp spname 2201118 target 2826815.400448
+ApplySpecProp spname 2201117 target 86643.806720
+ApplySpecProp spname 2201116 target 1666223.279870
+ApplySpecProp spname 2201115 target 1157646.236250
+ApplySpecProp spname 2201113 target 442223.462320
+ApplySpecProp spname 2201111 target 454283.518309
+ApplySpecProp spname 2201108 target 124035.968687
+ApplySpecProp spname 2201106 target 238659.083800
+ApplySpecProp spname 2201104 target 58600.512806
+ApplySpecProp spname 2201102 target 6019421.131567
+ApplySpecProp spname 2201100 target 685946.132620
+ApplySpecProp spname 2191296 target 2691887.057212
+ApplySpecProp spname 2191292 target 1075694.133592
+ApplySpecProp spname 2191275 target 14858.928270
+ApplySpecProp spname 2191274 target 1462166.653620
+ApplySpecProp spname 2191272 target 1367409.464333
+ApplySpecProp spname 2191271 target 889906.289600
+ApplySpecProp spname 2191270 target 4076143.411576
+ApplySpecProp spname 2191269 target 2451329.106160
+ApplySpecProp spname 2191268 target 522389.985060
+ApplySpecProp spname 2191256 target 826720.005797
+ApplySpecProp spname 2191254 target 3566709.729863
+ApplySpecProp spname 2191252 target 1492221.903092
+ApplySpecProp spname 2191251 target 215441.323177
+ApplySpecProp spname 2191249 target 11886.950220
+ApplySpecProp spname 2191248 target 1556519.210276
+ApplySpecProp spname 2191247 target 1415313.862890
+ApplySpecProp spname 2191246 target 1161516.399808
+ApplySpecProp spname 2191245 target 4531618.096457
+ApplySpecProp spname 2191244 target 1261.004789
+ApplySpecProp spname 2191240 target 1948120.931089
+ApplySpecProp spname 2191235 target 331013.120309
+ApplySpecProp spname 2191234 target 57375.710075
+ApplySpecProp spname 2191233 target 745828.056100
+ApplySpecProp spname 2191232 target 231281.410690
+ApplySpecProp spname 2191230 target 2082958.957902
+ApplySpecProp spname 2191229 target 767630.403011
+ApplySpecProp spname 2191228 target 388012.660653
+ApplySpecProp spname 2191227 target 2286482.535351
+ApplySpecProp spname 2191224 target 156441.083680
+ApplySpecProp spname 2191223 target 110238.233540
+ApplySpecProp spname 2191222 target 455288.933580
+ApplySpecProp spname 2191221 target 160596.571503
+ApplySpecProp spname 2191219 target 102140.608210
+ApplySpecProp spname 2191216 target 2612.091144
+ApplySpecProp spname 2191194 target 1742703.867618
+ApplySpecProp spname 2191190 target 490523.237214
+ApplySpecProp spname 2191157 target 45928.811575
+ApplySpecProp spname 2191155 target 1722584.284101
+ApplySpecProp spname 2191154 target 624801.565030
+ApplySpecProp spname 2191149 target 214599.435089
+ApplySpecProp spname 2191147 target 593199.433230
+ApplySpecProp spname 2191146 target 40614.322967
+ApplySpecProp spname 2191118 target 5102313.187664
+ApplySpecProp spname 2191116 target 2843898.885756
+ApplySpecProp spname 2191115 target 7191986.200315
+ApplySpecProp spname 2191113 target 2952596.847145
+ApplySpecProp spname 2191111 target 3127070.136013
+ApplySpecProp spname 2191108 target 291015.248812
+ApplySpecProp spname 2191107 target 1297525.665330
+ApplySpecProp spname 2191106 target 3759825.785977
+ApplySpecProp spname 2191103 target 20895.969256
+ApplySpecProp spname 2191102 target 730823.336404
+ApplySpecProp spname 2181774 target 1469476.560929
+ApplySpecProp spname 2181772 target 1654305.166781
+ApplySpecProp spname 2181771 target 8009.805020
+ApplySpecProp spname 2181703 target 215337.885830
+ApplySpecProp spname 2181700 target 68959.507941
+ApplySpecProp spname 2181696 target 87389.498050
+ApplySpecProp spname 2181693 target 7642.108422
+ApplySpecProp spname 2181687 target 104651.877776
+ApplySpecProp spname 2181619 target 462663.799786
+ApplySpecProp spname 2181617 target 6381.873781
+ApplySpecProp spname 2181616 target 50725.759712
+ApplySpecProp spname 2181611 target 76396.001080
+ApplySpecProp spname 2181605 target 12069.256640
+ApplySpecProp spname 2181565 target 11779.959853
+ApplySpecProp spname 2181527 target 479634.330396
+ApplySpecProp spname 2181523 target 136991.073699
+ApplySpecProp spname 2181521 target 2276602.719130
+ApplySpecProp spname 2181519 target 1324258.571547
+ApplySpecProp spname 2181518 target 39025.222714
+ApplySpecProp spname 2181515 target 123723.367808
+ApplySpecProp spname 2181512 target 16366.531540
+ApplySpecProp spname 2171256 target 424315.999500
+ApplySpecProp spname 2171254 target 515900.603357
+ApplySpecProp spname 2171252 target 370589.547000
+ApplySpecProp spname 1311274 target 93498.307540
+ApplySpecProp spname 1311272 target 257128.968741
+ApplySpecProp spname 1311270 target 982604.063479
+ApplySpecProp spname 1311268 target 180914.651827
+ApplySpecProp spname 1311262 target 181120.608353
+ApplySpecProp spname 1311260 target 157301.064680
+ApplySpecProp spname 1311256 target 621586.280243
+ApplySpecProp spname 1311254 target 2313128.606927
+ApplySpecProp spname 1311253 target 171718.399748
+ApplySpecProp spname 1311252 target 506725.017697
+ApplySpecProp spname 1311251 target 309728.903941
+ApplySpecProp spname 1311248 target 1190035.582375
+ApplySpecProp spname 1311245 target 163758.188853
+ApplySpecProp spname 1311240 target 550409.157447
+ApplySpecProp spname 1311230 target 69814.521360
+ApplySpecProp spname 1311227 target 87057.242040
+ApplySpecProp spname 1311222 target 120119.245430
+ApplySpecProp spname 1311212 target 363115.585378
+ApplySpecProp spname 1311210 target 1707.237938
+ApplySpecProp spname 1311209 target 1175009.969518
+ApplySpecProp spname 1311204 target 530084.348855
+ApplySpecProp spname 1311198 target 35429.829673
+ApplySpecProp spname 1311194 target 629912.378119
+ApplySpecProp spname 1311143 target 53186.211526
+ApplySpecProp spname 1311141 target 122931.536570
+ApplySpecProp spname 1311118 target 1030167.155100
+ApplySpecProp spname 1311116 target 1528460.495205
+ApplySpecProp spname 1311115 target 5040588.332990
+ApplySpecProp spname 1311113 target 2037013.657450
+ApplySpecProp spname 1311111 target 1865581.850869
+ApplySpecProp spname 1311109 target 124795.739879
+ApplySpecProp spname 1311108 target 47263.842992
+ApplySpecProp spname 1311106 target 407694.302655
+ApplySpecProp spname 1311102 target 781526.691385
+ApplySpecProp spname 1291297 target 2164967.372881
+ApplySpecProp spname 1291296 target 2677959.120090
+ApplySpecProp spname 1291274 target 488432.351560
+ApplySpecProp spname 1291272 target 4683.388545
+ApplySpecProp spname 1291270 target 43941.328017
+ApplySpecProp spname 1291268 target 170944.810940
+ApplySpecProp spname 1291256 target 388237.474765
+ApplySpecProp spname 1291254 target 6335645.086370
+ApplySpecProp spname 1291253 target 36738.153781
+ApplySpecProp spname 1291252 target 8809860.722682
+ApplySpecProp spname 1291251 target 18098.728845
+ApplySpecProp spname 1291250 target 735522.102326
+ApplySpecProp spname 1291248 target 68267.015331
+ApplySpecProp spname 1291245 target 551043.335666
+ApplySpecProp spname 1291240 target 174548.728120
+ApplySpecProp spname 1291209 target 110034.598041
+ApplySpecProp spname 1291208 target 2431.083399
+ApplySpecProp spname 1291194 target 7295.676959
+ApplySpecProp spname 1291118 target 384272.842869
+ApplySpecProp spname 1291115 target 210895.196443
+ApplySpecProp spname 1291111 target 5605337293.061695
+ApplySpecProp spname 500115 target 16626223.574350
+ApplySpecProp spname 500114 target 4208771136.388205
+ApplySpecProp spname 400520 target 70256710.143710
+ApplySpecProp spname 400516 target 288612.286520
+ApplySpecProp spname 400512 target 673150307.561380
+ApplySpecProp spname 400420 target 1121217574.478793
+ApplySpecProp spname 400416 target 296622337.805426
+ApplySpecProp spname 400413 target 5055972.393690
+ApplySpecProp spname 400412 target 3681571822.909529
+ApplySpecProp spname 400410 target 11027397.771757
+ApplySpecProp spname 400316 target 708517531.903265
+ApplySpecProp spname 400313 target 1155792.565100
+ApplySpecProp spname 400312 target 8010455502.457343
+ApplySpecProp spname 400310 target 133083144.969480
+ApplySpecProp spname 400218 target 24852869.998700
+ApplySpecProp spname 400216 target 1937063009.377432
+ApplySpecProp spname 400215 target 3977084.440400
+ApplySpecProp spname 400214 target 81367728.402032
+ApplySpecProp spname 400212 target 1208445032.541801
+ApplySpecProp spname 400116 target 273241292.394131
+ApplySpecProp spname 400115 target 113863489.576056
+ApplySpecProp spname 400114 target 5272959517.709994
+ApplySpecProp spname 400112 target 4236331937.013053
+ApplySpecProp spname 300720 target 1974432.808180
+ApplySpecProp spname 300719 target 2971993919.303305
+ApplySpecProp spname 300716 target 27224182.923357
+ApplySpecProp spname 300620 target 610593609.670261
+ApplySpecProp spname 300619 target 1518447061.965995
+ApplySpecProp spname 300618 target 14699099.500190
+ApplySpecProp spname 300616 target 589128151.084591
+ApplySpecProp spname 300610 target 123821763.685396
+ApplySpecProp spname 300520 target 341329051.714704
+ApplySpecProp spname 300519 target 6828005.989268
+ApplySpecProp spname 300518 target 49114553.835359
+ApplySpecProp spname 300517 target 59389068.698298
+ApplySpecProp spname 300516 target 1618971594.641982
+ApplySpecProp spname 300513 target 952986.366327
+ApplySpecProp spname 300511 target 38257241.674768
+ApplySpecProp spname 300510 target 568126792.519599
+ApplySpecProp spname 300420 target 2401793.586983
+ApplySpecProp spname 300418 target 748499.639619
+ApplySpecProp spname 300417 target 1186389664.248260
+ApplySpecProp spname 300416 target 2742716395.148992
+ApplySpecProp spname 300414 target 456.981458
+ApplySpecProp spname 300413 target 246314004.349468
+ApplySpecProp spname 300411 target 135652194.109932
+ApplySpecProp spname 300410 target 193625337.477687
+ApplySpecProp spname 300318 target 105106908.307168
+ApplySpecProp spname 300317 target 92903263.475620
+ApplySpecProp spname 300316 target 2784646033.523949
+ApplySpecProp spname 300314 target 2200713.153174
+ApplySpecProp spname 300313 target 233121183.751810
+ApplySpecProp spname 300310 target 980296985.908824
+ApplySpecProp spname 300218 target 83983748.480718
+ApplySpecProp spname 300217 target 6048708.367580
+ApplySpecProp spname 300216 target 5794110736.152798
+ApplySpecProp spname 300215 target 99398668.207942
+ApplySpecProp spname 300214 target 504382093.309731
+ApplySpecProp spname 300213 target 128102588.794408
+ApplySpecProp spname 300210 target 1062715970.458082
+ApplySpecProp spname 300118 target 80584338.769010
+ApplySpecProp spname 300116 target 1312353298.871069
+ApplySpecProp spname 300115 target 97148609.581857
+ApplySpecProp spname 300114 target 4135171046.014230
+ApplySpecProp spname 300113 target 31072131.749010
+ApplySpecProp spname 300110 target 1262276830.637207
+ApplySpecProp spname 221197 target 14122292.542522
+ApplySpecProp spname 220199 target 4317266.626808
+ApplySpecProp spname 220197 target 42672591.159846
+ApplySpecProp spname 220187 target 483383.946600
+ApplySpecProp spname 220186 target 193900.057962
+ApplySpecProp spname 220184 target 50088.578623
+ApplySpecProp spname 220181 target 373449.509887
+ApplySpecProp spname 220179 target 16247.334070
+ApplySpecProp spname 220176 target 656104.472470
+ApplySpecProp spname 220173 target 139784468.513743
+ApplySpecProp spname 219197 target 53765395.231528
+ApplySpecProp spname 219164 target 18553.204590
+ApplySpecProp spname 219163 target 14138.481532
+ApplySpecProp spname 219160 target 9997.115911
+ApplySpecProp spname 219155 target 250429.525845
+ApplySpecProp spname 219153 target 4077601.922320
+ApplySpecProp spname 219151 target 58811.621290
+ApplySpecProp spname 219149 target 57640.994425
+ApplySpecProp spname 219146 target 155434.721310
+ApplySpecProp spname 219144 target 1193450.245530
+ApplySpecProp spname 219142 target 33858.623938
+ApplySpecProp spname 219141 target 514008.638736
+ApplySpecProp spname 219137 target 765419102.044480
+ApplySpecProp spname 217181 target 35505.840620
+ApplySpecProp spname 217176 target 44314.926780
+ApplySpecProp spname 217173 target 23550.737190
+ApplySpecProp spname 217166 target 33754.568010
+ApplySpecProp spname 217165 target 1318424.377750
+ApplySpecProp spname 217164 target 848231.301210
+ApplySpecProp spname 217163 target 65985.325441
+ApplySpecProp spname 217156 target 89.810796
+ApplySpecProp spname 217155 target 6274259.057940
+ApplySpecProp spname 217153 target 28595538.647709
+ApplySpecProp spname 217151 target 1984800.040690
+ApplySpecProp spname 217149 target 1785613.548565
+ApplySpecProp spname 217144 target 12242060.830158
+ApplySpecProp spname 217141 target 3027632.451560
+ApplySpecProp spname 217137 target 93124541.198472
+ApplySpecProp spname 200720 target 80267568.689419
+ApplySpecProp spname 200719 target 105669684.809885
+ApplySpecProp spname 200620 target 140849872.334945
+ApplySpecProp spname 200619 target 213948373.584587
+ApplySpecProp spname 200520 target 28280649.331390
+ApplySpecProp spname 200519 target 54764100.985945
+ApplySpecProp spname 200516 target 5402247.907960
+ApplySpecProp spname 200513 target 260692.006782
+ApplySpecProp spname 200510 target 2858380.393616
+ApplySpecProp spname 200417 target 124680695.662233
+ApplySpecProp spname 200416 target 125614651.437655
+ApplySpecProp spname 200413 target 121883918.114913
+ApplySpecProp spname 200411 target 55036439.194696
+ApplySpecProp spname 200410 target 615257011.346012
+ApplySpecProp spname 200317 target 1367813286.740699
+ApplySpecProp spname 200316 target 870214159.214050
+ApplySpecProp spname 200313 target 145754397.905060
+ApplySpecProp spname 200311 target 189557403.857861
+ApplySpecProp spname 200310 target 1450112192.414608
+ApplySpecProp spname 200218 target 126625990.694356
+ApplySpecProp spname 200217 target 1152463358.777914
+ApplySpecProp spname 200216 target 6105035056.469340
+ApplySpecProp spname 200215 target 87400491.741923
+ApplySpecProp spname 200214 target 219641326.992952
+ApplySpecProp spname 200213 target 148275072.011565
+ApplySpecProp spname 200211 target 30727144.743155
+ApplySpecProp spname 200210 target 2977453812.660899
+ApplySpecProp spname 200117 target 55929837.226993
+ApplySpecProp spname 200116 target 612004771.235441
+ApplySpecProp spname 200115 target 55000801.409115
+ApplySpecProp spname 200114 target 1849895469.649809
+ApplySpecProp spname 200113 target 3397219.659889
+ApplySpecProp spname 200110 target 623545575.750091
+ApplySpecProp spname 131199 target 740736.066200
+ApplySpecProp spname 131197 target 635352907.871531
+ApplySpecProp spname 130166 target 539.490093
+ApplySpecProp spname 130164 target 232892.571849
+ApplySpecProp spname 130163 target 144328.715217
+ApplySpecProp spname 130155 target 8278628.687324
+ApplySpecProp spname 130153 target 59024835.009228
+ApplySpecProp spname 130151 target 1716815.196165
+ApplySpecProp spname 130149 target 5953076.143074
+ApplySpecProp spname 130144 target 17311104.655433
+ApplySpecProp spname 130143 target 88592.647578
+ApplySpecProp spname 130142 target 1832565.263892
+ApplySpecProp spname 130141 target 4042079.324365
+ApplySpecProp spname 130137 target 198707.224979
+ApplySpecProp spname 130136 target 13005981.283497
+ApplySpecProp spname 130135 target 1382463.802845
+ApplySpecProp spname 130134 target 538963.093071
+ApplySpecProp spname 130133 target 110755004.420550
+ApplySpecProp spname 130132 target 121699827.581603
+ApplySpecProp spname 129197 target 1977600.107802
+ApplySpecProp spname 129195 target 1038928.047800
+ApplySpecProp spname 129183 target 190876.597502
+ApplySpecProp spname 129166 target 2250.807549
+ApplySpecProp spname 129163 target 12604.590906
+ApplySpecProp spname 129155 target 1118291.587930
+ApplySpecProp spname 129153 target 4000969.625270
+ApplySpecProp spname 129151 target 3768141.889600
+ApplySpecProp spname 129149 target 40425.549810
+ApplySpecProp spname 129146 target 1372876.066500
+ApplySpecProp spname 129144 target 645108.861370
+ApplySpecProp spname 129142 target 49161.057190
+ApplySpecProp spname 129141 target 190839205.691380
+ApplySpecProp spname 100720 target 980394751.501060
+ApplySpecProp spname 100719 target 85440941.644655
+ApplySpecProp spname 100620 target 2394635219.597451
+ApplySpecProp spname 100619 target 1081651439.564263
+ApplySpecProp spname 100616 target 19635624.274341
+ApplySpecProp spname 100613 target 37508362.945581
+ApplySpecProp spname 100610 target 4776953.788241
+ApplySpecProp spname 100520 target 405794049.723884
+ApplySpecProp spname 100519 target 1306233972.423141
+ApplySpecProp spname 100516 target 70883526.702450
+ApplySpecProp spname 100513 target 364023646.783319
+ApplySpecProp spname 100510 target 1023123126.972133
+ApplySpecProp spname 100420 target 1100608125.064482
+ApplySpecProp spname 100419 target 79050154.858015
+ApplySpecProp spname 100416 target 916974539.116897
+ApplySpecProp spname 100413 target 368023644.567283
+ApplySpecProp spname 100410 target 1338356564.961982
+ApplySpecProp spname 100320 target 283307.338170
+ApplySpecProp spname 100316 target 1557663346.552113
+ApplySpecProp spname 100313 target 55831917.201000
+ApplySpecProp spname 100310 target 1274121847.746946
+ApplySpecProp spname 100216 target 2352211913.072468
+ApplySpecProp spname 100215 target 2287714.523999
+ApplySpecProp spname 100214 target 28842339.946286
+ApplySpecProp spname 100213 target 1160026.278230
+ApplySpecProp spname 100210 target 963712489.809362
+ApplySpecProp spname 100116 target 216030124.241650
+ApplySpecProp spname 100115 target 15515827.547250
+ApplySpecProp spname 100114 target 1055347859.111332
+ApplySpecProp spname 100110 target 325479563.183595
+ApplySpecProp spname 53411 target 225205268.515661
+ApplySpecProp spname 53311 target 28060400.423329
+ApplySpecProp spname 50013 target 122556107.837160
+ApplySpecProp spname 43611 target 74989412.069064
+ApplySpecProp spname 43211 target 11588594.825662
+ApplySpecProp spname 40063 target 1210537.708800
+ApplySpecProp spname 40062 target 1210537.708800
+ApplySpecProp spname 40056 target 256346.198149
+ApplySpecProp spname 40055 target 112738764.928502
+ApplySpecProp spname 40053 target 16271309376.199211
+ApplySpecProp spname 40052 target 16271298238.898701
+ApplySpecProp spname 40049 target 1983376952.159285
+ApplySpecProp spname 40046 target 365654758.919018
+ApplySpecProp spname 40045 target 935635521.730366
+ApplySpecProp spname 40043 target 3833708822.812492
+ApplySpecProp spname 40042 target 11081416573.784472
+ApplySpecProp spname 40039 target 5607782516.280471
+ApplySpecProp spname 40037 target 28493375.236726
+ApplySpecProp spname 40036 target 358961360.866432
+ApplySpecProp spname 40035 target 337019398.801173
+ApplySpecProp spname 40033 target 822489.751780
+ApplySpecProp spname 40032 target 13642647752.641438
+ApplySpecProp spname 40029 target 6214426.443175
+ApplySpecProp spname 40027 target 93456041.487709
+ApplySpecProp spname 40026 target 861653200.900285
+ApplySpecProp spname 40025 target 268901524.339954
+ApplySpecProp spname 40022 target 1190747721.420402
+ApplySpecProp spname 40017 target 59191299.847090
+ApplySpecProp spname 40016 target 133445349.229857
+ApplySpecProp spname 40015 target 43074507.994323
+ApplySpecProp spname 40013 target 72645141.555734
+ApplySpecProp spname 40012 target 4375702.811770
+ApplySpecProp spname 33511 target 2002957.789712
+ApplySpecProp spname 32811 target 2997998.292107
+ApplySpecProp spname 32711 target 20175655.784636
+ApplySpecProp spname 32611 target 5726227.515650
+ApplySpecProp spname 32511 target 1574263.532764
+ApplySpecProp spname 30078 target 2871025104.583929
+ApplySpecProp spname 30076 target 1527363553.123377
+ApplySpecProp spname 30075 target 19471434.894324
+ApplySpecProp spname 30073 target 2973992642.510695
+ApplySpecProp spname 30072 target 75743355.224894
+ApplySpecProp spname 30068 target 88059933.052166
+ApplySpecProp spname 30066 target 1015716816.929586
+ApplySpecProp spname 30065 target 105416229.490471
+ApplySpecProp spname 30063 target 4233090641.660538
+ApplySpecProp spname 30062 target 3555893432.799173
+ApplySpecProp spname 30059 target 174801.318151
+ApplySpecProp spname 30056 target 1671197039.806051
+ApplySpecProp spname 30055 target 289523951.199127
+ApplySpecProp spname 30053 target 8027001489.949799
+ApplySpecProp spname 30052 target 6460803731.125416
+ApplySpecProp spname 30049 target 294489907.482100
+ApplySpecProp spname 30046 target 3636786745.427547
+ApplySpecProp spname 30045 target 842467632.728265
+ApplySpecProp spname 30043 target 2572101851.316885
+ApplySpecProp spname 30042 target 8073377781.235569
+ApplySpecProp spname 30039 target 1341894545.076853
+ApplySpecProp spname 30036 target 2620970386.026793
+ApplySpecProp spname 30035 target 630946412.115440
+ApplySpecProp spname 30033 target 151424802.139156
+ApplySpecProp spname 30032 target 2562984930.846062
+ApplySpecProp spname 30029 target 980651285.376496
+ApplySpecProp spname 30026 target 2317541143.170784
+ApplySpecProp spname 30025 target 462724940.726918
+ApplySpecProp spname 30023 target 932574465.979172
+ApplySpecProp spname 30022 target 1106123272.440351
+ApplySpecProp spname 30019 target 87633357.398034
+ApplySpecProp spname 30016 target 182151397.560694
+ApplySpecProp spname 30015 target 39007861.460925
+ApplySpecProp spname 30013 target 33066210.242137
+ApplySpecProp spname 30012 target 87633357.495134
+ApplySpecProp spname 23711 target 1000193.326991
+ApplySpecProp spname 22411 target 205087.668161
+ApplySpecProp spname 22311 target 3472318.223711
+ApplySpecProp spname 22211 target 984297.947653
+ApplySpecProp spname 22111 target 402706.713248
+ApplySpecProp spname 22011 target 9613422.625437
+ApplySpecProp spname 21911 target 6269807.194636
+ApplySpecProp spname 21811 target 13568957.475807
+ApplySpecProp spname 20078 target 170772119.332583
+ApplySpecProp spname 20076 target 42028126.594208
+ApplySpecProp spname 20073 target 185937253.499304
+ApplySpecProp spname 20072 target 15165134.205627
+ApplySpecProp spname 20068 target 34294444.440937
+ApplySpecProp spname 20066 target 192050488.077040
+ApplySpecProp spname 20065 target 4673490.911348
+ApplySpecProp spname 20063 target 362119627.651606
+ApplySpecProp spname 20062 target 327825183.294930
+ApplySpecProp spname 20056 target 366065384.251830
+ApplySpecProp spname 20055 target 40993780.741899
+ApplySpecProp spname 20054 target 16701077.297560
+ApplySpecProp spname 20053 target 509627502.872805
+ApplySpecProp spname 20052 target 610634323.497537
+ApplySpecProp spname 20046 target 1171344663.725158
+ApplySpecProp spname 20045 target 425706790.028206
+ApplySpecProp spname 20043 target 1357778873.456575
+ApplySpecProp spname 20042 target 4360621000.022015
+ApplySpecProp spname 20036 target 2245159986.548535
+ApplySpecProp spname 20035 target 566748834.819473
+ApplySpecProp spname 20033 target 9670710411.022333
+ApplySpecProp spname 20032 target 23772221076.986172
+ApplySpecProp spname 20027 target 69377630.652714
+ApplySpecProp spname 20026 target 3264467027.042224
+ApplySpecProp spname 20025 target 745446149.499679
+ApplySpecProp spname 20023 target 134289069.864072
+ApplySpecProp spname 20022 target 9610822319.958059
+ApplySpecProp spname 20017 target 14334610.151286
+ApplySpecProp spname 20016 target 265754689.852028
+ApplySpecProp spname 20015 target 44683588.133748
+ApplySpecProp spname 20013 target 82859.019850
+ApplySpecProp spname 20012 target 13720866.974823
+ApplySpecProp spname 13111 target 3984136.231122
+ApplySpecProp spname 12911 target 2688767.730179
+ApplySpecProp spname 10078 target 940246676.611499
+ApplySpecProp spname 10077 target 2036162.890419
+ApplySpecProp spname 10076 target 327350350.393530
+ApplySpecProp spname 10075 target 7717901.045800
+ApplySpecProp spname 10073 target 1065835693.161007
+ApplySpecProp spname 10072 target 125590074.705167
+ApplySpecProp spname 10069 target 21186483.843931
+ApplySpecProp spname 10068 target 61515319.523047
+ApplySpecProp spname 10067 target 47172506.445840
+ApplySpecProp spname 10066 target 895996946.190593
+ApplySpecProp spname 10065 target 30680289.267020
+ApplySpecProp spname 10064 target 2947852.691260
+ApplySpecProp spname 10063 target 4989376813.540512
+ApplySpecProp spname 10062 target 4908226633.656629
+ApplySpecProp spname 10059 target 84508158.312144
+ApplySpecProp spname 10058 target 907293.993890
+ApplySpecProp spname 10057 target 94297155.882414
+ApplySpecProp spname 10056 target 1196343799.830009
+ApplySpecProp spname 10055 target 49115261.543140
+ApplySpecProp spname 10054 target 24155419.438690
+ApplySpecProp spname 10053 target 19322539293.040264
+ApplySpecProp spname 10052 target 21518010036.673420
+ApplySpecProp spname 10049 target 7614650870.820302
+ApplySpecProp spname 10047 target 537316920.955546
+ApplySpecProp spname 10046 target 2438540618.035254
+ApplySpecProp spname 10045 target 245205646.917506
+ApplySpecProp spname 10044 target 26791.725370
+ApplySpecProp spname 10043 target 2393726828.380293
+ApplySpecProp spname 10042 target 27192989662.184139
+ApplySpecProp spname 10039 target 27272090112.494415
+ApplySpecProp spname 10037 target 129177209.203857
+ApplySpecProp spname 10036 target 1351955544.254150
+ApplySpecProp spname 10035 target 178077958.042531
+ApplySpecProp spname 10033 target 313619592.044498
+ApplySpecProp spname 10032 target 29690836188.220459
+ApplySpecProp spname 10029 target 1555429489.005425
+ApplySpecProp spname 10027 target 100673707.315475
+ApplySpecProp spname 10026 target 1371348886.624372
+ApplySpecProp spname 10025 target 188687008.032374
+ApplySpecProp spname 10023 target 165718.003260
+ApplySpecProp spname 10022 target 1301173554.982524
+ApplySpecProp spname 10019 target 343142364.766098
+ApplySpecProp spname 10017 target 189581433.258120
+ApplySpecProp spname 10016 target 137636651.796814
+ApplySpecProp spname 10015 target 11414959.031868
+ApplySpecProp spname 44 target 391199628.572668
+ApplySpecProp spname 43 target 133885863.396197
+ApplySpecProp spname 42 target 215120654.871147
+ApplySpecProp spname 41 target 163428425.382775
+ApplySpecProp spname 40 target 187520896.514583
+ApplySpecProp spname 39 target 122775174.987033
+ApplySpecProp spname 38 target 476851950.379850
+ApplySpecProp spname 37 target 448469271.284992
+ApplySpecProp spname 36 target 619099874.422811
+ApplySpecProp spname 35 target 242393925.108094
+ApplySpecProp spname 34 target 3823892384.401749
+ApplySpecProp spname 33 target 300196733.025670
+ApplySpecProp spname 32 target 537999587.808070
+ApplySpecProp spname 31 target 300196733.025670
+ApplySpecProp spname 30 target 239970094.395660
+ApplySpecProp spname 29 target 140851986.975820
+ApplySpecProp spname 28 target 146790257.683578
+ApplySpecProp spname 27 target 500760583.794094
+ApplySpecProp spname 26 target 1855404071.101968
+ApplySpecProp spname 25 target 135037686.874443
+ApplySpecProp spname 24 target 259649877.368700
+ApplySpecProp spname 23 target 496657193.586908
+ApplySpecProp spname 22 target 1622634225.588744
+ApplySpecProp spname 21 target 307273123.710350
+ApplySpecProp spname 20 target 238578453.273933
+ApplySpecProp spname 19 target 616069748.613793
+ApplySpecProp spname 18 target 571176661.738500
+ApplySpecProp spname 17 target 271653736.309099
+ApplySpecProp spname 16 target 271653736.309099
+ApplySpecProp spname 15 target 271653736.309099
+ApplySpecProp spname 14 target 535001133.673508
+ApplySpecProp spname 13 target 271653736.309099
+ApplySpecProp spname 12 target 263347397.364410
+ApplySpecProp spname 11 target 117217306.353466
+ApplySpecProp spname 10 target 88.400000
+ApplySpecProp spname 9 target 108.200000
+ApplySpecProp spname 8 target 116.600000
+ApplySpecProp spname 7 target 941.600000
+ApplySpecProp spname 6 target 1.200000
+ApplySpecProp spname 5 target 10.600000
+ApplySpecProp spname 4 target 5.600000
+ApplySpecProp spname 3 target 32.800000
+ApplySpecProp spname 2 target 27.400000
+ApplySpecProp spname 1 target 83.200000
+after ApplySpecProp
+before OutputScenario
+after OutputScenario
+before CalcPenalties
+CalcPenalties spname 4361820 penalty 158415 target 7.94895e+06
+CalcPenalties spname 4361818 penalty 634961 target 1.85869e+08
+CalcPenalties spname 4361794 penalty 310502 target 2.88206e+06
+CalcPenalties spname 4361793 penalty 162031 target 1.1266e+06
+CalcPenalties spname 4361792 penalty 268219 target 3.02335e+06
+CalcPenalties spname 4361790 penalty 259383 target 3.48598e+06
+CalcPenalties spname 4361788 penalty 163216 target 187886
+CalcPenalties spname 4361787 penalty 163216 target 59446.8
+CalcPenalties spname 4361776 penalty 153945 target 4.32016e+06
+CalcPenalties spname 4361774 penalty 452677 target 3.47808e+06
+CalcPenalties spname 4361773 penalty 158565 target 459311
+CalcPenalties spname 4361772 penalty 427816 target 1.24183e+06
+CalcPenalties spname 4361703 penalty 149451 target 7.43541e+06
+CalcPenalties spname 4361701 penalty 183925 target 1.03691e+07
+CalcPenalties spname 4361700 penalty 344490 target 1.63226e+07
+CalcPenalties spname 4361698 penalty 175697 target 4.80265e+06
+CalcPenalties spname 4361696 penalty 502047 target 5.22988e+06
+CalcPenalties spname 4361695 penalty 158415 target 118616
+CalcPenalties spname 4361693 penalty 175697 target 854745
+CalcPenalties spname 4361691 penalty 154397 target 2.50998e+06
+CalcPenalties spname 4361690 penalty 399934 target 5.53671e+06
+CalcPenalties spname 4361688 penalty 173863 target 45007.4
+CalcPenalties spname 4361687 penalty 334562 target 444225
+CalcPenalties spname 4361619 penalty 344934 target 1.56496e+06
+CalcPenalties spname 4361617 penalty 591964 target 482843
+CalcPenalties spname 4361616 penalty 496414 target 923554
+CalcPenalties spname 4361615 penalty 546471 target 5213.64
+CalcPenalties spname 4361611 penalty 496414 target 515424
+CalcPenalties spname 4361603 penalty 220494 target 548947
+CalcPenalties spname 4361598 penalty 546471 target 86297.1
+CalcPenalties spname 4361583 penalty 159629 target 756433
+CalcPenalties spname 4361581 penalty 151998 target 461600
+CalcPenalties spname 4361580 penalty 158565 target 2.0483e+06
+CalcPenalties spname 4361575 penalty 143190 target 486877
+CalcPenalties spname 4361565 penalty 164581 target 139084
+CalcPenalties spname 4361562 penalty 156508 target 1.0349e+06
+CalcPenalties spname 4361521 penalty 472914 target 266504
+CalcPenalties spname 4361519 penalty 472914 target 309027
+CalcPenalties spname 3351793 penalty 146313 target 434251
+CalcPenalties spname 3351774 penalty 284741 target 2.5455e+06
+CalcPenalties spname 3351772 penalty 140438 target 1.49848e+06
+CalcPenalties spname 3351771 penalty 143401 target 115005
+CalcPenalties spname 3351768 penalty 275238 target 70989.4
+CalcPenalties spname 3351766 penalty 278484 target 88982.8
+CalcPenalties spname 3351765 penalty 278484 target 514729
+CalcPenalties spname 3351764 penalty 278484 target 299785
+CalcPenalties spname 3351763 penalty 278484 target 233928
+CalcPenalties spname 3351731 penalty 450717 target 8.98962e+06
+CalcPenalties spname 3351729 penalty 292333 target 1.76851e+07
+CalcPenalties spname 3351728 penalty 207579 target 1.89989e+06
+CalcPenalties spname 3351727 penalty 398425 target 113876
+CalcPenalties spname 3351726 penalty 820688 target 1.23137e+06
+CalcPenalties spname 3351724 penalty 201176 target 452744
+CalcPenalties spname 3351721 penalty 640322 target 353146
+CalcPenalties spname 3351720 penalty 207579 target 2.70309e+06
+CalcPenalties spname 3351719 penalty 444085 target 1.88465e+07
+CalcPenalties spname 3351716 penalty 214684 target 178782
+CalcPenalties spname 3351703 penalty 268778 target 7.79179e+06
+CalcPenalties spname 3351702 penalty 204993 target 497147
+CalcPenalties spname 3351701 penalty 209613 target 1.08977e+07
+CalcPenalties spname 3351700 penalty 414015 target 4.76004e+06
+CalcPenalties spname 3351699 penalty 437043 target 69940.4
+CalcPenalties spname 3351698 penalty 231175 target 8.96058e+06
+CalcPenalties spname 3351696 penalty 406862 target 2.18453e+06
+CalcPenalties spname 3351692 penalty 209613 target 2.40686e+06
+CalcPenalties spname 3351691 penalty 238499 target 3.56118e+06
+CalcPenalties spname 3351690 penalty 327912 target 2.78832e+06
+CalcPenalties spname 3351687 penalty 439675 target 418750
+CalcPenalties spname 3351636 penalty 240869 target 7.90505e+06
+CalcPenalties spname 3351634 penalty 228678 target 2.25181e+06
+CalcPenalties spname 3351633 penalty 279603 target 706689
+CalcPenalties spname 3351631 penalty 235772 target 2.24241e+06
+CalcPenalties spname 3351629 penalty 228678 target 1.32407e+06
+CalcPenalties spname 3351627 penalty 277532 target 617839
+CalcPenalties spname 3351626 penalty 287994 target 260244
+CalcPenalties spname 3351625 penalty 228678 target 3.56393e+06
+CalcPenalties spname 3351624 penalty 258827 target 1.23868e+07
+CalcPenalties spname 3351621 penalty 258827 target 279824
+CalcPenalties spname 3351620 penalty 299131 target 97819.2
+CalcPenalties spname 3351619 penalty 293928 target 4.24754e+06
+CalcPenalties spname 3351618 penalty 270262 target 91853.6
+CalcPenalties spname 3351617 penalty 270262 target 1.97825e+06
+CalcPenalties spname 3351616 penalty 270262 target 1.24857e+06
+CalcPenalties spname 3351615 penalty 283831 target 12595.9
+CalcPenalties spname 3351611 penalty 270262 target 1.47006e+06
+CalcPenalties spname 3351610 penalty 270744 target 623726
+CalcPenalties spname 3351608 penalty 283831 target 1.16343e+06
+CalcPenalties spname 3351604 penalty 270262 target 111823
+CalcPenalties spname 3351603 penalty 234108 target 1.14622e+07
+CalcPenalties spname 3351601 penalty 281375 target 1.02649e+06
+CalcPenalties spname 3351598 penalty 146313 target 75087.3
+CalcPenalties spname 3351597 penalty 394719 target 78986
+CalcPenalties spname 3351593 penalty 142883 target 134418
+CalcPenalties spname 3351583 penalty 233385 target 89822.1
+CalcPenalties spname 3351580 penalty 201176 target 217479
+CalcPenalties spname 3351579 penalty 487350 target 33278.2
+CalcPenalties spname 3351575 penalty 241131 target 57238
+CalcPenalties spname 3351574 penalty 244106 target 226787
+CalcPenalties spname 3351573 penalty 244106 target 79645.7
+CalcPenalties spname 3351572 penalty 244106 target 69206
+CalcPenalties spname 3351568 penalty 199042 target 306747
+CalcPenalties spname 3351565 penalty 200986 target 446679
+CalcPenalties spname 3351561 penalty 152871 target 155055
+CalcPenalties spname 3351541 penalty 334545 target 111375
+CalcPenalties spname 3351529 penalty 140438 target 149413
+CalcPenalties spname 3351526 penalty 331599 target 3958.86
+CalcPenalties spname 3351523 penalty 293486 target 2.0404e+06
+CalcPenalties spname 3351521 penalty 433933 target 5.92629e+06
+CalcPenalties spname 3351519 penalty 252387 target 1.89142e+06
+CalcPenalties spname 3351494 penalty 331599 target 201533
+CalcPenalties spname 3351483 penalty 438532 target 82327.9
+CalcPenalties spname 3351333 penalty 216567 target 10173.9
+CalcPenalties spname 3351331 penalty 216567 target 116413
+CalcPenalties spname 3351330 penalty 216567 target 71756.5
+CalcPenalties spname 3351323 penalty 328748 target 429909
+CalcPenalties spname 3351322 penalty 379037 target 1.68009e+06
+CalcPenalties spname 3351320 penalty 188738 target 2.42153e+07
+CalcPenalties spname 3351318 penalty 203775 target 645760
+CalcPenalties spname 3351316 penalty 328748 target 659286
+CalcPenalties spname 3351314 penalty 188738 target 586968
+CalcPenalties spname 3351313 penalty 188738 target 4.22226e+06
+CalcPenalties spname 3351311 penalty 190299 target 2.75609e+06
+CalcPenalties spname 3351310 penalty 190283 target 37907.7
+CalcPenalties spname 3351309 penalty 193636 target 1.53664e+06
+CalcPenalties spname 3351308 penalty 190299 target 1.81861e+06
+CalcPenalties spname 3351304 penalty 195422 target 77345.9
+CalcPenalties spname 3281619 penalty 201622 target 148126
+CalcPenalties spname 3281618 penalty 157197 target 279042
+CalcPenalties spname 3281617 penalty 157197 target 646408
+CalcPenalties spname 3281616 penalty 156053 target 797264
+CalcPenalties spname 3281611 penalty 156053 target 1.1354e+06
+CalcPenalties spname 3281565 penalty 184326 target 70510.8
+CalcPenalties spname 3281550 penalty 145094 target 80578.2
+CalcPenalties spname 3281544 penalty 144742 target 407012
+CalcPenalties spname 3281541 penalty 151670 target 1.47388e+06
+CalcPenalties spname 3281540 penalty 153596 target 1.90148e+06
+CalcPenalties spname 3281539 penalty 182260 target 5.79871e+06
+CalcPenalties spname 3281538 penalty 149383 target 4.77422e+06
+CalcPenalties spname 3281537 penalty 304860 target 1.1357e+07
+CalcPenalties spname 3281535 penalty 325640 target 3.86875e+06
+CalcPenalties spname 3281534 penalty 158853 target 62868.9
+CalcPenalties spname 3281523 penalty 146369 target 455917
+CalcPenalties spname 3281521 penalty 152376 target 1.22686e+06
+CalcPenalties spname 3281520 penalty 152376 target 134536
+CalcPenalties spname 3281519 penalty 146369 target 960271
+CalcPenalties spname 3281479 penalty 309398 target 5.47686e+06
+CalcPenalties spname 3281478 penalty 158230 target 1.94248e+06
+CalcPenalties spname 3281477 penalty 158230 target 7.40765e+06
+CalcPenalties spname 3281476 penalty 157519 target 3.77214e+06
+CalcPenalties spname 3281475 penalty 291965 target 196322
+CalcPenalties spname 3281474 penalty 145584 target 126049
+CalcPenalties spname 3281471 penalty 157981 target 844029
+CalcPenalties spname 3281465 penalty 150870 target 17291.7
+CalcPenalties spname 3281463 penalty 157043 target 8.90765e+06
+CalcPenalties spname 3281461 penalty 157519 target 56564.5
+CalcPenalties spname 3281445 penalty 177050 target 3.49897e+06
+CalcPenalties spname 3281444 penalty 175618 target 2.59585e+06
+CalcPenalties spname 3281443 penalty 179955 target 383680
+CalcPenalties spname 3281441 penalty 179955 target 3.18818e+06
+CalcPenalties spname 3281437 penalty 179955 target 40437.8
+CalcPenalties spname 3281435 penalty 161868 target 970704
+CalcPenalties spname 3281434 penalty 322798 target 215182
+CalcPenalties spname 3281432 penalty 160931 target 189871
+CalcPenalties spname 3281430 penalty 144742 target 61865.7
+CalcPenalties spname 3281426 penalty 161868 target 27291.9
+CalcPenalties spname 3281423 penalty 144742 target 891699
+CalcPenalties spname 3281422 penalty 144742 target 1.2593e+06
+CalcPenalties spname 3281420 penalty 144742 target 324029
+CalcPenalties spname 3281417 penalty 144742 target 417326
+CalcPenalties spname 3281385 penalty 170499 target 1.48747e+07
+CalcPenalties spname 3281384 penalty 155404 target 3.47897e+06
+CalcPenalties spname 3281383 penalty 610003 target 3.08597e+07
+CalcPenalties spname 3281382 penalty 611448 target 2.13698e+07
+CalcPenalties spname 3281381 penalty 180921 target 777180
+CalcPenalties spname 3281380 penalty 327971 target 1.76628e+07
+CalcPenalties spname 3281379 penalty 149453 target 890579
+CalcPenalties spname 3281378 penalty 584527 target 1.34013e+07
+CalcPenalties spname 3281377 penalty 150002 target 579981
+CalcPenalties spname 3281376 penalty 155404 target 703256
+CalcPenalties spname 3281375 penalty 150870 target 1.18228e+06
+CalcPenalties spname 3281374 penalty 296842 target 1.04281e+07
+CalcPenalties spname 3281373 penalty 458584 target 9.81335e+06
+CalcPenalties spname 3281370 penalty 298095 target 13418.5
+CalcPenalties spname 3281369 penalty 179955 target 1.3861e+06
+CalcPenalties spname 3281364 penalty 2.02201e+06 target 5.82643e+08
+CalcPenalties spname 3281330 penalty 174825 target 38256
+CalcPenalties spname 3281323 penalty 153689 target 276117
+CalcPenalties spname 3281322 penalty 176958 target 2.57655e+06
+CalcPenalties spname 3281320 penalty 161963 target 1.24064e+07
+CalcPenalties spname 3281318 penalty 163332 target 628129
+CalcPenalties spname 3281316 penalty 161963 target 2.0004e+06
+CalcPenalties spname 3281314 penalty 177546 target 2161.59
+CalcPenalties spname 3281313 penalty 134959 target 3.20621e+06
+CalcPenalties spname 3281311 penalty 135261 target 5.4224e+06
+CalcPenalties spname 3281309 penalty 160937 target 223648
+CalcPenalties spname 3281308 penalty 135261 target 1.49715e+06
+CalcPenalties spname 3281304 penalty 191348 target 96913.6
+CalcPenalties spname 3271818 penalty 270777 target 141471
+CalcPenalties spname 3271794 penalty 115613 target 1.02155e+06
+CalcPenalties spname 3271790 penalty 129879 target 39719.5
+CalcPenalties spname 3271782 penalty 129879 target 52238.6
+CalcPenalties spname 3271775 penalty 150230 target 3.31093e+06
+CalcPenalties spname 3271774 penalty 231187 target 7.67215e+06
+CalcPenalties spname 3271772 penalty 142749 target 1.62637e+06
+CalcPenalties spname 3271771 penalty 231295 target 211947
+CalcPenalties spname 3271703 penalty 135490 target 70781.3
+CalcPenalties spname 3271700 penalty 135490 target 39893
+CalcPenalties spname 3271696 penalty 135490 target 12877.4
+CalcPenalties spname 3271636 penalty 114623 target 971396
+CalcPenalties spname 3271633 penalty 145081 target 440404
+CalcPenalties spname 3271631 penalty 114623 target 7288.89
+CalcPenalties spname 3271624 penalty 160062 target 690369
+CalcPenalties spname 3271619 penalty 265977 target 3.47558e+06
+CalcPenalties spname 3271616 penalty 506466 target 5.18451e+06
+CalcPenalties spname 3271613 penalty 268114 target 111114
+CalcPenalties spname 3271612 penalty 151970 target 96898.6
+CalcPenalties spname 3271611 penalty 151168 target 49041.5
+CalcPenalties spname 3271610 penalty 167752 target 675115
+CalcPenalties spname 3271608 penalty 145870 target 558142
+CalcPenalties spname 3271603 penalty 222929 target 4.34133e+06
+CalcPenalties spname 3271580 penalty 144508 target 14547.5
+CalcPenalties spname 3271565 penalty 135878 target 97167.4
+CalcPenalties spname 3271541 penalty 122041 target 171407
+CalcPenalties spname 3271523 penalty 120024 target 5.18914e+06
+CalcPenalties spname 3271521 penalty 345722 target 1.01244e+07
+CalcPenalties spname 3271519 penalty 196638 target 5.93028e+06
+CalcPenalties spname 3271518 penalty 297103 target 144717
+CalcPenalties spname 3271494 penalty 115655 target 1.43796e+06
+CalcPenalties spname 3271476 penalty 114816 target 99238.4
+CalcPenalties spname 3271461 penalty 115021 target 8635.01
+CalcPenalties spname 3261817 penalty 203213 target 3.03056e+07
+CalcPenalties spname 3261812 penalty 179222 target 773076
+CalcPenalties spname 3261811 penalty 891445 target 2.09662e+08
+CalcPenalties spname 3261810 penalty 177635 target 5936.11
+CalcPenalties spname 3261807 penalty 199761 target 127240
+CalcPenalties spname 3261703 penalty 177540 target 2.08209e+06
+CalcPenalties spname 3261701 penalty 179265 target 1.8935e+06
+CalcPenalties spname 3261700 penalty 179501 target 1.05411e+06
+CalcPenalties spname 3261696 penalty 177540 target 1.17901e+06
+CalcPenalties spname 3261687 penalty 181734 target 1.09821e+06
+CalcPenalties spname 3261636 penalty 457094 target 3.11512e+06
+CalcPenalties spname 3261634 penalty 117380 target 834594
+CalcPenalties spname 3261633 penalty 240698 target 2.82754e+06
+CalcPenalties spname 3261631 penalty 318391 target 349280
+CalcPenalties spname 3261629 penalty 117380 target 624938
+CalcPenalties spname 3261626 penalty 240698 target 241764
+CalcPenalties spname 3261624 penalty 149511 target 1.61694e+07
+CalcPenalties spname 3261619 penalty 408892 target 4.79189e+06
+CalcPenalties spname 3261616 penalty 484591 target 1.90078e+06
+CalcPenalties spname 3261611 penalty 190604 target 598221
+CalcPenalties spname 3261610 penalty 186131 target 212017
+CalcPenalties spname 3261608 penalty 186131 target 372769
+CalcPenalties spname 3261603 penalty 287767 target 6.09393e+07
+CalcPenalties spname 3261565 penalty 198317 target 199030
+CalcPenalties spname 3261541 penalty 264893 target 4.63601e+06
+CalcPenalties spname 3261531 penalty 165963 target 1.55284e+06
+CalcPenalties spname 3261530 penalty 242476 target 1.6498e+06
+CalcPenalties spname 3261529 penalty 165963 target 1.38411e+06
+CalcPenalties spname 3261527 penalty 168595 target 605003
+CalcPenalties spname 3261526 penalty 186760 target 201308
+CalcPenalties spname 3261523 penalty 179470 target 1.48179e+06
+CalcPenalties spname 3261521 penalty 129941 target 1.95174e+06
+CalcPenalties spname 3261519 penalty 234835 target 2.52207e+06
+CalcPenalties spname 3261518 penalty 194317 target 14396.4
+CalcPenalties spname 3261517 penalty 179470 target 150496
+CalcPenalties spname 3261497 penalty 154667 target 501687
+CalcPenalties spname 3261495 penalty 165963 target 33236.1
+CalcPenalties spname 3261494 penalty 153982 target 258045
+CalcPenalties spname 3261489 penalty 153982 target 299745
+CalcPenalties spname 3261481 penalty 116393 target 863242
+CalcPenalties spname 3261479 penalty 154667 target 276597
+CalcPenalties spname 3261476 penalty 155085 target 10357.5
+CalcPenalties spname 3261461 penalty 160435 target 5133.77
+CalcPenalties spname 3261457 penalty 195810 target 149155
+CalcPenalties spname 3261385 penalty 348782 target 1.48034e+06
+CalcPenalties spname 3261384 penalty 121731 target 82143.2
+CalcPenalties spname 3261383 penalty 163523 target 1.17523e+06
+CalcPenalties spname 3261382 penalty 163523 target 1.67833e+06
+CalcPenalties spname 3261380 penalty 238654 target 3.45468e+06
+CalcPenalties spname 3261378 penalty 307662 target 1.72301e+06
+CalcPenalties spname 3261375 penalty 316632 target 95016.8
+CalcPenalties spname 3261373 penalty 238654 target 3.44993e+06
+CalcPenalties spname 3261372 penalty 121731 target 5.02764e+06
+CalcPenalties spname 3261370 penalty 238025 target 24498.9
+CalcPenalties spname 3261369 penalty 312903 target 227064
+CalcPenalties spname 3261367 penalty 154667 target 797224
+CalcPenalties spname 3261366 penalty 135540 target 1.66823e+07
+CalcPenalties spname 3261364 penalty 163523 target 6.48736e+06
+CalcPenalties spname 3261337 penalty 149959 target 6.98957e+06
+CalcPenalties spname 3261333 penalty 116329 target 28003.1
+CalcPenalties spname 3261331 penalty 116329 target 200885
+CalcPenalties spname 3261330 penalty 116252 target 259231
+CalcPenalties spname 3261327 penalty 116635 target 12338.2
+CalcPenalties spname 3261322 penalty 164115 target 3.35696e+06
+CalcPenalties spname 3261320 penalty 232348 target 4.56456e+07
+CalcPenalties spname 3261318 penalty 173423 target 1.07875e+06
+CalcPenalties spname 3261316 penalty 121315 target 1.7231e+06
+CalcPenalties spname 3261313 penalty 116057 target 980212
+CalcPenalties spname 3261311 penalty 116338 target 1.15875e+06
+CalcPenalties spname 3261309 penalty 116096 target 81759.3
+CalcPenalties spname 3261308 penalty 153303 target 592022
+CalcPenalties spname 3261303 penalty 116599 target 2.79335e+06
+CalcPenalties spname 3261302 penalty 116599 target 491931
+CalcPenalties spname 3261300 penalty 147281 target 3.05373e+07
+CalcPenalties spname 3251818 penalty 127327 target 2.70185e+06
+CalcPenalties spname 3251794 penalty 132114 target 134011
+CalcPenalties spname 3251792 penalty 127692 target 4584.32
+CalcPenalties spname 3251790 penalty 127327 target 208288
+CalcPenalties spname 3251784 penalty 116921 target 4231.97
+CalcPenalties spname 3251782 penalty 131509 target 377611
+CalcPenalties spname 3251780 penalty 129964 target 24529.4
+CalcPenalties spname 3251776 penalty 138156 target 31150.3
+CalcPenalties spname 3251774 penalty 389311 target 2.74836e+06
+CalcPenalties spname 3251772 penalty 248378 target 1.24979e+06
+CalcPenalties spname 3251771 penalty 145603 target 126598
+CalcPenalties spname 3251770 penalty 134165 target 90396.1
+CalcPenalties spname 3251769 penalty 130858 target 2698.62
+CalcPenalties spname 3251756 penalty 135139 target 44041.7
+CalcPenalties spname 3251755 penalty 127327 target 815591
+CalcPenalties spname 3251754 penalty 131509 target 289020
+CalcPenalties spname 3251700 penalty 136294 target 314005
+CalcPenalties spname 3251698 penalty 135139 target 51239.8
+CalcPenalties spname 3251696 penalty 135139 target 91333.5
+CalcPenalties spname 3251687 penalty 127327 target 881572
+CalcPenalties spname 3251680 penalty 127327 target 131039
+CalcPenalties spname 3251619 penalty 132002 target 233752
+CalcPenalties spname 3251616 penalty 127247 target 756736
+CalcPenalties spname 3251611 penalty 135111 target 134398
+CalcPenalties spname 3251605 penalty 126505 target 9080.54
+CalcPenalties spname 3251601 penalty 131509 target 47167.1
+CalcPenalties spname 3251598 penalty 131509 target 77876.9
+CalcPenalties spname 3251593 penalty 131509 target 22185.4
+CalcPenalties spname 3251580 penalty 127327 target 171860
+CalcPenalties spname 3251565 penalty 132684 target 60926.3
+CalcPenalties spname 2371804 penalty 158240 target 28340.3
+CalcPenalties spname 2371794 penalty 168704 target 1.00077e+06
+CalcPenalties spname 2371790 penalty 161697 target 529331
+CalcPenalties spname 2371788 penalty 161697 target 69000.3
+CalcPenalties spname 2371784 penalty 131454 target 194598
+CalcPenalties spname 2371782 penalty 165698 target 3.28618e+06
+CalcPenalties spname 2371779 penalty 160800 target 398307
+CalcPenalties spname 2371774 penalty 479467 target 98209.3
+CalcPenalties spname 2371764 penalty 158240 target 48493.8
+CalcPenalties spname 2371756 penalty 158240 target 32659.3
+CalcPenalties spname 2371755 penalty 158240 target 89251
+CalcPenalties spname 2371703 penalty 117207 target 511974
+CalcPenalties spname 2371700 penalty 117774 target 288555
+CalcPenalties spname 2371696 penalty 117774 target 247893
+CalcPenalties spname 2371688 penalty 117774 target 6481.43
+CalcPenalties spname 2371687 penalty 158240 target 124517
+CalcPenalties spname 2371619 penalty 264441 target 1.69242e+06
+CalcPenalties spname 2371616 penalty 168987 target 37455.7
+CalcPenalties spname 2371611 penalty 157134 target 18006.8
+CalcPenalties spname 2371603 penalty 368348 target 2.57733e+06
+CalcPenalties spname 2371601 penalty 170120 target 944675
+CalcPenalties spname 2371599 penalty 176002 target 102845
+CalcPenalties spname 2371598 penalty 158697 target 2.54747e+06
+CalcPenalties spname 2371593 penalty 170120 target 220567
+CalcPenalties spname 2371587 penalty 158697 target 82952.9
+CalcPenalties spname 2371584 penalty 178375 target 479596
+CalcPenalties spname 2371583 penalty 161697 target 40032.3
+CalcPenalties spname 2371580 penalty 161697 target 155452
+CalcPenalties spname 2371565 penalty 177784 target 35011.2
+CalcPenalties spname 2371531 penalty 207789 target 202597
+CalcPenalties spname 2371529 penalty 207789 target 217097
+CalcPenalties spname 2371523 penalty 208608 target 262596
+CalcPenalties spname 2371521 penalty 250634 target 2.83856e+06
+CalcPenalties spname 2371519 penalty 116734 target 627210
+CalcPenalties spname 2371518 penalty 117543 target 118410
+CalcPenalties spname 2371515 penalty 176061 target 96351.2
+CalcPenalties spname 2371512 penalty 132341 target 42958.5
+CalcPenalties spname 2371507 penalty 128987 target 10087.2
+CalcPenalties spname 2371500 penalty 175111 target 2.31109e+07
+CalcPenalties spname 2371497 penalty 339080 target 728624
+CalcPenalties spname 2371494 penalty 166188 target 1.01418e+06
+CalcPenalties spname 2371489 penalty 166188 target 113553
+CalcPenalties spname 2371461 penalty 163969 target 30075.6
+CalcPenalties spname 2371385 penalty 176061 target 469606
+CalcPenalties spname 2371382 penalty 176061 target 584219
+CalcPenalties spname 2371378 penalty 167914 target 85095
+CalcPenalties spname 2371375 penalty 166188 target 7023.81
+CalcPenalties spname 2371369 penalty 342248 target 108057
+CalcPenalties spname 2371364 penalty 198712 target 254427
+CalcPenalties spname 2241818 penalty 122017 target 4.25591e+06
+CalcPenalties spname 2241794 penalty 122017 target 151974
+CalcPenalties spname 2241790 penalty 112182 target 380927
+CalcPenalties spname 2241788 penalty 112182 target 31434.2
+CalcPenalties spname 2241787 penalty 122017 target 124335
+CalcPenalties spname 2241774 penalty 197115 target 1.46646e+06
+CalcPenalties spname 2241772 penalty 115565 target 566960
+CalcPenalties spname 2241771 penalty 139715 target 348306
+CalcPenalties spname 2241703 penalty 105197 target 222248
+CalcPenalties spname 2241700 penalty 125190 target 262879
+CalcPenalties spname 2241698 penalty 122017 target 80400.1
+CalcPenalties spname 2241696 penalty 126377 target 78344.8
+CalcPenalties spname 2241693 penalty 122017 target 54830.7
+CalcPenalties spname 2241687 penalty 122017 target 219323
+CalcPenalties spname 2241619 penalty 115683 target 105372
+CalcPenalties spname 2241616 penalty 115683 target 29091.4
+CalcPenalties spname 2241601 penalty 115365 target 1980.56
+CalcPenalties spname 2241583 penalty 132891 target 1080.84
+CalcPenalties spname 2241580 penalty 122017 target 113626
+CalcPenalties spname 2241579 penalty 109430 target 42225.7
+CalcPenalties spname 2241565 penalty 122017 target 47717.6
+CalcPenalties spname 2241539 penalty 110080 target 16926.1
+CalcPenalties spname 2241529 penalty 111975 target 769038
+CalcPenalties spname 2241527 penalty 111557 target 195143
+CalcPenalties spname 2241521 penalty 112612 target 1.75662e+06
+CalcPenalties spname 2241519 penalty 112612 target 462923
+CalcPenalties spname 2241518 penalty 107186 target 141113
+CalcPenalties spname 2241515 penalty 112612 target 26030.5
+CalcPenalties spname 2241512 penalty 111557 target 42051.8
+CalcPenalties spname 2241497 penalty 112990 target 53398.6
+CalcPenalties spname 2241385 penalty 111557 target 585901
+CalcPenalties spname 2241382 penalty 115106 target 48364.9
+CalcPenalties spname 2241351 penalty 118632 target 661924
+CalcPenalties spname 2241346 penalty 118632 target 306959
+CalcPenalties spname 2231818 penalty 153187 target 4.34696e+06
+CalcPenalties spname 2231795 penalty 291006 target 507504
+CalcPenalties spname 2231794 penalty 295417 target 4.45845e+06
+CalcPenalties spname 2231793 penalty 138968 target 1.70472e+06
+CalcPenalties spname 2231792 penalty 153187 target 377530
+CalcPenalties spname 2231790 penalty 153187 target 294800
+CalcPenalties spname 2231784 penalty 288594 target 1.27404e+06
+CalcPenalties spname 2231782 penalty 414572 target 6.09572e+06
+CalcPenalties spname 2231780 penalty 218701 target 255126
+CalcPenalties spname 2231779 penalty 120371 target 70239.4
+CalcPenalties spname 2231746 penalty 114162 target 96418.4
+CalcPenalties spname 2231745 penalty 176844 target 848465
+CalcPenalties spname 2231743 penalty 138767 target 44892.3
+CalcPenalties spname 2231736 penalty 176844 target 209097
+CalcPenalties spname 2231735 penalty 138767 target 291397
+CalcPenalties spname 2231703 penalty 116402 target 701955
+CalcPenalties spname 2231700 penalty 244520 target 1.12718e+06
+CalcPenalties spname 2231698 penalty 137581 target 154465
+CalcPenalties spname 2231696 penalty 233248 target 619965
+CalcPenalties spname 2231693 penalty 234073 target 23040.9
+CalcPenalties spname 2231676 penalty 119205 target 108499
+CalcPenalties spname 2231675 penalty 119205 target 13832
+CalcPenalties spname 2231674 penalty 119205 target 345623
+CalcPenalties spname 2231669 penalty 119205 target 65116.7
+CalcPenalties spname 2231667 penalty 119892 target 73118.2
+CalcPenalties spname 2231666 penalty 119205 target 39969.8
+CalcPenalties spname 2231616 penalty 118066 target 52908.3
+CalcPenalties spname 2231601 penalty 604410 target 1.68455e+06
+CalcPenalties spname 2231598 penalty 449205 target 4.70098e+06
+CalcPenalties spname 2231595 penalty 112574 target 97090.3
+CalcPenalties spname 2231593 penalty 236240 target 730935
+CalcPenalties spname 2231592 penalty 127362 target 632447
+CalcPenalties spname 2231590 penalty 127362 target 1.05276e+06
+CalcPenalties spname 2231587 penalty 150154 target 13307.2
+CalcPenalties spname 2231583 penalty 114162 target 104559
+CalcPenalties spname 2231580 penalty 114162 target 424731
+CalcPenalties spname 2231565 penalty 179536 target 103622
+CalcPenalties spname 2231561 penalty 1.06689e+06 target 770630
+CalcPenalties spname 2231558 penalty 119892 target 5209.63
+CalcPenalties spname 2231537 penalty 123356 target 56903.2
+CalcPenalties spname 2231531 penalty 132031 target 614814
+CalcPenalties spname 2231529 penalty 132031 target 2.28474e+06
+CalcPenalties spname 2231527 penalty 121372 target 1.08208e+06
+CalcPenalties spname 2231526 penalty 121372 target 89661
+CalcPenalties spname 2231515 penalty 120400 target 119512
+CalcPenalties spname 2231512 penalty 123358 target 100710
+CalcPenalties spname 2231507 penalty 120400 target 81294.7
+CalcPenalties spname 2231501 penalty 123358 target 3776.44
+CalcPenalties spname 2231494 penalty 124024 target 25361
+CalcPenalties spname 2231461 penalty 240075 target 6924.52
+CalcPenalties spname 2231382 penalty 123356 target 474040
+CalcPenalties spname 2231364 penalty 247758 target 185183
+CalcPenalties spname 2231330 penalty 119173 target 539.908
+CalcPenalties spname 2231320 penalty 119173 target 699989
+CalcPenalties spname 2231318 penalty 119173 target 449.933
+CalcPenalties spname 2231311 penalty 119173 target 166561
+CalcPenalties spname 2231240 penalty 181457 target 2880.4
+CalcPenalties spname 2221821 penalty 160352 target 117327
+CalcPenalties spname 2221794 penalty 160352 target 43311.2
+CalcPenalties spname 2221784 penalty 132906 target 344095
+CalcPenalties spname 2221782 penalty 123172 target 491361
+CalcPenalties spname 2221780 penalty 123172 target 415705
+CalcPenalties spname 2221774 penalty 160352 target 532701
+CalcPenalties spname 2221772 penalty 118144 target 579673
+CalcPenalties spname 2221771 penalty 139095 target 3692.51
+CalcPenalties spname 2221745 penalty 160352 target 67172.6
+CalcPenalties spname 2221740 penalty 160352 target 28543.9
+CalcPenalties spname 2221703 penalty 160352 target 14947.2
+CalcPenalties spname 2221698 penalty 160352 target 22690.9
+CalcPenalties spname 2221617 penalty 128442 target 13509
+CalcPenalties spname 2221616 penalty 139476 target 140580
+CalcPenalties spname 2221611 penalty 278571 target 23863.3
+CalcPenalties spname 2221601 penalty 160352 target 11886.1
+CalcPenalties spname 2221580 penalty 160352 target 24581.9
+CalcPenalties spname 2221565 penalty 128442 target 38996.1
+CalcPenalties spname 2221539 penalty 123562 target 85289.9
+CalcPenalties spname 2221537 penalty 123562 target 363225
+CalcPenalties spname 2221531 penalty 123568 target 2.46944e+06
+CalcPenalties spname 2221527 penalty 124978 target 186792
+CalcPenalties spname 2221521 penalty 176451 target 324792
+CalcPenalties spname 2221519 penalty 176451 target 79779.4
+CalcPenalties spname 2221518 penalty 176451 target 14406.6
+CalcPenalties spname 2221497 penalty 123562 target 5043.45
+CalcPenalties spname 2221494 penalty 123568 target 114649
+CalcPenalties spname 2221489 penalty 123568 target 70698.9
+CalcPenalties spname 2221477 penalty 123562 target 78714.4
+CalcPenalties spname 2221435 penalty 123562 target 59981.4
+CalcPenalties spname 2221434 penalty 248449 target 366105
+CalcPenalties spname 2221432 penalty 248449 target 191654
+CalcPenalties spname 2221430 penalty 123562 target 9546.56
+CalcPenalties spname 2221369 penalty 123562 target 277304
+CalcPenalties spname 2221364 penalty 123562 target 1.26377e+06
+CalcPenalties spname 2221254 penalty 117888 target 599300
+CalcPenalties spname 2221252 penalty 235455 target 568484
+CalcPenalties spname 2221245 penalty 122852 target 21345.4
+CalcPenalties spname 2211270 penalty 124145 target 23410.6
+CalcPenalties spname 2211262 penalty 123483 target 16206.3
+CalcPenalties spname 2211256 penalty 1.3323e+06 target 128850
+CalcPenalties spname 2211254 penalty 246042 target 1.97254e+06
+CalcPenalties spname 2211253 penalty 124145 target 1620.73
+CalcPenalties spname 2211252 penalty 123067 target 146029
+CalcPenalties spname 2211250 penalty 1.06131e+06 target 114810
+CalcPenalties spname 2211245 penalty 123483 target 113272
+CalcPenalties spname 2211244 penalty 593514 target 4498.51
+CalcPenalties spname 2211116 penalty 593514 target 13675.9
+CalcPenalties spname 2211115 penalty 593514 target 114082
+CalcPenalties spname 2201296 penalty 559308 target 7.28849e+06
+CalcPenalties spname 2201282 penalty 590751 target 259276
+CalcPenalties spname 2201274 penalty 2.68403e+06 target 1.54884e+06
+CalcPenalties spname 2201273 penalty 586453 target 79509.3
+CalcPenalties spname 2201272 penalty 988737 target 4.03156e+06
+CalcPenalties spname 2201271 penalty 1.72118e+06 target 3.7457e+06
+CalcPenalties spname 2201270 penalty 407378 target 2.20722e+06
+CalcPenalties spname 2201268 penalty 1.6532e+07 target 254111
+CalcPenalties spname 2201265 penalty 1.37291e+06 target 406269
+CalcPenalties spname 2201256 penalty 233111 target 2.29549e+06
+CalcPenalties spname 2201254 penalty 1.04718e+06 target 8.16421e+06
+CalcPenalties spname 2201252 penalty 343413 target 3.71732e+06
+CalcPenalties spname 2201251 penalty 263601 target 435354
+CalcPenalties spname 2201248 penalty 252988 target 139562
+CalcPenalties spname 2201246 penalty 1.40517e+06 target 102593
+CalcPenalties spname 2201245 penalty 1.40517e+06 target 310269
+CalcPenalties spname 2201240 penalty 1.40517e+06 target 117605
+CalcPenalties spname 2201212 penalty 851603 target 368423
+CalcPenalties spname 2201210 penalty 2.56642e+06 target 471200
+CalcPenalties spname 2201209 penalty 2.56642e+06 target 844170
+CalcPenalties spname 2201208 penalty 366391 target 13115.1
+CalcPenalties spname 2201204 penalty 3.78883e+06 target 455001
+CalcPenalties spname 2201197 penalty 3.78883e+06 target 1.09274e+06
+CalcPenalties spname 2201194 penalty 1.40517e+06 target 639066
+CalcPenalties spname 2201190 penalty 2.45316e+06 target 706504
+CalcPenalties spname 2201169 penalty 851603 target 3.42913e+06
+CalcPenalties spname 2201168 penalty 871175 target 4.82187e+06
+CalcPenalties spname 2201167 penalty 964635 target 4.52272e+06
+CalcPenalties spname 2201166 penalty 569037 target 1.79579e+06
+CalcPenalties spname 2201165 penalty 569037 target 3.45044e+06
+CalcPenalties spname 2201161 penalty 527951 target 436814
+CalcPenalties spname 2201160 penalty 361159 target 203307
+CalcPenalties spname 2201159 penalty 871175 target 24003.1
+CalcPenalties spname 2201158 penalty 544181 target 15557.4
+CalcPenalties spname 2201156 penalty 590751 target 178886
+CalcPenalties spname 2201155 penalty 544181 target 846993
+CalcPenalties spname 2201150 penalty 544181 target 360900
+CalcPenalties spname 2201147 penalty 590751 target 37862.6
+CalcPenalties spname 2201118 penalty 2.56642e+06 target 2.82682e+06
+CalcPenalties spname 2201117 penalty 229443 target 86643.8
+CalcPenalties spname 2201116 penalty 229443 target 1.66622e+06
+CalcPenalties spname 2201115 penalty 229443 target 1.15765e+06
+CalcPenalties spname 2201113 penalty 1.14397e+06 target 442223
+CalcPenalties spname 2201111 penalty 370205 target 454284
+CalcPenalties spname 2201108 penalty 229443 target 124036
+CalcPenalties spname 2201106 penalty 2.56642e+06 target 238659
+CalcPenalties spname 2201104 penalty 229443 target 58600.5
+CalcPenalties spname 2201102 penalty 694813 target 6.01942e+06
+CalcPenalties spname 2201100 penalty 233111 target 685946
+CalcPenalties spname 2191296 penalty 510224 target 2.69189e+06
+CalcPenalties spname 2191292 penalty 342551 target 1.07569e+06
+CalcPenalties spname 2191275 penalty 245028 target 14858.9
+CalcPenalties spname 2191274 penalty 449579 target 1.46217e+06
+CalcPenalties spname 2191272 penalty 802334 target 1.36741e+06
+CalcPenalties spname 2191271 penalty 509557 target 889906
+CalcPenalties spname 2191270 penalty 407980 target 4.07614e+06
+CalcPenalties spname 2191269 penalty 248436 target 2.45133e+06
+CalcPenalties spname 2191268 penalty 232341 target 522390
+CalcPenalties spname 2191256 penalty 256763 target 826720
+CalcPenalties spname 2191254 penalty 256763 target 3.56671e+06
+CalcPenalties spname 2191252 penalty 295535 target 1.49222e+06
+CalcPenalties spname 2191251 penalty 246738 target 215441
+CalcPenalties spname 2191249 penalty 223243 target 11887
+CalcPenalties spname 2191248 penalty 354201 target 1.55652e+06
+CalcPenalties spname 2191247 penalty 276936 target 1.41531e+06
+CalcPenalties spname 2191246 penalty 166631 target 1.16152e+06
+CalcPenalties spname 2191245 penalty 250574 target 4.53162e+06
+CalcPenalties spname 2191244 penalty 281442 target 1261
+CalcPenalties spname 2191240 penalty 250574 target 1.94812e+06
+CalcPenalties spname 2191235 penalty 190293 target 331013
+CalcPenalties spname 2191234 penalty 281442 target 57375.7
+CalcPenalties spname 2191233 penalty 206832 target 745828
+CalcPenalties spname 2191232 penalty 401351 target 231281
+CalcPenalties spname 2191230 penalty 402260 target 2.08296e+06
+CalcPenalties spname 2191229 penalty 205057 target 767630
+CalcPenalties spname 2191228 penalty 325812 target 388013
+CalcPenalties spname 2191227 penalty 419362 target 2.28648e+06
+CalcPenalties spname 2191224 penalty 197203 target 156441
+CalcPenalties spname 2191223 penalty 197203 target 110238
+CalcPenalties spname 2191222 penalty 420672 target 455289
+CalcPenalties spname 2191221 penalty 274936 target 160597
+CalcPenalties spname 2191219 penalty 274936 target 102141
+CalcPenalties spname 2191216 penalty 325812 target 2612.09
+CalcPenalties spname 2191194 penalty 186963 target 1.7427e+06
+CalcPenalties spname 2191190 penalty 261559 target 490523
+CalcPenalties spname 2191157 penalty 245582 target 45928.8
+CalcPenalties spname 2191155 penalty 245582 target 1.72258e+06
+CalcPenalties spname 2191154 penalty 237333 target 624802
+CalcPenalties spname 2191149 penalty 245582 target 214599
+CalcPenalties spname 2191147 penalty 245582 target 593199
+CalcPenalties spname 2191146 penalty 229393 target 40614.3
+CalcPenalties spname 2191118 penalty 191860 target 5.10231e+06
+CalcPenalties spname 2191116 penalty 185958 target 2.8439e+06
+CalcPenalties spname 2191115 penalty 366368 target 7.19199e+06
+CalcPenalties spname 2191113 penalty 369015 target 2.9526e+06
+CalcPenalties spname 2191111 penalty 237434 target 3.12707e+06
+CalcPenalties spname 2191108 penalty 373280 target 291015
+CalcPenalties spname 2191107 penalty 198637 target 1.29753e+06
+CalcPenalties spname 2191106 penalty 191860 target 3.75983e+06
+CalcPenalties spname 2191103 penalty 237434 target 20896
+CalcPenalties spname 2191102 penalty 1.60558e+06 target 730823
+CalcPenalties spname 2181774 penalty 110721 target 1.46948e+06
+CalcPenalties spname 2181772 penalty 111959 target 1.65431e+06
+CalcPenalties spname 2181771 penalty 112259 target 8009.81
+CalcPenalties spname 2181703 penalty 157680 target 215338
+CalcPenalties spname 2181700 penalty 157680 target 68959.5
+CalcPenalties spname 2181696 penalty 157680 target 87389.5
+CalcPenalties spname 2181693 penalty 300149 target 7642.11
+CalcPenalties spname 2181687 penalty 157680 target 104652
+CalcPenalties spname 2181619 penalty 111959 target 462664
+CalcPenalties spname 2181617 penalty 254962 target 6381.87
+CalcPenalties spname 2181616 penalty 214292 target 50725.8
+CalcPenalties spname 2181611 penalty 254962 target 76396
+CalcPenalties spname 2181605 penalty 2.70087e+06 target 12069.3
+CalcPenalties spname 2181565 penalty 254962 target 11780
+CalcPenalties spname 2181527 penalty 115327 target 479634
+CalcPenalties spname 2181523 penalty 363100 target 136991
+CalcPenalties spname 2181521 penalty 137962 target 2.2766e+06
+CalcPenalties spname 2181519 penalty 135757 target 1.32426e+06
+CalcPenalties spname 2181518 penalty 136511 target 39025.2
+CalcPenalties spname 2181515 penalty 128859 target 123723
+CalcPenalties spname 2181512 penalty 140847 target 16366.5
+CalcPenalties spname 2171256 penalty 118418 target 424316
+CalcPenalties spname 2171254 penalty 118418 target 515901
+CalcPenalties spname 2171252 penalty 118418 target 370590
+CalcPenalties spname 1311274 penalty 124651 target 93498.3
+CalcPenalties spname 1311272 penalty 134506 target 257129
+CalcPenalties spname 1311270 penalty 125258 target 982604
+CalcPenalties spname 1311268 penalty 130000 target 180915
+CalcPenalties spname 1311262 penalty 128080 target 181121
+CalcPenalties spname 1311260 penalty 118421 target 157301
+CalcPenalties spname 1311256 penalty 122150 target 621586
+CalcPenalties spname 1311254 penalty 240254 target 2.31313e+06
+CalcPenalties spname 1311253 penalty 110218 target 171718
+CalcPenalties spname 1311252 penalty 118104 target 506725
+CalcPenalties spname 1311251 penalty 122150 target 309729
+CalcPenalties spname 1311248 penalty 131077 target 1.19004e+06
+CalcPenalties spname 1311245 penalty 130228 target 163758
+CalcPenalties spname 1311240 penalty 130228 target 550409
+CalcPenalties spname 1311230 penalty 109985 target 69814.5
+CalcPenalties spname 1311227 penalty 118745 target 87057.2
+CalcPenalties spname 1311222 penalty 118745 target 120119
+CalcPenalties spname 1311212 penalty 129069 target 363116
+CalcPenalties spname 1311210 penalty 130000 target 1707.24
+CalcPenalties spname 1311209 penalty 119270 target 1.17501e+06
+CalcPenalties spname 1311204 penalty 119270 target 530084
+CalcPenalties spname 1311198 penalty 122576 target 35429.8
+CalcPenalties spname 1311194 penalty 246227 target 629912
+CalcPenalties spname 1311143 penalty 126069 target 53186.2
+CalcPenalties spname 1311141 penalty 126069 target 122932
+CalcPenalties spname 1311118 penalty 129069 target 1.03017e+06
+CalcPenalties spname 1311116 penalty 242322 target 1.52846e+06
+CalcPenalties spname 1311115 penalty 248339 target 5.04059e+06
+CalcPenalties spname 1311113 penalty 130449 target 2.03701e+06
+CalcPenalties spname 1311111 penalty 230634 target 1.86558e+06
+CalcPenalties spname 1311109 penalty 259985 target 124796
+CalcPenalties spname 1311108 penalty 131522 target 47263.8
+CalcPenalties spname 1311106 penalty 125723 target 407694
+CalcPenalties spname 1311102 penalty 249511 target 781527
+CalcPenalties spname 1291297 penalty 133260 target 2.16497e+06
+CalcPenalties spname 1291296 penalty 132134 target 2.67796e+06
+CalcPenalties spname 1291274 penalty 273947 target 488432
+CalcPenalties spname 1291272 penalty 242164 target 4683.39
+CalcPenalties spname 1291270 penalty 534389 target 43941.3
+CalcPenalties spname 1291268 penalty 121377 target 170945
+CalcPenalties spname 1291256 penalty 123520 target 388237
+CalcPenalties spname 1291254 penalty 482561 target 6.33565e+06
+CalcPenalties spname 1291253 penalty 527482 target 36738.2
+CalcPenalties spname 1291252 penalty 591633 target 8.80986e+06
+CalcPenalties spname 1291251 penalty 120409 target 18098.7
+CalcPenalties spname 1291250 penalty 117128 target 735522
+CalcPenalties spname 1291248 penalty 132134 target 68267
+CalcPenalties spname 1291245 penalty 117128 target 551043
+CalcPenalties spname 1291240 penalty 131975 target 174549
+CalcPenalties spname 1291209 penalty 121377 target 110035
+CalcPenalties spname 1291208 penalty 273947 target 2431.08
+CalcPenalties spname 1291194 penalty 116685 target 7295.68
+CalcPenalties spname 1291118 penalty 241706 target 384273
+CalcPenalties spname 1291115 penalty 118535 target 210895
+CalcPenalties spname 1291111 penalty 1.30179e+07 target 5.60534e+09
+CalcPenalties spname 500115 penalty 255638 target 1.66262e+07
+CalcPenalties spname 500114 penalty 9.76874e+06 target 4.20877e+09
+CalcPenalties spname 400520 penalty 281403 target 7.02567e+07
+CalcPenalties spname 400516 penalty 144813 target 288612
+CalcPenalties spname 400512 penalty 2.34479e+06 target 6.7315e+08
+CalcPenalties spname 400420 penalty 2.72218e+06 target 1.12122e+09
+CalcPenalties spname 400416 penalty 878219 target 2.96622e+08
+CalcPenalties spname 400413 penalty 226815 target 5.05597e+06
+CalcPenalties spname 400412 penalty 1.12765e+07 target 3.68157e+09
+CalcPenalties spname 400410 penalty 113437 target 1.10274e+07
+CalcPenalties spname 400316 penalty 2.15643e+06 target 7.08518e+08
+CalcPenalties spname 400313 penalty 113437 target 1.15579e+06
+CalcPenalties spname 400312 penalty 2.42254e+07 target 8.01046e+09
+CalcPenalties spname 400310 penalty 338347 target 1.33083e+08
+CalcPenalties spname 400218 penalty 189485 target 2.48529e+07
+CalcPenalties spname 400216 penalty 5.4594e+06 target 1.93706e+09
+CalcPenalties spname 400215 penalty 176902 target 3.97708e+06
+CalcPenalties spname 400214 penalty 253432 target 8.13677e+07
+CalcPenalties spname 400212 penalty 3.6032e+06 target 1.20845e+09
+CalcPenalties spname 400116 penalty 1.24939e+06 target 2.73241e+08
+CalcPenalties spname 400115 penalty 462573 target 1.13863e+08
+CalcPenalties spname 400114 penalty 1.30083e+07 target 5.27296e+09
+CalcPenalties spname 400112 penalty 1.07011e+07 target 4.23633e+09
+CalcPenalties spname 300720 penalty 153305 target 1.97443e+06
+CalcPenalties spname 300719 penalty 6.9411e+06 target 2.97199e+09
+CalcPenalties spname 300716 penalty 251204 target 2.72242e+07
+CalcPenalties spname 300620 penalty 1.46046e+06 target 6.10594e+08
+CalcPenalties spname 300619 penalty 3.56307e+06 target 1.51845e+09
+CalcPenalties spname 300618 penalty 119855 target 1.46991e+07
+CalcPenalties spname 300616 penalty 1.44619e+06 target 5.89128e+08
+CalcPenalties spname 300610 penalty 387978 target 1.23822e+08
+CalcPenalties spname 300520 penalty 789814 target 3.41329e+08
+CalcPenalties spname 300519 penalty 114043 target 6.82801e+06
+CalcPenalties spname 300518 penalty 118738 target 4.91146e+07
+CalcPenalties spname 300517 penalty 366923 target 5.93891e+07
+CalcPenalties spname 300516 penalty 3.82679e+06 target 1.61897e+09
+CalcPenalties spname 300513 penalty 243531 target 952986
+CalcPenalties spname 300511 penalty 349548 target 3.82572e+07
+CalcPenalties spname 300510 penalty 1.38746e+06 target 5.68127e+08
+CalcPenalties spname 300420 penalty 117600 target 2.40179e+06
+CalcPenalties spname 300418 penalty 149436 target 748500
+CalcPenalties spname 300417 penalty 2.89524e+06 target 1.18639e+09
+CalcPenalties spname 300416 penalty 6.67684e+06 target 2.74272e+09
+CalcPenalties spname 300414 penalty 260279 target 456.981
+CalcPenalties spname 300413 penalty 682624 target 2.46314e+08
+CalcPenalties spname 300411 penalty 485347 target 1.35652e+08
+CalcPenalties spname 300410 penalty 465632 target 1.93625e+08
+CalcPenalties spname 300318 penalty 347502 target 1.05107e+08
+CalcPenalties spname 300317 penalty 472527 target 9.29033e+07
+CalcPenalties spname 300316 penalty 6.87668e+06 target 2.78465e+09
+CalcPenalties spname 300314 penalty 182532 target 2.20071e+06
+CalcPenalties spname 300313 penalty 567670 target 2.33121e+08
+CalcPenalties spname 300310 penalty 2.32543e+06 target 9.80297e+08
+CalcPenalties spname 300218 penalty 287670 target 8.39837e+07
+CalcPenalties spname 300217 penalty 173256 target 6.04871e+06
+CalcPenalties spname 300216 penalty 1.34715e+07 target 5.79411e+09
+CalcPenalties spname 300215 penalty 264169 target 9.93987e+07
+CalcPenalties spname 300214 penalty 1.51702e+06 target 5.04382e+08
+CalcPenalties spname 300213 penalty 391644 target 1.28103e+08
+CalcPenalties spname 300210 penalty 2.66095e+06 target 1.06272e+09
+CalcPenalties spname 300118 penalty 232425 target 8.05843e+07
+CalcPenalties spname 300116 penalty 3.85395e+06 target 1.31235e+09
+CalcPenalties spname 300115 penalty 375656 target 9.71486e+07
+CalcPenalties spname 300114 penalty 1.05121e+07 target 4.13517e+09
+CalcPenalties spname 300113 penalty 134662 target 3.10721e+07
+CalcPenalties spname 300110 penalty 3.45936e+06 target 1.26228e+09
+CalcPenalties spname 221197 penalty 248862 target 1.41223e+07
+CalcPenalties spname 220199 penalty 366391 target 4.31727e+06
+CalcPenalties spname 220197 penalty 472516 target 4.26726e+07
+CalcPenalties spname 220187 penalty 282151 target 483384
+CalcPenalties spname 220186 penalty 282151 target 193900
+CalcPenalties spname 220184 penalty 282151 target 50088.6
+CalcPenalties spname 220181 penalty 282151 target 373450
+CalcPenalties spname 220179 penalty 282151 target 16247.3
+CalcPenalties spname 220176 penalty 282151 target 656104
+CalcPenalties spname 220173 penalty 1.2493e+06 target 1.39784e+08
+CalcPenalties spname 219197 penalty 432416 target 5.37654e+07
+CalcPenalties spname 219164 penalty 306262 target 18553.2
+CalcPenalties spname 219163 penalty 156156 target 14138.5
+CalcPenalties spname 219160 penalty 306262 target 9997.12
+CalcPenalties spname 219155 penalty 152854 target 250430
+CalcPenalties spname 219153 penalty 152854 target 4.0776e+06
+CalcPenalties spname 219151 penalty 306262 target 58811.6
+CalcPenalties spname 219149 penalty 306262 target 57641
+CalcPenalties spname 219146 penalty 156156 target 155435
+CalcPenalties spname 219144 penalty 152854 target 1.19345e+06
+CalcPenalties spname 219142 penalty 156156 target 33858.6
+CalcPenalties spname 219141 penalty 152854 target 514009
+CalcPenalties spname 219137 penalty 1.98002e+06 target 7.65419e+08
+CalcPenalties spname 217181 penalty 110334 target 35505.8
+CalcPenalties spname 217176 penalty 110334 target 44314.9
+CalcPenalties spname 217173 penalty 110334 target 23550.7
+CalcPenalties spname 217166 penalty 110176 target 33754.6
+CalcPenalties spname 217165 penalty 110255 target 1.31842e+06
+CalcPenalties spname 217164 penalty 110077 target 848231
+CalcPenalties spname 217163 penalty 110226 target 65985.3
+CalcPenalties spname 217156 penalty 110381 target 89.8108
+CalcPenalties spname 217155 penalty 110100 target 6.27426e+06
+CalcPenalties spname 217153 penalty 110151 target 2.85955e+07
+CalcPenalties spname 217151 penalty 110336 target 1.9848e+06
+CalcPenalties spname 217149 penalty 110122 target 1.78561e+06
+CalcPenalties spname 217144 penalty 110005 target 1.22421e+07
+CalcPenalties spname 217141 penalty 109982 target 3.02763e+06
+CalcPenalties spname 217137 penalty 390202 target 9.31245e+07
+CalcPenalties spname 200720 penalty 272291 target 8.02676e+07
+CalcPenalties spname 200719 penalty 595646 target 1.0567e+08
+CalcPenalties spname 200620 penalty 414318 target 1.4085e+08
+CalcPenalties spname 200619 penalty 780322 target 2.13948e+08
+CalcPenalties spname 200520 penalty 190749 target 2.82806e+07
+CalcPenalties spname 200519 penalty 379461 target 5.47641e+07
+CalcPenalties spname 200516 penalty 145082 target 5.40225e+06
+CalcPenalties spname 200513 penalty 135630 target 260692
+CalcPenalties spname 200510 penalty 184857 target 2.85838e+06
+CalcPenalties spname 200417 penalty 559012 target 1.24681e+08
+CalcPenalties spname 200416 penalty 380747 target 1.25615e+08
+CalcPenalties spname 200413 penalty 336243 target 1.21884e+08
+CalcPenalties spname 200411 penalty 285181 target 5.50364e+07
+CalcPenalties spname 200410 penalty 1.81221e+06 target 6.15257e+08
+CalcPenalties spname 200317 penalty 3.57438e+06 target 1.36781e+09
+CalcPenalties spname 200316 penalty 2.43024e+06 target 8.70214e+08
+CalcPenalties spname 200313 penalty 444801 target 1.45754e+08
+CalcPenalties spname 200311 penalty 699479 target 1.89557e+08
+CalcPenalties spname 200310 penalty 3.79391e+06 target 1.45011e+09
+CalcPenalties spname 200218 penalty 333358 target 1.26626e+08
+CalcPenalties spname 200217 penalty 3.5714e+06 target 1.15246e+09
+CalcPenalties spname 200216 penalty 1.38552e+07 target 6.10504e+09
+CalcPenalties spname 200215 penalty 233650 target 8.74005e+07
+CalcPenalties spname 200214 penalty 589427 target 2.19641e+08
+CalcPenalties spname 200213 penalty 331476 target 1.48275e+08
+CalcPenalties spname 200211 penalty 299614 target 3.07271e+07
+CalcPenalties spname 200210 penalty 6.6538e+06 target 2.97745e+09
+CalcPenalties spname 200117 penalty 303329 target 5.59298e+07
+CalcPenalties spname 200116 penalty 2.50829e+06 target 6.12005e+08
+CalcPenalties spname 200115 penalty 241171 target 5.50008e+07
+CalcPenalties spname 200114 penalty 4.83419e+06 target 1.8499e+09
+CalcPenalties spname 200113 penalty 118632 target 3.39722e+06
+CalcPenalties spname 200110 penalty 1.4278e+06 target 6.23546e+08
+CalcPenalties spname 131199 penalty 126069 target 740736
+CalcPenalties spname 131197 penalty 1.48029e+06 target 6.35353e+08
+CalcPenalties spname 130166 penalty 136533 target 539.49
+CalcPenalties spname 130164 penalty 136533 target 232893
+CalcPenalties spname 130163 penalty 124309 target 144329
+CalcPenalties spname 130155 penalty 120616 target 8.27863e+06
+CalcPenalties spname 130153 penalty 227555 target 5.90248e+07
+CalcPenalties spname 130151 penalty 114349 target 1.71682e+06
+CalcPenalties spname 130149 penalty 223117 target 5.95308e+06
+CalcPenalties spname 130144 penalty 260052 target 1.73111e+07
+CalcPenalties spname 130143 penalty 138250 target 88592.6
+CalcPenalties spname 130142 penalty 113903 target 1.83257e+06
+CalcPenalties spname 130141 penalty 237561 target 4.04208e+06
+CalcPenalties spname 130137 penalty 114349 target 198707
+CalcPenalties spname 130136 penalty 223792 target 1.3006e+07
+CalcPenalties spname 130135 penalty 111712 target 1.38246e+06
+CalcPenalties spname 130134 penalty 111960 target 538963
+CalcPenalties spname 130133 penalty 334803 target 1.10755e+08
+CalcPenalties spname 130132 penalty 456238 target 1.217e+08
+CalcPenalties spname 129197 penalty 242210 target 1.9776e+06
+CalcPenalties spname 129195 penalty 286655 target 1.03893e+06
+CalcPenalties spname 129183 penalty 286655 target 190877
+CalcPenalties spname 129166 penalty 149654 target 2250.81
+CalcPenalties spname 129163 penalty 149654 target 12604.6
+CalcPenalties spname 129155 penalty 151386 target 1.11829e+06
+CalcPenalties spname 129153 penalty 149654 target 4.00097e+06
+CalcPenalties spname 129151 penalty 151386 target 3.76814e+06
+CalcPenalties spname 129149 penalty 149654 target 40425.5
+CalcPenalties spname 129146 penalty 145079 target 1.37288e+06
+CalcPenalties spname 129144 penalty 146538 target 645109
+CalcPenalties spname 129142 penalty 142575 target 49161.1
+CalcPenalties spname 129141 penalty 739069 target 1.90839e+08
+CalcPenalties spname 100720 penalty 2.5254e+06 target 9.80395e+08
+CalcPenalties spname 100719 penalty 468182 target 8.54409e+07
+CalcPenalties spname 100620 penalty 6.4071e+06 target 2.39464e+09
+CalcPenalties spname 100619 penalty 3.21542e+06 target 1.08165e+09
+CalcPenalties spname 100616 penalty 197517 target 1.96356e+07
+CalcPenalties spname 100613 penalty 154582 target 3.75084e+07
+CalcPenalties spname 100610 penalty 158647 target 4.77695e+06
+CalcPenalties spname 100520 penalty 1.01477e+06 target 4.05794e+08
+CalcPenalties spname 100519 penalty 2.97217e+06 target 1.30623e+09
+CalcPenalties spname 100516 penalty 377223 target 7.08835e+07
+CalcPenalties spname 100513 penalty 1.18267e+06 target 3.64024e+08
+CalcPenalties spname 100510 penalty 3.16911e+06 target 1.02312e+09
+CalcPenalties spname 100420 penalty 2.59025e+06 target 1.10061e+09
+CalcPenalties spname 100419 penalty 233817 target 7.90502e+07
+CalcPenalties spname 100416 penalty 2.12587e+06 target 9.16975e+08
+CalcPenalties spname 100413 penalty 879415 target 3.68024e+08
+CalcPenalties spname 100410 penalty 3.37794e+06 target 1.33836e+09
+CalcPenalties spname 100320 penalty 134636 target 283307
+CalcPenalties spname 100316 penalty 3.74291e+06 target 1.55766e+09
+CalcPenalties spname 100313 penalty 218134 target 5.58319e+07
+CalcPenalties spname 100310 penalty 3.03217e+06 target 1.27412e+09
+CalcPenalties spname 100216 penalty 5.58258e+06 target 2.35221e+09
+CalcPenalties spname 100215 penalty 118741 target 2.28771e+06
+CalcPenalties spname 100214 penalty 238476 target 2.88423e+07
+CalcPenalties spname 100213 penalty 109825 target 1.16003e+06
+CalcPenalties spname 100210 penalty 2.38247e+06 target 9.63712e+08
+CalcPenalties spname 100116 penalty 992814 target 2.1603e+08
+CalcPenalties spname 100115 penalty 124514 target 1.55158e+07
+CalcPenalties spname 100114 penalty 2.46388e+06 target 1.05535e+09
+CalcPenalties spname 100110 penalty 780113 target 3.2548e+08
+CalcPenalties spname 53411 penalty 804449 target 2.25205e+08
+CalcPenalties spname 53311 penalty 354575 target 2.80604e+07
+CalcPenalties spname 50013 penalty 328898 target 1.22556e+08
+CalcPenalties spname 43611 penalty 412293 target 7.49894e+07
+CalcPenalties spname 43211 penalty 398653 target 1.15886e+07
+CalcPenalties spname 40063 penalty 139780 target 1.21054e+06
+CalcPenalties spname 40062 penalty 139780 target 1.21054e+06
+CalcPenalties spname 40056 penalty 103896 target 256346
+CalcPenalties spname 40055 penalty 409521 target 1.12739e+08
+CalcPenalties spname 40053 penalty 4.3825e+07 target 1.62713e+10
+CalcPenalties spname 40052 penalty 4.3825e+07 target 1.62713e+10
+CalcPenalties spname 40049 penalty 4.95509e+06 target 1.98338e+09
+CalcPenalties spname 40046 penalty 1.15619e+06 target 3.65655e+08
+CalcPenalties spname 40045 penalty 2.51517e+06 target 9.35636e+08
+CalcPenalties spname 40043 penalty 1.01375e+07 target 3.83371e+09
+CalcPenalties spname 40042 penalty 2.78578e+07 target 1.10814e+10
+CalcPenalties spname 40039 penalty 1.26745e+07 target 5.60778e+09
+CalcPenalties spname 40037 penalty 274124 target 2.84934e+07
+CalcPenalties spname 40036 penalty 1.20755e+06 target 3.58961e+08
+CalcPenalties spname 40035 penalty 903991 target 3.37019e+08
+CalcPenalties spname 40033 penalty 195946 target 822490
+CalcPenalties spname 40032 penalty 3.30694e+07 target 1.36426e+10
+CalcPenalties spname 40029 penalty 129799 target 6.21443e+06
+CalcPenalties spname 40027 penalty 425556 target 9.3456e+07
+CalcPenalties spname 40026 penalty 2.88745e+06 target 8.61653e+08
+CalcPenalties spname 40025 penalty 1.13522e+06 target 2.68902e+08
+CalcPenalties spname 40022 penalty 3.57395e+06 target 1.19075e+09
+CalcPenalties spname 40017 penalty 500313 target 5.91913e+07
+CalcPenalties spname 40016 penalty 799197 target 1.33445e+08
+CalcPenalties spname 40015 penalty 446758 target 4.30745e+07
+CalcPenalties spname 40013 penalty 317698 target 7.26451e+07
+CalcPenalties spname 40012 penalty 270257 target 4.3757e+06
+CalcPenalties spname 33511 penalty 438532 target 2.00296e+06
+CalcPenalties spname 32811 penalty 300839 target 2.998e+06
+CalcPenalties spname 32711 penalty 235584 target 2.01757e+07
+CalcPenalties spname 32611 penalty 262846 target 5.72623e+06
+CalcPenalties spname 32511 penalty 132684 target 1.57426e+06
+CalcPenalties spname 30078 penalty 6.7045e+06 target 2.87103e+09
+CalcPenalties spname 30076 penalty 3.59711e+06 target 1.52736e+09
+CalcPenalties spname 30075 penalty 122907 target 1.94714e+07
+CalcPenalties spname 30073 penalty 6.9411e+06 target 2.97399e+09
+CalcPenalties spname 30072 penalty 375210 target 7.57434e+07
+CalcPenalties spname 30068 penalty 380897 target 8.80599e+07
+CalcPenalties spname 30066 penalty 2.68587e+06 target 1.01572e+09
+CalcPenalties spname 30065 penalty 369743 target 1.05416e+08
+CalcPenalties spname 30063 penalty 9.70421e+06 target 4.23309e+09
+CalcPenalties spname 30062 penalty 8.21276e+06 target 3.55589e+09
+CalcPenalties spname 30059 penalty 385798 target 174801
+CalcPenalties spname 30056 penalty 4.24084e+06 target 1.6712e+09
+CalcPenalties spname 30055 penalty 737720 target 2.89524e+08
+CalcPenalties spname 30053 penalty 1.8209e+07 target 8.027e+09
+CalcPenalties spname 30052 penalty 1.46801e+07 target 6.4608e+09
+CalcPenalties spname 30049 penalty 711318 target 2.9449e+08
+CalcPenalties spname 30046 penalty 9.18815e+06 target 3.63679e+09
+CalcPenalties spname 30045 penalty 2.30831e+06 target 8.42468e+08
+CalcPenalties spname 30043 penalty 6.11723e+06 target 2.5721e+09
+CalcPenalties spname 30042 penalty 1.88687e+07 target 8.07338e+09
+CalcPenalties spname 30039 penalty 3.26621e+06 target 1.34189e+09
+CalcPenalties spname 30036 penalty 7.17732e+06 target 2.62097e+09
+CalcPenalties spname 30035 penalty 1.80941e+06 target 6.30946e+08
+CalcPenalties spname 30033 penalty 463538 target 1.51425e+08
+CalcPenalties spname 30032 penalty 6.04966e+06 target 2.56298e+09
+CalcPenalties spname 30029 penalty 2.65767e+06 target 9.80651e+08
+CalcPenalties spname 30026 penalty 6.53251e+06 target 2.31754e+09
+CalcPenalties spname 30025 penalty 1.26467e+06 target 4.62725e+08
+CalcPenalties spname 30023 penalty 2.1768e+06 target 9.32574e+08
+CalcPenalties spname 30022 penalty 2.93284e+06 target 1.10612e+09
+CalcPenalties spname 30019 penalty 251257 target 8.76334e+07
+CalcPenalties spname 30016 penalty 812162 target 1.82151e+08
+CalcPenalties spname 30015 penalty 280519 target 3.90079e+07
+CalcPenalties spname 30013 penalty 259524 target 3.30662e+07
+CalcPenalties spname 30012 penalty 251257 target 8.76334e+07
+CalcPenalties spname 23711 penalty 207789 target 1.00019e+06
+CalcPenalties spname 22411 penalty 122017 target 205088
+CalcPenalties spname 22311 penalty 121646 target 3.47232e+06
+CalcPenalties spname 22211 penalty 123215 target 984298
+CalcPenalties spname 22111 penalty 244214 target 402707
+CalcPenalties spname 22011 penalty 1.2346e+06 target 9.61342e+06
+CalcPenalties spname 21911 penalty 650278 target 6.26981e+06
+CalcPenalties spname 21811 penalty 112637 target 1.3569e+07
+CalcPenalties spname 20078 penalty 545880 target 1.70772e+08
+CalcPenalties spname 20076 penalty 335625 target 4.20281e+07
+CalcPenalties spname 20073 penalty 545880 target 1.85937e+08
+CalcPenalties spname 20072 penalty 138789 target 1.51651e+07
+CalcPenalties spname 20068 penalty 219202 target 3.42944e+07
+CalcPenalties spname 20066 penalty 698148 target 1.9205e+08
+CalcPenalties spname 20065 penalty 214204 target 4.67349e+06
+CalcPenalties spname 20063 penalty 1.11212e+06 target 3.6212e+08
+CalcPenalties spname 20062 penalty 971850 target 3.27825e+08
+CalcPenalties spname 20056 penalty 1.17779e+06 target 3.66065e+08
+CalcPenalties spname 20055 penalty 278056 target 4.09938e+07
+CalcPenalties spname 20054 penalty 188712 target 1.67011e+07
+CalcPenalties spname 20053 penalty 1.49126e+06 target 5.09628e+08
+CalcPenalties spname 20052 penalty 1.7793e+06 target 6.10634e+08
+CalcPenalties spname 20046 penalty 3.37658e+06 target 1.17134e+09
+CalcPenalties spname 20045 penalty 1.26414e+06 target 4.25707e+08
+CalcPenalties spname 20043 penalty 3.42655e+06 target 1.35778e+09
+CalcPenalties spname 20042 penalty 9.8617e+06 target 4.36062e+09
+CalcPenalties spname 20036 penalty 6.5462e+06 target 2.24516e+09
+CalcPenalties spname 20035 penalty 1.6061e+06 target 5.66749e+08
+CalcPenalties spname 20033 penalty 2.12809e+07 target 9.67071e+09
+CalcPenalties spname 20032 penalty 5.20799e+07 target 2.37722e+10
+CalcPenalties spname 20027 penalty 299432 target 6.93776e+07
+CalcPenalties spname 20026 penalty 8.29469e+06 target 3.26447e+09
+CalcPenalties spname 20025 penalty 1.90763e+06 target 7.45446e+08
+CalcPenalties spname 20023 penalty 514833 target 1.34289e+08
+CalcPenalties spname 20022 penalty 2.13553e+07 target 9.61082e+09
+CalcPenalties spname 20017 penalty 155804 target 1.43346e+07
+CalcPenalties spname 20016 penalty 858897 target 2.65755e+08
+CalcPenalties spname 20015 penalty 266492 target 4.46836e+07
+CalcPenalties spname 20013 penalty 126008 target 82859
+CalcPenalties spname 20012 penalty 186963 target 1.37209e+07
+CalcPenalties spname 13111 penalty 235610 target 3.98414e+06
+CalcPenalties spname 12911 penalty 119971 target 2.68877e+06
+CalcPenalties spname 10078 penalty 2.40263e+06 target 9.40247e+08
+CalcPenalties spname 10077 penalty 396077 target 2.03616e+06
+CalcPenalties spname 10076 penalty 1.04017e+06 target 3.2735e+08
+CalcPenalties spname 10075 penalty 201680 target 7.7179e+06
+CalcPenalties spname 10073 penalty 2.78124e+06 target 1.06584e+09
+CalcPenalties spname 10072 penalty 457597 target 1.2559e+08
+CalcPenalties spname 10069 penalty 196412 target 2.11865e+07
+CalcPenalties spname 10068 penalty 397060 target 6.15153e+07
+CalcPenalties spname 10067 penalty 393567 target 4.71725e+07
+CalcPenalties spname 10066 penalty 2.97761e+06 target 8.95997e+08
+CalcPenalties spname 10065 penalty 195366 target 3.06803e+07
+CalcPenalties spname 10064 penalty 216682 target 2.94785e+06
+CalcPenalties spname 10063 penalty 1.396e+07 target 4.98938e+09
+CalcPenalties spname 10062 penalty 1.36561e+07 target 4.90823e+09
+CalcPenalties spname 10059 penalty 337838 target 8.45082e+07
+CalcPenalties spname 10058 penalty 265043 target 907294
+CalcPenalties spname 10057 penalty 418213 target 9.42972e+07
+CalcPenalties spname 10056 penalty 4.04802e+06 target 1.19634e+09
+CalcPenalties spname 10055 penalty 306121 target 4.91153e+07
+CalcPenalties spname 10054 penalty 142530 target 2.41554e+07
+CalcPenalties spname 10053 penalty 4.62291e+07 target 1.93225e+10
+CalcPenalties spname 10052 penalty 5.06225e+07 target 2.1518e+10
+CalcPenalties spname 10049 penalty 1.68934e+07 target 7.61465e+09
+CalcPenalties spname 10047 penalty 1.22707e+06 target 5.37317e+08
+CalcPenalties spname 10046 penalty 6.01469e+06 target 2.43854e+09
+CalcPenalties spname 10045 penalty 570438 target 2.45206e+08
+CalcPenalties spname 10044 penalty 109737 target 26791.7
+CalcPenalties spname 10043 penalty 5.5442e+06 target 2.39373e+09
+CalcPenalties spname 10042 penalty 5.9891e+07 target 2.7193e+10
+CalcPenalties spname 10039 penalty 6.09699e+07 target 2.72721e+10
+CalcPenalties spname 10037 penalty 336949 target 1.29177e+08
+CalcPenalties spname 10036 penalty 3.49524e+06 target 1.35196e+09
+CalcPenalties spname 10035 penalty 476372 target 1.78078e+08
+CalcPenalties spname 10033 penalty 878515 target 3.1362e+08
+CalcPenalties spname 10032 penalty 6.64624e+07 target 2.96908e+10
+CalcPenalties spname 10029 penalty 3.76741e+06 target 1.55543e+09
+CalcPenalties spname 10027 penalty 336540 target 1.00674e+08
+CalcPenalties spname 10026 penalty 3.40097e+06 target 1.37135e+09
+CalcPenalties spname 10025 penalty 592819 target 1.88687e+08
+CalcPenalties spname 10023 penalty 124790 target 165718
+CalcPenalties spname 10022 penalty 3.16589e+06 target 1.30117e+09
+CalcPenalties spname 10019 penalty 780110 target 3.43142e+08
+CalcPenalties spname 10017 penalty 445739 target 1.89581e+08
+CalcPenalties spname 10016 penalty 940306 target 1.37637e+08
+CalcPenalties spname 10015 penalty 129305 target 1.1415e+07
+CalcPenalties spname 44 penalty 4.45329e+06 target 3.912e+08
+CalcPenalties spname 43 penalty 1.16887e+06 target 1.33886e+08
+CalcPenalties spname 42 penalty 603048 target 2.15121e+08
+CalcPenalties spname 41 penalty 1.47051e+06 target 1.63428e+08
+CalcPenalties spname 40 penalty 5.76645e+06 target 1.87521e+08
+CalcPenalties spname 39 penalty 1.16887e+06 target 1.22775e+08
+CalcPenalties spname 38 penalty 1.38818e+06 target 4.76852e+08
+CalcPenalties spname 37 penalty 1.38577e+06 target 4.48469e+08
+CalcPenalties spname 36 penalty 1.74522e+06 target 6.191e+08
+CalcPenalties spname 35 penalty 825727 target 2.42394e+08
+CalcPenalties spname 34 penalty 1.40751e+07 target 3.82389e+09
+CalcPenalties spname 33 penalty 7.39803e+06 target 3.00197e+08
+CalcPenalties spname 32 penalty 3.78014e+06 target 5.38e+08
+CalcPenalties spname 31 penalty 7.39803e+06 target 3.00197e+08
+CalcPenalties spname 30 penalty 727671 target 2.3997e+08
+CalcPenalties spname 29 penalty 1.16887e+06 target 1.40852e+08
+CalcPenalties spname 28 penalty 1.16887e+06 target 1.4679e+08
+CalcPenalties spname 27 penalty 5.66498e+06 target 5.00761e+08
+CalcPenalties spname 26 penalty 8.53154e+06 target 1.8554e+09
+CalcPenalties spname 25 penalty 1.16887e+06 target 1.35038e+08
+CalcPenalties spname 24 penalty 841631 target 2.5965e+08
+CalcPenalties spname 23 penalty 3.3027e+06 target 4.96657e+08
+CalcPenalties spname 22 penalty 6.78337e+06 target 1.62263e+09
+CalcPenalties spname 21 penalty 952557 target 3.07273e+08
+CalcPenalties spname 20 penalty 5.01094e+06 target 2.38578e+08
+CalcPenalties spname 19 penalty 4.86349e+06 target 6.1607e+08
+CalcPenalties spname 18 penalty 1.47222e+06 target 5.71177e+08
+CalcPenalties spname 17 penalty 830476 target 2.71654e+08
+CalcPenalties spname 16 penalty 830476 target 2.71654e+08
+CalcPenalties spname 15 penalty 830476 target 2.71654e+08
+CalcPenalties spname 14 penalty 1.53903e+06 target 5.35001e+08
+CalcPenalties spname 13 penalty 830476 target 2.71654e+08
+CalcPenalties spname 12 penalty 841631 target 2.63347e+08
+CalcPenalties spname 11 penalty 1.16887e+06 target 1.17217e+08
+CalcPenalties spname 10 penalty 9.77555e+06 target 88.4
+CalcPenalties spname 9 penalty 1.29435e+07 target 108.2
+CalcPenalties spname 8 penalty 1.39185e+07 target 116.6
+CalcPenalties spname 7 penalty 1.02106e+08 target 941.6
+CalcPenalties spname 6 penalty 236120 target 1.2
+CalcPenalties spname 5 penalty 1.3636e+06 target 10.6
+CalcPenalties spname 4 penalty 688941 target 5.6
+CalcPenalties spname 3 penalty 3.83706e+06 target 32.8
+CalcPenalties spname 2 penalty 3.60446e+06 target 27.4
+CalcPenalties spname 1 penalty 2.05645e+07 target 83.2
+after CalcPenalties
+start run loop run 35336727
+before ConnollyInit run 1
+ConnollyInit start
+ConnollyInit end
+after ConnollyInit run 1
+before ReserveCost run 1
+after ReserveCost run 1
+before ThermalAnnealing run 1
+ThermalAnnealing start iterations 100000000
+after ThermalAnnealing run 1
+before IterativeImprovementOptimise run 1
+IterativeImprovementOptimise start
+IterativeImprovementOptimise puvalid 50512
+IterativeImprovementOptimise after array init
+IterativeImprovementOptimise after heapSort_ii
+IterativeImprovementOptimise end
+after IterativeImprovementOptimise run 1
+before file output run 1
+after file output run 1
+end run 1
+start run loop run 35336727
+before ConnollyInit run 2
+ConnollyInit start
+ConnollyInit end
+after ConnollyInit run 2
+before ReserveCost run 2
+after ReserveCost run 2
+before ThermalAnnealing run 2
+ThermalAnnealing start iterations 100000000
+after ThermalAnnealing run 2
+before IterativeImprovementOptimise run 2
+IterativeImprovementOptimise start
+IterativeImprovementOptimise puvalid 50512
+IterativeImprovementOptimise after array init
+IterativeImprovementOptimise after heapSort_ii
+IterativeImprovementOptimise end
+after IterativeImprovementOptimise run 2
+before file output run 2
+after file output run 2
+end run 2
+start run loop run 35336727
+before ConnollyInit run 3
+ConnollyInit start
+ConnollyInit end
+after ConnollyInit run 3
+before ReserveCost run 3
+after ReserveCost run 3
+before ThermalAnnealing run 3
+ThermalAnnealing start iterations 100000000
+after ThermalAnnealing run 3
+before IterativeImprovementOptimise run 3
+IterativeImprovementOptimise start
+IterativeImprovementOptimise puvalid 50512
+IterativeImprovementOptimise after array init
+IterativeImprovementOptimise after heapSort_ii
+IterativeImprovementOptimise end
+after IterativeImprovementOptimise run 3
+before file output run 3
+after file output run 3
+end run 3
+start run loop run 35336727
+before ConnollyInit run 4
+ConnollyInit start
+ConnollyInit end
+after ConnollyInit run 4
+before ReserveCost run 4
+after ReserveCost run 4
+before ThermalAnnealing run 4
+ThermalAnnealing start iterations 100000000
+after ThermalAnnealing run 4
+before IterativeImprovementOptimise run 4
+IterativeImprovementOptimise start
+IterativeImprovementOptimise puvalid 50512
+IterativeImprovementOptimise after array init
+IterativeImprovementOptimise after heapSort_ii
+IterativeImprovementOptimise end
+after IterativeImprovementOptimise run 4
+before file output run 4
+after file output run 4
+end run 4
+start run loop run 35336727
+before ConnollyInit run 5
+ConnollyInit start
+ConnollyInit end
+after ConnollyInit run 5
+before ReserveCost run 5
+after ReserveCost run 5
+before ThermalAnnealing run 5
+ThermalAnnealing start iterations 100000000
+after ThermalAnnealing run 5
+before IterativeImprovementOptimise run 5
+IterativeImprovementOptimise start
+IterativeImprovementOptimise puvalid 50512
+IterativeImprovementOptimise after array init
+IterativeImprovementOptimise after heapSort_ii
+IterativeImprovementOptimise end
+after IterativeImprovementOptimise run 5
+before file output run 5
+after file output run 5
+end run 5
+start run loop run 35336727
+before ConnollyInit run 6
+ConnollyInit start
+ConnollyInit end
+after ConnollyInit run 6
+before ReserveCost run 6
+after ReserveCost run 6
+before ThermalAnnealing run 6
+ThermalAnnealing start iterations 100000000
+after ThermalAnnealing run 6
+before IterativeImprovementOptimise run 6
+IterativeImprovementOptimise start
+IterativeImprovementOptimise puvalid 50512
+IterativeImprovementOptimise after array init
+IterativeImprovementOptimise after heapSort_ii
+IterativeImprovementOptimise end
+after IterativeImprovementOptimise run 6
+before file output run 6
+after file output run 6
+end run 6
+start run loop run 35336727
+before ConnollyInit run 7
+ConnollyInit start
+ConnollyInit end
+after ConnollyInit run 7
+before ReserveCost run 7
+after ReserveCost run 7
+before ThermalAnnealing run 7
+ThermalAnnealing start iterations 100000000
+after ThermalAnnealing run 7
+before IterativeImprovementOptimise run 7
+IterativeImprovementOptimise start
+IterativeImprovementOptimise puvalid 50512
+IterativeImprovementOptimise after array init
+IterativeImprovementOptimise after heapSort_ii
+IterativeImprovementOptimise end
+after IterativeImprovementOptimise run 7
+before file output run 7
+after file output run 7
+end run 7
+start run loop run 35336727
+before ConnollyInit run 8
+ConnollyInit start
+ConnollyInit end
+after ConnollyInit run 8
+before ReserveCost run 8
+after ReserveCost run 8
+before ThermalAnnealing run 8
+ThermalAnnealing start iterations 100000000
+after ThermalAnnealing run 8
+before IterativeImprovementOptimise run 8
+IterativeImprovementOptimise start
+IterativeImprovementOptimise puvalid 50512
+IterativeImprovementOptimise after array init
+IterativeImprovementOptimise after heapSort_ii
+IterativeImprovementOptimise end
+after IterativeImprovementOptimise run 8
+before file output run 8
+after file output run 8
+end run 8
+start run loop run 35336727
+before ConnollyInit run 9
+ConnollyInit start
+ConnollyInit end
+after ConnollyInit run 9
+before ReserveCost run 9
+after ReserveCost run 9
+before ThermalAnnealing run 9
+ThermalAnnealing start iterations 100000000
+after ThermalAnnealing run 9
+before IterativeImprovementOptimise run 9
+IterativeImprovementOptimise start
+IterativeImprovementOptimise puvalid 50512
+IterativeImprovementOptimise after array init
+IterativeImprovementOptimise after heapSort_ii
+IterativeImprovementOptimise end
+after IterativeImprovementOptimise run 9
+before file output run 9
+after file output run 9
+end run 9
+start run loop run 35336727
+before ConnollyInit run 10
+ConnollyInit start
+ConnollyInit end
+after ConnollyInit run 10
+before ReserveCost run 10
+after ReserveCost run 10
+before ThermalAnnealing run 10
+ThermalAnnealing start iterations 100000000
+after ThermalAnnealing run 10
+before IterativeImprovementOptimise run 10
+IterativeImprovementOptimise start
+IterativeImprovementOptimise puvalid 50512
+IterativeImprovementOptimise after array init
+IterativeImprovementOptimise after heapSort_ii
+IterativeImprovementOptimise end
+after IterativeImprovementOptimise run 10
+before file output run 10
+after file output run 10
+end run 10
+before final file output
+Best solution is run 8
+end final file output
+
+Marxan end execution

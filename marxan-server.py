@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.4"
+MARXAN_SERVER_VERSION = "0.8.5"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -841,7 +841,7 @@ def _createZipfile(lstFileNames, folder, zipfilename):
 def _deleteZippedShapefile(folder, zipfile, archivename):
     files = glob.glob(folder + archivename + '.*')
     if len(files)>0:
-        [os.remove(f) for f in files if f[-3:] in ['shx','shp','xml','sbx','prj','sbn','zip','dbf','cpg','qpj']]       
+        [os.remove(f) for f in files if f[-3:] in ['shx','shp','xml','sbx','prj','sbn','zip','dbf','cpg','qpj','DBF']]       
     if (os.path.exists(folder + zipfile)):
         os.remove(folder + zipfile)
 
@@ -989,8 +989,11 @@ def _importPlanningUnitGrid(filename, name, description):
         postgis.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(geometry) AS geometry FROM marxan.{}) AS f) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
         #start the upload to mapbox
         uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
-    except (MarxanServicesError):
-        raise
+    except (MarxanServicesError) as e:
+        if 'column' and 'puid' and 'does not exist' in e.args[0]:
+            raise MarxanServicesError("The field 'puid' does not exist in the shapefile. See <a href='" + ERRORS_PAGE + "#the-field-puid-does-not-exist-in-the-shapefile' target='blank'>here</a>")
+        else:
+            raise
     finally:
         #delete the shapefile and the zip file
         _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
@@ -2321,6 +2324,8 @@ class updateWDPA(MarxanWebSocketHandler):
                     self.send_response({'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'", 'status':'Updating WDPA'})
                     rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE, "polygons") 
                 except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
+                    #delete the zip file
+                    os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
                     self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'WDPA not updated'})
                 else:
                     self.send_response({'info': "Unzipped shapefile", 'status':'Updating WDPA'})

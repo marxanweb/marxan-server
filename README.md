@@ -11,6 +11,7 @@ The following installation was testing on Ubuntu 18.04.
 In the folder where you want to install marxan-server, type the following:
 ```
 git clone https://github.com/andrewcottam/marxan-server.git
+cd marxan-server
 ```
 
 ### Install Python and dependencies
@@ -53,7 +54,6 @@ sudo -u postgres pg_restore dump.sql -d marxanserver
 ### Create the server.dat file
 The server.dat.default file contains the default configuration information for your installation of marxan-server and must be copied to server.dat where you can customise it with your own organisations information (this customisation is optional - see [configuration](#configuration)). This file will not be overwritten when any future updates to the marxan-server repo are pulled from GitHub. 
 ```
-cd marxan-server
 cp server.dat.default server.dat
 ```
 

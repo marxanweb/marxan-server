@@ -6,7 +6,7 @@ The following image shows the high level architecture of marxan-server.
 ![marxan-server architecture](architecture.png)  
 
 ## Installation
-The following installation was testing on Ubuntu 18.04.  
+The following installation was testing on Ubuntu 16.04.  
 ### Download the files  
 In the folder where you want to install marxan-server, type the following:
 ```

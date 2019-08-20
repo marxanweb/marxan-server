@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.5"
+MARXAN_SERVER_VERSION = "0.8.51"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -999,6 +999,36 @@ def _importPlanningUnitGrid(filename, name, description):
         _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
         pass
     return {'feature_class_name': feature_class_name, 'uploadId': uploadId}
+
+#searches the folder recursively for the filename and returns an array of full filenames, e.g. ['/home/ubuntu/environment/marxan-server/users/admin/British Columbia Marine Case Study/input/spec.dat', etc]
+def _getFilesInFolderRecursive(folder, filename):
+    foundFiles = []
+    for root, dirs, files in os.walk(MARXAN_USERS_FOLDER):
+        _files = [root + os.sep + f for f in files if (f == "spec.dat")]
+        if len(_files)>0:
+            foundFiles.append(_files[0])
+    return foundFiles
+
+#searches the dataframe to see whether the value occurs in the column     
+def _dataFrameContainsValue(df, column_name, value):            
+    if (value in df[column_name].values):
+        return True
+    else:
+        return False
+
+#returns a list of projects that contain the feature with the passed featureId
+def _getProjectsForFeature(featureId):
+    specDatFiles = _getFilesInFolderRecursive(MARXAN_USERS_FOLDER, "spec.dat")
+    projects = []
+    for file in specDatFiles:
+        #get the values from the spec.dat file
+        df = _loadCSV(file)
+        #search the dataframe for the species id of id
+        if _dataFrameContainsValue(df, 'id', featureId):
+            #if the feature is in the project, then add it to the list
+            prjPaths = file[len(MARXAN_USERS_FOLDER):].split(os.sep)
+            projects.append({'user': prjPaths[0], 'project': prjPaths[1]})
+    return projects
     
 #populates the data in the feature_preprocessing.dat file from an existing puvspr.dat file, e.g. after an import from an old version of Marxan
 def _createFeaturePreprocessingFileFromImport(obj):
@@ -1236,6 +1266,13 @@ class PostGIS():
     #imports a shapefile into PostGIS
     def importShapefile(self, shapefile, feature_class_name, epsgCode, checkGeometry = True):
         try:
+            #check all the required files are present .shp, .shx and .dbf
+            if not os.path.exists(MARXAN_FOLDER + shapefile):
+                raise MarxanServicesError("The *.shp file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
+            if (not os.path.exists(MARXAN_FOLDER + shapefile[:-3] + "shx")) and (not os.path.exists(MARXAN_FOLDER + shapefile[:-3] + "SHX")):
+                raise MarxanServicesError("The *.shx file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
+            if (not os.path.exists(MARXAN_FOLDER + shapefile[:-3] + "dbf")) and (not os.path.exists(MARXAN_FOLDER + shapefile[:-3] + "DBF")):
+                raise MarxanServicesError("The *.dbf file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
             #drop the feature class if it already exists
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
@@ -2000,6 +2037,17 @@ class updateProjectParameters(MarxanRESTHandler):
         _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, params)
         #set the response
         self.send_response({'info': ",".join(list(params.keys())) + " parameters updated"})
+
+#lists all of the projects that a feature is in        
+#https://andrewcottam.com:8080/marxan-server/listProjectsForFeature?feature_class_id=63407942&callback=__jp9
+class listProjectsForFeature(MarxanRESTHandler):
+    def get(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['feature_class_id'])  
+        #get the projects which contain the feature
+        projects = _getProjectsForFeature(int(self.get_argument('feature_class_id')))
+        #set the response for uploading to mapbox
+        self.send_response({'info': "Projects info returned", "projects": projects})
         
 #uploads a feature class with the passed feature class name to MapBox as a tileset using the MapBox Uploads API
 #https://andrewcottam.com:8080/marxan-server/uploadTilesetToMapBox?feature_class_name=pu_ton_marine_hexagon_20&mapbox_layer_name=hexagon&callback=__jp9
@@ -2620,6 +2668,7 @@ def make_app():
         ("/marxan-server/deleteProjects", deleteProjects),
         ("/marxan-server/renameProject", renameProject),
         ("/marxan-server/updateProjectParameters", updateProjectParameters),
+        ("/marxan-server/listProjectsForFeature", listProjectsForFeature),
         ("/marxan-server/getCountries", getCountries),
         ("/marxan-server/getPlanningUnitGrids", getPlanningUnitGrids),
         ("/marxan-server/createPlanningUnitGrid", createPlanningUnitGrid),

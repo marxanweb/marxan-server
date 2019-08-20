@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.51"
+MARXAN_SERVER_VERSION = "0.8.52"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -841,7 +841,7 @@ def _createZipfile(lstFileNames, folder, zipfilename):
 def _deleteZippedShapefile(folder, zipfile, archivename):
     files = glob.glob(folder + archivename + '.*')
     if len(files)>0:
-        [os.remove(f) for f in files if f[-3:] in ['shx','shp','xml','sbx','prj','sbn','zip','dbf','cpg','qpj','DBF']]       
+        [os.remove(f) for f in files if f[-3:] in ['shx','shp','xml','sbx','prj','sbn','zip','dbf','cpg','qpj','SHX','SHP','XML','SBX','PRJ','SBN','ZIP','DBF','CPG','QPJ']]       
     if (os.path.exists(folder + zipfile)):
         os.remove(folder + zipfile)
 
@@ -925,31 +925,6 @@ def _deleteFeature(feature_class_name):
 def _getUniqueFeatureclassName(prefix):
     return prefix + uuid.uuid4().hex[:(32 - len(prefix))] #mapbox tileset ids are limited to 32 characters
     
-#imports the feature from a zipped shapefile (given by filename)
-def _importFeature(filename, name, description):
-    #unzip the shapefile
-    rootfilename = _unzipFile(filename) 
-    #get a unique feature class name for the import
-    feature_class_name = _getUniqueFeatureclassName("f_")
-    try:
-        #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
-        postgis = PostGIS()
-        postgis.importShapefile(rootfilename + ".shp", "undissolved", "EPSG:3410")
-        #finish the import by dissolving the undissolved feature class
-        id = _importUndissolvedFeature(feature_class_name, name, description, "Import shapefile")
-        #upload the feature class to Mapbox
-        uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
-    except (MarxanServicesError) as e:
-        if 'source layer has no\ncoordinate system' in e.args[0]:
-            raise MarxanServicesError("The input shapefile does not have a coordinate system defined. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-does-not-have-a-coordinate-system-defined' target='blank'>here</a>")
-        else: #invalid geometries 
-            raise
-    finally:
-        # delete the shapefile and the zip file
-        _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
-        pass
-    return {'feature_class_name': feature_class_name, 'uploadId': uploadId, 'id': id}
-
 #imports the undissolved feature class into the marxan schema with the featureclassname and inserts a record in the metadata_interest_features table
 def _importUndissolvedFeature(feature_class_name, name, description, source):
     #get the Mapbox tilesetId 
@@ -962,7 +937,7 @@ def _importUndissolvedFeature(feature_class_name, name, description, source):
     #drop the undissolved feature class
     postgis.execute("DROP TABLE IF EXISTS marxan.undissolved;") 
     #shapefile imported - check that the geometries are valid and if not raise an error
-    postgis.isValid(feature_class_name, True, "The dissolved input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
+    postgis.isValid(feature_class_name, "The dissolved input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
     #create a record for this new feature in the metadata_interest_features table
     id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source], "One")[0]
     return id
@@ -1027,7 +1002,7 @@ def _getProjectsForFeature(featureId):
         if _dataFrameContainsValue(df, 'id', featureId):
             #if the feature is in the project, then add it to the list
             prjPaths = file[len(MARXAN_USERS_FOLDER):].split(os.sep)
-            projects.append({'user': prjPaths[0], 'project': prjPaths[1]})
+            projects.append({'user': prjPaths[0], 'name': prjPaths[1]})
     return projects
     
 #populates the data in the feature_preprocessing.dat file from an existing puvspr.dat file, e.g. after an import from an old version of Marxan
@@ -1285,17 +1260,15 @@ class PostGIS():
             raise MarxanServicesError(e.output.decode("utf-8"))
         #shapefile imported - check that the geometries are valid and if not raise an error
         if checkGeometry:
-            self.isValid(feature_class_name, True, "The input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
+            self.isValid(feature_class_name, "The input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
                 
-    #tests to see if a feature class is valid - returns whether it is or not or raises an error if required
-    def isValid(self, feature_class_name, raiseError, errorMessage):
-        isValid = self.execute(sql.SQL("SELECT ST_IsValid(geometry) FROM marxan.{};").format(sql.Identifier(feature_class_name)), None, "One")[0]
-        if not isValid:
+    #tests to see if a feature class is valid - raises an error if not
+    def isValid(self, feature_class_name, errorMessage):
+        _isValid = self.execute(sql.SQL("SELECT DISTINCT ST_IsValid(geometry) FROM marxan.{};").format(sql.Identifier(feature_class_name)), None, "One")[0] # will return [false],[false,true] or [true]
+        if not _isValid:
             #delete the feature class
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
-            if raiseError:
-                raise MarxanServicesError(errorMessage)
-        return isValid
+            raise MarxanServicesError(errorMessage)
     
     #creates a primary key on the column in the passed feature_class
     def createPrimaryKey(self, feature_class_name, column):
@@ -2081,17 +2054,6 @@ class uploadFile(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
             
-#imports a shapefile which has been uploaded to the marxan root folder into PostGIS as a new feature dataset
-#https://andrewcottam.com:8080/marxan-server/importFeature?filename=netafu.zip&name=Netafu%20island%20habitat&description=Digitised%20in%20ArcGIS%20Pro&callback=__jp5
-class importFeature(MarxanRESTHandler):
-    def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['filename','name','description'])   
-        #import the shapefile
-        results = _importFeature(self.get_argument('filename'), self.get_argument('name'), self.get_argument('description'))
-        #set the response
-        self.send_response({'info': "File '" + self.get_argument('filename') + "' imported", 'file': self.get_argument('filename'), 'id': results['id'], 'feature_class_name': results['feature_class_name'], 'uploadId': results['uploadId']})
-
 #deletes a feature from the PostGIS database
 #https://andrewcottam.com:8080/marxan-server/deleteFeature?feature_name=test_feature1&callback=__jp5
 class deleteFeature(MarxanRESTHandler):
@@ -2171,6 +2133,12 @@ class testRoleAuthorisation(MarxanRESTHandler):
 class testTornado(MarxanRESTHandler):
     def get(self):
         self.send_response({'info': "Tornado running"})
+        
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/test
+class test(MarxanRESTHandler):
+    def get(self):
+        _importFeature("WCMC2010_Mangroves.zip","test","wibble")
+        self.send_response({'info': "Test complete"})
 
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling WebSockets
@@ -2442,6 +2410,47 @@ class updateWDPA(MarxanWebSocketHandler):
                 f.close()
                 os.remove(file)
                 raise MarxanServicesError("Out of disk space on device")
+
+#imports a feature from a zipped shapefile
+class importFeature(MarxanWebSocketHandler):
+    def open(self):
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['filename','name','description'])   
+            super(importFeature, self).open()
+        except (HTTPError) as e:
+            self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'Failed to import feature'})
+        else:
+            self.send_response({'info': "Importing feature..", 'status':'Started'})
+            filename = self.get_argument('filename')
+            name = self.get_argument('name')
+            description = self.get_argument('description')
+            #unzip the shapefile
+            self.send_response({'info': "Unzipping shapefile..", 'status':'Importing feature'})
+            rootfilename = _unzipFile(filename) 
+            self.send_response({'info': "Unzipped", 'status':'Importing feature'})
+            #get a unique feature class name for the import
+            feature_class_name = _getUniqueFeatureclassName("f_")
+            try:
+                #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
+                postgis = PostGIS()
+                self.send_response({'info': "Importing to 'undissolved'..", 'status':'Importing feature'})
+                postgis.importShapefile(rootfilename + ".shp", "undissolved", "EPSG:3410")
+                self.send_response({'info': "Imported", 'status':'Importing feature'})
+                #finish the import by dissolving the undissolved feature class
+                self.send_response({'info': "Dissolving..", 'status':'Importing feature'})
+                id = _importUndissolvedFeature(feature_class_name, name, description, "Import shapefile")
+                self.send_response({'info': "Dissolved", 'status':'Importing feature'})
+                #upload the feature class to Mapbox
+                self.send_response({'info': "Uploading to MapBox..", 'status':'Importing feature'})
+                uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
+                self.send_response({'info': "Uploaded", 'status':'Importing feature'})
+            except (MarxanServicesError) as e:
+                self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
+            finally:
+                # delete the shapefile and the zip file
+                _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
+                self.send_response({'info': "File '" + filename + "' imported", 'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
 
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
@@ -2718,6 +2727,7 @@ def make_app():
         ("/marxan-server/updateWDPA", updateWDPA),
         ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
         ("/marxan-server/testTornado", testTornado),
+        ("/marxan-server/test", test),
         ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
         (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
     ], cookie_secret=COOKIE_RANDOM_VALUE, websocket_ping_timeout=30, websocket_ping_interval=29)

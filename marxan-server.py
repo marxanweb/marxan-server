@@ -925,19 +925,16 @@ def _deleteFeature(feature_class_name):
 def _getUniqueFeatureclassName(prefix):
     return prefix + uuid.uuid4().hex[:(32 - len(prefix))] #mapbox tileset ids are limited to 32 characters
     
-#imports the undissolved feature class into the marxan schema with the featureclassname and inserts a record in the metadata_interest_features table
-def _importUndissolvedFeature(feature_class_name, name, description, source):
+#finishes a feature import by adding an index and a record in the metadata_interest_features table
+def _finishImportingFeature(feature_class_name, name, description, source, createIndex = False):
     #get the Mapbox tilesetId 
     tilesetId = MAPBOX_USER + "." + feature_class_name
-    #dissolve the feature class
-    postgis = PostGIS()
-    postgis.execute(sql.SQL("SELECT ST_MakeValid(ST_Union(geometry)) geometry INTO marxan.{} FROM marxan.undissolved;").format(sql.Identifier(feature_class_name)))   
     #create an index
-    postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
-    #drop the undissolved feature class
-    postgis.execute("DROP TABLE IF EXISTS marxan.undissolved;") 
+    postgis = PostGIS()
+    if createIndex:
+        postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
     #shapefile imported - check that the geometries are valid and if not raise an error
-    postgis.isValid(feature_class_name, "The dissolved input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
+    postgis.isValid(feature_class_name)
     #create a record for this new feature in the metadata_interest_features table
     id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source], "One")[0]
     return id
@@ -1260,15 +1257,15 @@ class PostGIS():
             raise MarxanServicesError(e.output.decode("utf-8"))
         #shapefile imported - check that the geometries are valid and if not raise an error
         if checkGeometry:
-            self.isValid(feature_class_name, "The input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
+            self.isValid(feature_class_name)
                 
     #tests to see if a feature class is valid - raises an error if not
-    def isValid(self, feature_class_name, errorMessage):
+    def isValid(self, feature_class_name):
         _isValid = self.execute(sql.SQL("SELECT DISTINCT ST_IsValid(geometry) FROM marxan.{};").format(sql.Identifier(feature_class_name)), None, "One")[0] # will return [false],[false,true] or [true]
         if not _isValid:
             #delete the feature class
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
-            raise MarxanServicesError(errorMessage)
+            raise MarxanServicesError("The input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
     
     #creates a primary key on the column in the passed feature_class
     def createPrimaryKey(self, feature_class_name, column):
@@ -2072,11 +2069,12 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['name','description','linestring']) 
         #create the undissolved feature class
-        PostGIS().execute("DROP TABLE IF EXISTS marxan.undissolved")
-        PostGIS().execute("CREATE TABLE marxan.undissolved AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS geometry;",[self.get_argument('linestring')])
-        #import the undissolved feature class
+        #get a unique feature class name for the import
         feature_class_name = _getUniqueFeatureclassName("f_")
-        id = _importUndissolvedFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Draw on screen")
+        #create the table
+        PostGIS().execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
+        #add an index and a record in the metadata_interest_features table
+        id = _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Draw on screen", True)
         #start the upload to mapbox
         uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
         #set the response
@@ -2380,6 +2378,8 @@ class updateWDPA(MarxanWebSocketHandler):
                     finally:
                         #delete the shapefile
                         _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
+                        #close the websocket
+                        self.close()
 
     # downloads a file from the url with the default block size of 100Mb
     def downloadFile(self, url, file, block_sz=100000000):
@@ -2436,23 +2436,24 @@ class importFeature(MarxanWebSocketHandler):
             try:
                 #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
                 postgis = PostGIS()
-                self.send_response({'info': "Importing to 'undissolved'..", 'status':'Importing feature'})
-                postgis.importShapefile(rootfilename + ".shp", "undissolved", "EPSG:3410")
+                self.send_response({'info': "Importing to '" + feature_class_name + "'..", 'status':'Importing feature'})
+                postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
                 self.send_response({'info': "Imported", 'status':'Importing feature'})
-                #finish the import by dissolving the undissolved feature class
-                self.send_response({'info': "Dissolving..", 'status':'Importing feature'})
-                id = _importUndissolvedFeature(feature_class_name, name, description, "Import shapefile")
-                self.send_response({'info': "Dissolved", 'status':'Importing feature'})
+                id = _finishImportingFeature(feature_class_name, name, description, "Import shapefile")
                 #upload the feature class to Mapbox
                 self.send_response({'info': "Uploading to MapBox..", 'status':'Importing feature'})
                 uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
                 self.send_response({'info': "Uploaded", 'status':'Importing feature'})
             except (MarxanServicesError) as e:
                 self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
+            except (Exception) as e:
+                print("something bad happened")
             finally:
                 # delete the shapefile and the zip file
                 _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
                 self.send_response({'info': "File '" + filename + "' imported", 'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
+                #close the websocket
+                self.close()
 
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets

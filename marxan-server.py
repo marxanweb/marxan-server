@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.52"
+MARXAN_SERVER_VERSION = "0.8.53"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -937,7 +937,7 @@ def _importUndissolvedFeature(feature_class_name, name, description, source):
     #drop the undissolved feature class
     postgis.execute("DROP TABLE IF EXISTS marxan.undissolved;") 
     #shapefile imported - check that the geometries are valid and if not raise an error
-    postgis.isValid(feature_class_name, "The dissolved input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
+    postgis.isValid(feature_class_name, "The dissolved input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid-geometries' target='blank'>here</a>")
     #create a record for this new feature in the metadata_interest_features table
     id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source], "One")[0]
     return id
@@ -1260,7 +1260,7 @@ class PostGIS():
             raise MarxanServicesError(e.output.decode("utf-8"))
         #shapefile imported - check that the geometries are valid and if not raise an error
         if checkGeometry:
-            self.isValid(feature_class_name, "The input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid geometries' target='blank'>here</a>")
+            self.isValid(feature_class_name, "The input shapefile has invalid geometries. See <a href='" + ERRORS_PAGE + "#the-input-shapefile-has-invalid-geometries' target='blank'>here</a>")
                 
     #tests to see if a feature class is valid - raises an error if not
     def isValid(self, feature_class_name, errorMessage):
@@ -2139,7 +2139,7 @@ class testTornado(MarxanRESTHandler):
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/test
 class test(MarxanRESTHandler):
     def get(self):
-        _importFeature("WCMC2010_Mangroves.zip","test","wibble")
+        _importFeature("WCMC2010_Mangroves_repaired.zip","test","wibble")
         self.send_response({'info': "Test complete"})
 
 ####################################################################################################################################################################################################################################################################
@@ -2423,36 +2423,37 @@ class importFeature(MarxanWebSocketHandler):
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'Failed to import feature'})
         else:
-            self.send_response({'info': "Importing feature..", 'status':'Started'})
-            filename = self.get_argument('filename')
-            name = self.get_argument('name')
-            description = self.get_argument('description')
-            #unzip the shapefile
-            self.send_response({'info': "Unzipping shapefile..", 'status':'Importing feature'})
-            rootfilename = _unzipFile(filename) 
-            self.send_response({'info': "Unzipped", 'status':'Importing feature'})
-            #get a unique feature class name for the import
-            feature_class_name = _getUniqueFeatureclassName("f_")
-            try:
-                #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
-                postgis = PostGIS()
-                self.send_response({'info': "Importing to 'undissolved'..", 'status':'Importing feature'})
-                postgis.importShapefile(rootfilename + ".shp", "undissolved", "EPSG:3410")
-                self.send_response({'info': "Imported", 'status':'Importing feature'})
-                #finish the import by dissolving the undissolved feature class
-                self.send_response({'info': "Dissolving..", 'status':'Importing feature'})
-                id = _importUndissolvedFeature(feature_class_name, name, description, "Import shapefile")
-                self.send_response({'info': "Dissolved", 'status':'Importing feature'})
-                #upload the feature class to Mapbox
-                self.send_response({'info': "Uploading to MapBox..", 'status':'Importing feature'})
-                uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
-                self.send_response({'info': "Uploaded", 'status':'Importing feature'})
-            except (MarxanServicesError) as e:
-                self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
-            finally:
-                # delete the shapefile and the zip file
-                _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
-                self.send_response({'info': "File '" + filename + "' imported", 'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
+            time.sleep(40)
+            # self.send_response({'info': "Importing feature..", 'status':'Started'})
+            # filename = self.get_argument('filename')
+            # name = self.get_argument('name')
+            # description = self.get_argument('description')
+            # #unzip the shapefile
+            # self.send_response({'info': "Unzipping shapefile..", 'status':'Importing feature'})
+            # rootfilename = _unzipFile(filename) 
+            # self.send_response({'info': "Unzipped", 'status':'Importing feature'})
+            # #get a unique feature class name for the import
+            # feature_class_name = _getUniqueFeatureclassName("f_")
+            # try:
+            #     #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
+            #     postgis = PostGIS()
+            #     self.send_response({'info': "Importing to 'undissolved'..", 'status':'Importing feature'})
+            #     postgis.importShapefile(rootfilename + ".shp", "undissolved", "EPSG:3410")
+            #     self.send_response({'info': "Imported", 'status':'Importing feature'})
+            #     #finish the import by dissolving the undissolved feature class
+            #     self.send_response({'info': "Dissolving..", 'status':'Importing feature'})
+            #     id = _importUndissolvedFeature(feature_class_name, name, description, "Import shapefile")
+            #     self.send_response({'info': "Dissolved", 'status':'Importing feature'})
+            #     #upload the feature class to Mapbox
+            #     self.send_response({'info': "Uploading to MapBox..", 'status':'Importing feature'})
+            #     uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
+            #     self.send_response({'info': "Uploaded", 'status':'Importing feature'})
+            # except (MarxanServicesError) as e:
+            #     self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
+            # finally:
+            #     # delete the shapefile and the zip file
+            #     _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
+            #     self.send_response({'info': "File '" + filename + "' imported", 'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
 
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets

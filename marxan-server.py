@@ -1359,6 +1359,8 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
             for line in traceback.format_exception(*kwargs["exc_info"]):
                 trace = trace + line
             lastLine = traceback.format_exception(*kwargs["exc_info"])[len(traceback.format_exception(*kwargs["exc_info"]))-1]
+            #remove the exception class from the lastline
+            lastLine = lastLine[lastLine.find(":")+2:]
             #when an error is encountered, the headers are reset causing CORS errors - so set them again here
             if not DISABLE_SECURITY:
                 try:
@@ -1597,7 +1599,7 @@ class validateUser(MarxanRESTHandler):
             #get the user data from the user.dat file
             _getUserData(self)
         except (MarxanServicesError) as e:
-            raise MarxanServicesError(e.args[1])
+            raise MarxanServicesError("Invalid login")
         #compare the passed password to the one in the user.dat file
         if self.get_argument("password") == self.userData["PASSWORD"]:
             #set a response cookie for the authenticated user

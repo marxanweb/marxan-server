@@ -12,7 +12,7 @@ from subprocess import Popen, PIPE, CalledProcessError
 from threading import Thread 
 from urllib.parse import urlparse
 from urllib import request 
-from psycopg2 import sql 
+from psycopg2 import sql
 from mapbox import Uploader 
 from mapbox import errors 
 from osgeo import ogr 
@@ -1152,14 +1152,14 @@ def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
     df.to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
     return df.loc[i,'status']
 
-def _debugSQLStatement(sql):
+def _debugSQLStatement(sql, connection):
     if DEBUG:
         if type(sql) is str:
             print (sql)
         elif type(sql) is bytes:
             print (sql.decode("utf-8"))
         else:
-            print(sql.as_string(self.connection))
+            print(sql.as_string(connection))
     
 ####################################################################################################################################################################################################################################################################
 ## generic classes
@@ -1216,7 +1216,7 @@ class PostGIS():
             records = []
             #do any argument binding 
             sql = self._mogrify(sql, data)
-            _debugSQLStatement(sql)
+            _debugSQLStatement(sql, self.connection)
             self.cursor.execute(sql)
             #commit the transaction immediately
             if commitImmediately:
@@ -1229,6 +1229,9 @@ class PostGIS():
         except psycopg2.IntegrityError as e:
             self._cleanup()
             raise MarxanServicesError("Database integrity error: " + e.args[0])
+        except psycopg2.OperationalError as e:
+            if ("terminating connection due to administrator command" in e.args[0]):
+                raise MarxanServicesError("The database server was shutdown")
         except Exception as e:
             self._cleanup()
             raise MarxanServicesError(e.args[0])
@@ -1241,7 +1244,8 @@ class PostGIS():
                 self.connection.commit()
         except Exception as e:
             self._cleanup()
-            raise MarxanServicesError(e.args[1])
+            if ("does not exist" in e.args[0]):
+                raise MarxanServicesError("The query '" + sql + "' produced no records")
         
     #imports a shapefile into PostGIS
     def importShapefile(self, shapefile, feature_class_name, epsgCode, checkGeometry = True):
@@ -2500,7 +2504,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
             #parameter bind if necessary
             if data is not None:
                 sql = cur.mogrify(sql, data)
-            _debugSQLStatement(sql)                
+            _debugSQLStatement(sql, self.conn)                
             #execute the query
             cur.execute(sql)
             #poll to get the state of the query
@@ -2522,7 +2526,10 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
 
         #handle any issues with the query syntax
         except (psycopg2.Error) as e:
-            self.send_response({'error': e.pgerror, 'status':' RunningQuery'})
+            if ("SSL connection has been closed unexpectedly" in e.pgerror):
+                self.send_response({'error': "The database server shutdown unexpectedly", 'status':' RunningQuery'})
+            else:
+                self.send_response({'error': e.pgerror, 'status':' RunningQuery'})
         #clean up code
         finally:
             cur.close()
@@ -2666,8 +2673,8 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
                 _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'BOUNDNAME': 'bounds.dat'})
                 #set the response
                 self.send_response({'info': 'Boundary lengths calculated', 'status':'Finished'})
-        except Exception as e:
-            print(e.args[1])
+        except (MarxanServicesError) as e:
+            self.send_response({'error': e.args[0], 'status': 'Finished'})
 
 ####################################################################################################################################################################################################################################################################
 ## tornado functions
@@ -2780,4 +2787,4 @@ if __name__ == "__main__":
                 print("\x1b[1;32;48mOr run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
-        print(e.args[1])
+        print(e.args[0])

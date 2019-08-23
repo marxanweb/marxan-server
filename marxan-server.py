@@ -82,6 +82,7 @@ SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 ERRORS_PAGE = "https://andrewcottam.github.io/marxan-web/documentation/docs_errors.html"
+DEBUG = True # set to True to output debug info
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -1151,6 +1152,15 @@ def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
     df.to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
     return df.loc[i,'status']
 
+def _debugSQLStatement(sql):
+    if DEBUG:
+        if type(sql) is str:
+            print (sql)
+        elif type(sql) is bytes:
+            print (sql.decode("utf-8"))
+        else:
+            print(sql.as_string(self.connection))
+    
 ####################################################################################################################################################################################################################################################################
 ## generic classes
 ####################################################################################################################################################################################################################################################################
@@ -1206,12 +1216,7 @@ class PostGIS():
             records = []
             #do any argument binding 
             sql = self._mogrify(sql, data)
-            if type(sql) is str:
-                print (sql)
-            elif type(sql) is bytes:
-                print (sql.decode("utf-8"))
-            else:
-                print(sql.as_string(self.connection))
+            _debugSQLStatement(sql)
             self.cursor.execute(sql)
             #commit the transaction immediately
             if commitImmediately:
@@ -2495,7 +2500,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
             #parameter bind if necessary
             if data is not None:
                 sql = cur.mogrify(sql, data)
-                # print cur.mogrify(sql, data)
+            _debugSQLStatement(sql)                
             #execute the query
             cur.execute(sql)
             #poll to get the state of the query
@@ -2543,8 +2548,8 @@ class preprocessFeature(QueryWebSocketHandler):
             #get the project data
             _getProjectData(self)
             if (not self.projectData["metadata"]["OLDVERSION"]):
-                #new version of marxan - do the intersection
-                future = self.executeQueryAsynchronously("SELECT * FROM marxan.get_pu_areas_for_interest_feature(%s,%s);", [self.get_argument('planning_grid_name'),self.get_argument('feature_class_name')], "Preprocessing '" + self.get_argument('alias') + "'", "  Preprocessing..", "  Preprocessing finished")
+                #now as an inline SQL statement to make updates easier
+                future = self.executeQueryAsynchronously(sql.SQL("SELECT metadata.oid::integer species, puid pu, sum(ST_Area(ST_Intersection(grid.geometry,feature.geometry))) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))),[self.get_argument('feature_class_name')],"Preprocessing '" + self.get_argument('alias') + "'", "  Preprocessing..", "  Preprocessing finished")
                 future.add_done_callback(self.intersectionComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan

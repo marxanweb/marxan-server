@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.52"
+MARXAN_SERVER_VERSION = "0.8.53"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -926,17 +926,14 @@ def _getUniqueFeatureclassName(prefix):
     return prefix + uuid.uuid4().hex[:(32 - len(prefix))] #mapbox tileset ids are limited to 32 characters
     
 #finishes a feature import by adding an index and a record in the metadata_interest_features table
-def _finishImportingFeature(feature_class_name, name, description, source, createIndex = False):
+def _finishImportingFeature(feature_class_name, name, description, source):
     #get the Mapbox tilesetId 
     tilesetId = MAPBOX_USER + "." + feature_class_name
     #create an index
     postgis = PostGIS()
-    if createIndex:
-        postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
-    #shapefile imported - check that the geometries are valid and if not raise an error
-    postgis.isValid(feature_class_name)
+    postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
     #create a record for this new feature in the metadata_interest_features table
-    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s FROM (SELECT ST_Area(geometry) _area, box2d(ST_Transform(ST_SetSRID(geometry,3410),4326)) extent FROM marxan.{} GROUP BY geometry) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source], "One")[0]
+    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s FROM (SELECT sum(ST_Area(geometry)) _area, box2d(ST_Transform(ST_SetSRID(ST_Collect(geometry),3410),4326)) extent FROM marxan.{}) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source], "One")[0]
     return id
 
 #imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox - this is for importing marxan old version files
@@ -1209,6 +1206,12 @@ class PostGIS():
             records = []
             #do any argument binding 
             sql = self._mogrify(sql, data)
+            if type(sql) is str:
+                print (sql)
+            elif type(sql) is bytes:
+                print (sql.decode("utf-8"))
+            else:
+                print(sql.as_string(self.connection))
             self.cursor.execute(sql)
             #commit the transaction immediately
             if commitImmediately:
@@ -2074,7 +2077,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #create the table
         PostGIS().execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
         #add an index and a record in the metadata_interest_features table
-        id = _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Draw on screen", True)
+        id = _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Draw on screen")
         #start the upload to mapbox
         uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
         #set the response

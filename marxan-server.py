@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.53"
+MARXAN_SERVER_VERSION = "0.8.54"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -1155,11 +1155,11 @@ def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
 def _debugSQLStatement(sql, connection):
     if DEBUG:
         if type(sql) is str:
-            print (sql)
+            logging.debug(sql)
         elif type(sql) is bytes:
-            print (sql.decode("utf-8"))
+            logging.debug(sql.decode("utf-8"))
         else:
-            print(sql.as_string(connection))
+            logging.debug(sql.as_string(connection))
     
 ####################################################################################################################################################################################################################################################################
 ## generic classes
@@ -2210,6 +2210,7 @@ class runMarxan(MarxanWebSocketHandler):
             super(runMarxan, self).open()
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished'})
+            self.close()
         else:
             self.send_response({'info': "Running Marxan..", 'status':'Started'})
             #set the current folder to the project folder so files can be found in the input.dat file
@@ -2328,7 +2329,6 @@ class runMarxan(MarxanWebSocketHandler):
 
         except (WebSocketClosedError): #the websocket may already have been closed
             print("The WebSocket was closed in finishOutput - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
-        
 
 #updates the WDPA table in PostGIS using the publically available downloadUrl
 class updateWDPA(MarxanWebSocketHandler):
@@ -2458,8 +2458,10 @@ class importFeature(MarxanWebSocketHandler):
                 self.send_response({'info': "Uploaded", 'status':'Importing feature'})
             except (MarxanServicesError) as e:
                 self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
+                self.close() #otherwise the exception causes onclean=false in the websocket on_close event
             except (Exception) as e:
                 print("something bad happened")
+                self.close()
             finally:
                 # delete the shapefile and the zip file
                 _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
@@ -2758,6 +2760,8 @@ if __name__ == "__main__":
         my_log_formatter = LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True)
         # get the parent logger of all tornado loggers 
         root_logger = logging.getLogger()
+        if DEBUG:
+            root_logger.setLevel(logging.DEBUG)
         # set your format to root_logger
         root_streamhandler = root_logger.handlers[0]
         root_streamhandler.setFormatter(my_log_formatter)

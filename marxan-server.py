@@ -82,7 +82,7 @@ SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 ERRORS_PAGE = "https://andrewcottam.github.io/marxan-web/documentation/docs_errors.html"
-DEBUG = True # set to True to output debug info
+LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -1153,13 +1153,12 @@ def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
     return df.loc[i,'status']
 
 def _debugSQLStatement(sql, connection):
-    if DEBUG:
-        if type(sql) is str:
-            logging.debug(sql)
-        elif type(sql) is bytes:
-            logging.debug(sql.decode("utf-8"))
-        else:
-            logging.debug(sql.as_string(connection))
+    if type(sql) is str:
+        logging.debug(sql)
+    elif type(sql) is bytes:
+        logging.debug(sql.decode("utf-8"))
+    else:
+        logging.debug(sql.as_string(connection))
     
 ####################################################################################################################################################################################################################################################################
 ## generic classes
@@ -2456,16 +2455,12 @@ class importFeature(MarxanWebSocketHandler):
                 self.send_response({'info': "Uploading to MapBox..", 'status':'Importing feature'})
                 uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
                 self.send_response({'info': "Uploaded", 'status':'Importing feature'})
+                self.send_response({'info': "File '" + filename + "' imported", 'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
             except (MarxanServicesError) as e:
                 self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
-                self.close() #otherwise the exception causes onclean=false in the websocket on_close event
-            except (Exception) as e:
-                print("something bad happened")
-                self.close()
             finally:
                 # delete the shapefile and the zip file
                 _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
-                self.send_response({'info': "File '" + filename + "' imported", 'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
                 #close the websocket
                 self.close()
 
@@ -2760,8 +2755,7 @@ if __name__ == "__main__":
         my_log_formatter = LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True)
         # get the parent logger of all tornado loggers 
         root_logger = logging.getLogger()
-        if DEBUG:
-            root_logger.setLevel(logging.DEBUG)
+        root_logger.setLevel(LOGGING_LEVEL)
         # set your format to root_logger
         root_streamhandler = root_logger.handlers[0]
         root_streamhandler.setFormatter(my_log_formatter)

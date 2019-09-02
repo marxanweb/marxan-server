@@ -82,7 +82,7 @@ SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 ERRORS_PAGE = "https://andrewcottam.github.io/marxan-web/documentation/docs_errors.html"
-LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -370,10 +370,10 @@ def _getProjectData(obj):
             if k=='PLANNING_UNIT_NAME':
                 df2 = PostGIS().getDataFrame("select * from marxan.get_planning_units_metadata(%s)", [value])
                 if (df2.shape[0] == 0):
-                    metadataDict.update({'pu_alias': value,'pu_description': 'No description','pu_domain': 'Unknown domain','pu_area': 'Unknown area','pu_creation_date': 'Unknown date'})
+                    metadataDict.update({'pu_alias': value,'pu_description': 'No description','pu_domain': 'Unknown domain','pu_area': 'Unknown area','pu_creation_date': 'Unknown date','pu_created_by':'Unknown'})
                 else:
                     #get the data from the metadata_planning_units table
-                    metadataDict.update({'pu_alias': df2.iloc[0]['alias'],'pu_description': df2.iloc[0]['description'],'pu_domain': df2.iloc[0]['domain'],'pu_area': df2.iloc[0]['area'],'pu_creation_date': df2.iloc[0]['creation_date']})
+                    metadataDict.update({'pu_alias': df2.iloc[0]['alias'],'pu_description': df2.iloc[0]['description'],'pu_domain': df2.iloc[0]['domain'],'pu_area': df2.iloc[0]['area'],'pu_creation_date': df2.iloc[0]['creation_date'],'pu_created_by':df2.iloc[0]['created_by']})
 
         elif k in ['CLASSIFICATION', 'NUMCLASSES','COLORCODE', 'TOPCLASSES','OPACITY']: # renderer section of the input.dat file
             key, value = _getKeyValue(s, k)
@@ -489,7 +489,7 @@ def _getPlanningUnitsCostData(obj):
 
 #gets the data for the planning grids
 def _getPlanningUnitGrids():
-    return PostGIS().getDict("SELECT feature_class_name ,alias ,description ,creation_date::text ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
+    return PostGIS().getDict("SELECT feature_class_name ,alias ,description ,creation_date::text ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
 
 #get the protected area intersections information
 def _getProtectedAreaIntersectionsData(obj):
@@ -951,7 +951,7 @@ def _importPlanningUnitGrid(filename, name, description):
         #import the shapefile into PostGIS
         postgis = PostGIS()
         #create a record for this new feature in the metadata_planning_units table
-        postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source) VALUES (%s,%s,%s,now(),'Imported from shapefile');", [feature_class_name, name, description])
+        postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s);", [feature_class_name, name, description,self.get_current_user()])
         #import the shapefile
         postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
         #make sure the puid column is an integer
@@ -2682,7 +2682,7 @@ def make_app():
     return tornado.web.Application([
         ("/marxan-server/getServerData", getServerData),
         ("/marxan-server/getProjects", getProjects),
-        ("/marxan-server/getProjectsWithGrids", getProjectsWithGrids), #not currently used
+        ("/marxan-server/getProjectsWithGrids", getProjectsWithGrids), 
         ("/marxan-server/getProject", getProject),
         ("/marxan-server/createProject", createProject),
         ("/marxan-server/createImportProject", createImportProject),

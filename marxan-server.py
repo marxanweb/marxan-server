@@ -2681,7 +2681,7 @@ def make_app():
     return tornado.web.Application([
         ("/marxan-server/getServerData", getServerData),
         ("/marxan-server/getProjects", getProjects),
-        ("/marxan-server/getProjectsWithGrids", getProjectsWithGrids),
+        ("/marxan-server/getProjectsWithGrids", getProjectsWithGrids), #not currently used
         ("/marxan-server/getProject", getProject),
         ("/marxan-server/createProject", createProject),
         ("/marxan-server/createImportProject", createImportProject),

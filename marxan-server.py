@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.56"
+MARXAN_SERVER_VERSION = "0.8.57"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -447,12 +447,13 @@ def _getSpeciesData(obj):
         output_df['creation_date'] = "Unknown"
         output_df['area'] = -1
         output_df['tilesetid'] = ''
+        output_df['created_by'] = 'Unknown'
         try:
-            output_df = output_df[["alias", "feature_class_name", "description", "creation_date", "area", "tilesetid", "prop", "spf", "oid"]]
+            output_df = output_df[["alias", "feature_class_name", "description", "creation_date", "area", "tilesetid", "prop", "spf", "oid", "created_by"]]
         except (KeyError) as e:
             raise MarxanServicesError("Unable to load spec.dat data. " + e.args[1] + ". Column names: " + ",".join(df.columns.to_list()).encode('unicode_escape')) #.encode('unicode_escape') in case there are tab characters which will be escaped to \\t
     else:
-        #get the postgis feature data
+        #get the postgis feature data - this doesnt use _getAllSpeciesData because we have to join on the oid column
         df2 = PostGIS().getDataFrame("select * from marxan.get_features()")
         #join the species data to the PostGIS data
         output_df = output_df.join(df2.set_index("oid"))
@@ -464,11 +465,11 @@ def _getSpeciesData(obj):
         
 #gets data for a single feature
 def _getFeature(obj, oid):
-    obj.data = PostGIS().getDataFrame("SELECT * FROM marxan.get_feature(%s)", [oid])
+    obj.data = PostGIS().getDataFrame("SELECT oid::integer id,feature_class_name,alias,description,_area area,extent, to_char(creation_date, 'Dy, DD Mon YYYY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features WHERE oid=%s;",[oid])
 
 #get all species information from the PostGIS database
 def _getAllSpeciesData(obj):
-    obj.allSpeciesData = PostGIS().getDataFrame("select oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'Dy, DD Mon YYYY HH24:MI:SS')::text as creation_date, tilesetid, source from marxan.metadata_interest_features order by alias;")
+    obj.allSpeciesData = PostGIS().getDataFrame("SELECT oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'Dy, DD Mon YYYY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features ORDER BY alias;")
 
 #get the information about which species have already been preprocessed
 def _getSpeciesPreProcessingData(obj):
@@ -927,14 +928,14 @@ def _getUniqueFeatureclassName(prefix):
     return prefix + uuid.uuid4().hex[:(32 - len(prefix))] #mapbox tileset ids are limited to 32 characters
     
 #finishes a feature import by adding an index and a record in the metadata_interest_features table
-def _finishImportingFeature(feature_class_name, name, description, source):
+def _finishImportingFeature(feature_class_name, name, description, source, user):
     #get the Mapbox tilesetId 
     tilesetId = MAPBOX_USER + "." + feature_class_name
     #create an index
     postgis = PostGIS()
     postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
     #create a record for this new feature in the metadata_interest_features table
-    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s FROM (SELECT sum(ST_Area(geometry)) _area, box2d(ST_Transform(ST_SetSRID(ST_Collect(geometry),3410),4326)) extent FROM marxan.{}) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source], "One")[0]
+    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT sum(ST_Area(geometry)) _area, box2d(ST_Transform(ST_SetSRID(ST_Collect(geometry),3410),4326)) extent FROM marxan.{}) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user], "One")[0]
     return id
 
 #imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox - this is for importing marxan old version files
@@ -2085,7 +2086,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #create the table
         PostGIS().execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
         #add an index and a record in the metadata_interest_features table
-        id = _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Draw on screen")
+        id = _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Draw on screen", self.get_current_user())
         #start the upload to mapbox
         uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
         #set the response
@@ -2450,7 +2451,7 @@ class importFeature(MarxanWebSocketHandler):
                 self.send_response({'info': "Importing to '" + feature_class_name + "'..", 'status':'Importing feature'})
                 postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
                 self.send_response({'info': "Imported", 'status':'Importing feature'})
-                id = _finishImportingFeature(feature_class_name, name, description, "Import shapefile")
+                id = _finishImportingFeature(feature_class_name, name, description, "Import shapefile", self.get_current_user())
                 #upload the feature class to Mapbox
                 self.send_response({'info': "Uploading to MapBox..", 'status':'Importing feature'})
                 uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)

@@ -82,7 +82,7 @@ SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 ERRORS_PAGE = "https://andrewcottam.github.io/marxan-web/documentation/docs_errors.html"
-LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -945,10 +945,10 @@ def _importPlanningUnitGrid(filename, name, description, user):
     rootfilename = _unzipFile(filename)
     #get a unique feature class name for the import
     feature_class_name = _getUniqueFeatureclassName("pu_")
-    #make sure the puid column is lowercase
-    if _shapefileHasField(MARXAN_FOLDER + rootfilename + ".shp", "PUID"):
-        raise MarxanServicesError("The field 'puid' in the zipped shapefile is uppercase and it must be lowercase")
     try:
+        #make sure the puid column is lowercase
+        if _shapefileHasField(MARXAN_FOLDER + rootfilename + ".shp", "PUID"):
+            raise MarxanServicesError("The field 'puid' in the zipped shapefile is uppercase and it must be lowercase")
         #import the shapefile into PostGIS
         postgis = PostGIS()
         #create a record for this new feature in the metadata_planning_units table
@@ -972,11 +972,36 @@ def _importPlanningUnitGrid(filename, name, description, user):
         pass
     return {'feature_class_name': feature_class_name, 'uploadId': uploadId, 'alias': name}
 
+#deletes a planning grid
+def _deletePlanningUnitGrid(planning_grid):
+    #get the data for the planning grid
+    postgis = PostGIS()
+    data = postgis.getDict("SELECT created_by, source FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [planning_grid])
+    #return if it is not found
+    if len(data)==0:
+        return
+    #if it is a system supplied planning grid then raise an error
+    if "created_by" in data[0].keys():
+        if data[0]['created_by']=='global admin':
+            raise MarxanServicesError("The planning grid cannot be deleted as it is a system supplied item. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#the-planning-grid-cannot-be-deleted-as-it-is-a-system-supplied-item' target='blank'>here</a>")
+    #get a list of projects that the planning grid is used in
+    projects = _getProjectsForPlanningGrid(planning_grid)
+    #if it is in use then return an error
+    if len(projects) > 0:
+        raise MarxanServicesError("The planning grid cannot be deleted as it is currently being used")   
+    #Delete the tileset on Mapbox only if the planning grid is an imported one - we dont want to delete standard country tilesets from Mapbox as they may be in use elsewhere
+    if (data[0]['source'] != 'planning_grid function'):
+        _deleteTileset(planning_grid)
+    #delete the new planning unit record from the metadata_planning_units table
+    postgis.execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [planning_grid])
+    #delete the feature class
+    postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(planning_grid)))
+    
 #searches the folder recursively for the filename and returns an array of full filenames, e.g. ['/home/ubuntu/environment/marxan-server/users/admin/British Columbia Marine Case Study/input/spec.dat', etc]
 def _getFilesInFolderRecursive(folder, filename):
     foundFiles = []
     for root, dirs, files in os.walk(MARXAN_USERS_FOLDER):
-        _files = [root + os.sep + f for f in files if (f == "spec.dat")]
+        _files = [root + os.sep + f for f in files if (f == filename)]
         if len(_files)>0:
             foundFiles.append(_files[0])
     return foundFiles
@@ -1000,6 +1025,20 @@ def _getProjectsForFeature(featureId):
             #if the feature is in the project, then add it to the list
             prjPaths = file[len(MARXAN_USERS_FOLDER):].split(os.sep)
             projects.append({'user': prjPaths[0], 'name': prjPaths[1]})
+    return projects
+    
+#returns a list of projects that use the planning grid
+def _getProjectsForPlanningGrid(feature_class_name):
+    inputDatFiles = _getFilesInFolderRecursive(MARXAN_USERS_FOLDER, "input.dat")
+    projects = []
+    for file in inputDatFiles:
+        #open the input file and get the key values
+        values = _getKeyValuesFromFile(file)
+        #get the PLANNING_UNIT_NAME
+        if 'PLANNING_UNIT_NAME' in values.keys():
+            if values['PLANNING_UNIT_NAME'] == feature_class_name:
+                prjPaths = file[len(MARXAN_USERS_FOLDER):].split(os.sep)
+                projects.append({'user': prjPaths[0], 'name': prjPaths[1]})
     return projects
     
 #populates the data in the feature_preprocessing.dat file from an existing puvspr.dat file, e.g. after an import from an old version of Marxan
@@ -1093,6 +1132,8 @@ def _guestUserEnabled(obj):
     
 #returns true if the passed shapefile has the fieldname - this is case sensitive
 def _shapefileHasField(shapefile, fieldname):
+    #check that all the required files are present for the shapefile
+    _checkZippedShapefile(shapefile)
     ogr.UseExceptions()
     try:
         dataSource = ogr.Open(shapefile)
@@ -1162,13 +1203,23 @@ def _debugSQLStatement(sql, connection):
     else:
         logging.debug(sql.as_string(connection))
     
+#checks that all the necessary files in the shapefile are present - if not raises an error
+def _checkZippedShapefile(shapefile):
+    #check all the required files are present .shp, .shx and .dbf
+    if not os.path.exists(shapefile):
+        raise MarxanServicesError("The *.shp file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
+    if (not os.path.exists(shapefile[:-3] + "shx")) and (not os.path.exists(shapefile[:-3] + "SHX")):
+        raise MarxanServicesError("The *.shx file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
+    if (not os.path.exists(shapefile[:-3] + "dbf")) and (not os.path.exists(shapefile[:-3] + "DBF")):
+        raise MarxanServicesError("The *.dbf file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
+
 ####################################################################################################################################################################################################################################################################
 ## generic classes
 ####################################################################################################################################################################################################################################################################
 
 class MarxanServicesError(Exception):
-    """Exception Class that allows the Marxan Services REST Server to raise custom exceptions"""
-    pass
+    def __init__(self,*args,**kwargs):
+        super(MarxanServicesError, self)
 
 class ExtendableObject(object):
     pass
@@ -1251,13 +1302,8 @@ class PostGIS():
     #imports a shapefile into PostGIS
     def importShapefile(self, shapefile, feature_class_name, epsgCode, checkGeometry = True):
         try:
-            #check all the required files are present .shp, .shx and .dbf
-            if not os.path.exists(MARXAN_FOLDER + shapefile):
-                raise MarxanServicesError("The *.shp file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
-            if (not os.path.exists(MARXAN_FOLDER + shapefile[:-3] + "shx")) and (not os.path.exists(MARXAN_FOLDER + shapefile[:-3] + "SHX")):
-                raise MarxanServicesError("The *.shx file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
-            if (not os.path.exists(MARXAN_FOLDER + shapefile[:-3] + "dbf")) and (not os.path.exists(MARXAN_FOLDER + shapefile[:-3] + "DBF")):
-                raise MarxanServicesError("The *.dbf file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
+            #check that all the required files are present for the shapefile
+            _checkZippedShapefile(MARXAN_FOLDER + shapefile)
             #drop the feature class if it already exists
             self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
@@ -1448,7 +1494,7 @@ class createImportProject(MarxanRESTHandler):
         self.send_response({'info': "Project '" + self.get_argument('project') + "' created", 'name': self.get_argument('project')})
 
 #updates a project from the Marxan old version to the new version
-#https://andrewcottam.com:8080/marxan-server/upgradeProject?user=andrew&project=test2&callback=__jp7
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/upgradeProject?user=andrew&project=test2&callback=__jp7
 class upgradeProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1473,7 +1519,7 @@ class upgradeProject(MarxanRESTHandler):
         self.send_response({'info': "Project '" + self.get_argument("project") + "' updated", 'project': self.get_argument("project")})
 
 #deletes a project
-#https://andrewcottam.com:8080/marxan-server/deleteProject?user=andrew&project=test2&callback=__jp7
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteProject?user=andrew&project=test2&callback=__jp7
 class deleteProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1487,7 +1533,7 @@ class deleteProject(MarxanRESTHandler):
         self.send_response({'info': "Project '" + self.get_argument("project") + "' deleted", 'project': self.get_argument("project")})
 
 #clones the project
-#https://andrewcottam.com:8080/marxan-server/cloneProject?user=admin&project=Start%20project&callback=__jp15
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/cloneProject?user=admin&project=Start%20project&callback=__jp15
 class cloneProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1498,7 +1544,7 @@ class cloneProject(MarxanRESTHandler):
         self.send_response({'info': "Project '" + clonedName + "' created", 'name': clonedName})
 
 #creates n clones of the project with a range of BLM values in the _clumping folder
-#https://andrewcottam.com:8080/marxan-server/createProjectGroup?user=admin&project=Start%20project&copies=5&blmValues=0.1,0.2,0.3,0.4,0.5&callback=__jp15
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createProjectGroup?user=admin&project=Start%20project&copies=5&blmValues=0.1,0.2,0.3,0.4,0.5&callback=__jp15
 class createProjectGroup(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1522,7 +1568,7 @@ class createProjectGroup(MarxanRESTHandler):
         self.send_response({'info': "Project group created", 'data': projects})
 
 #deletes a project cluster
-#https://andrewcottam.com:8080/marxan-server/deleteProjects?projectNames=2dabf1b862da4c2e87b2cd9d8b38bb73,81eda0a43a3248a8b4881caae160667a,313b0d3f733142e3949cf6129855be19,739f40f4d1c94907b2aa814470bcd7f7,15210235bec341238a816ce43eb2b341&callback=__jp15
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteProjects?projectNames=2dabf1b862da4c2e87b2cd9d8b38bb73,81eda0a43a3248a8b4881caae160667a,313b0d3f733142e3949cf6129855be19,739f40f4d1c94907b2aa814470bcd7f7,15210235bec341238a816ce43eb2b341&callback=__jp15
 class deleteProjects(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1537,7 +1583,7 @@ class deleteProjects(MarxanRESTHandler):
         self.send_response({'info': "Projects deleted"})
 
 #renames a project
-#https://andrewcottam.com:8080/marxan-server/renameProject?user=andrew&project=Tonga%20marine%2030km2&newName=Tonga%20marine%2030km&callback=__jp5
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/renameProject?user=andrew&project=Tonga%20marine%2030km2&newName=Tonga%20marine%2030km&callback=__jp5
 class renameProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1549,19 +1595,19 @@ class renameProject(MarxanRESTHandler):
         #set the response
         self.send_response({"info": "Project renamed to '" + self.get_argument("newName") + "'", 'project': self.get_argument("project")})
 
-#https://andrewcottam.com:8080/marxan-server/getCountries?callback=__jp0
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getCountries?callback=__jp0
 class getCountries(MarxanRESTHandler):
     def get(self):
         content = PostGIS().getDict("SELECT iso3, original_n FROM marxan.gaul_2015_simplified_1km where original_n not like '%|%' and iso3 not like '%|%' order by 2;")
         self.send_response({'records': content})        
 
-#https://andrewcottam.com:8080/marxan-server/getPlanningUnitGrids?callback=__jp0
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitGrids?callback=__jp0
 class getPlanningUnitGrids(MarxanRESTHandler):
     def get(self):
         planningUnitGrids = _getPlanningUnitGrids()
         self.send_response({'info': 'Planning unit grids retrieved', 'planning_unit_grids': planningUnitGrids})        
         
-#https://andrewcottam.com:8080/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon&callback=__jp10        
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon&callback=__jp10        
 class createPlanningUnitGrid(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1577,7 +1623,7 @@ class createPlanningUnitGrid(MarxanRESTHandler):
         self.send_response({'info':'Planning unit grid created', 'feature_class_name': fc, 'alias':data[0], 'uploadId': uploadId})
 
 #imports a zipped planning unit shapefile which has been uploaded to the marxan root folder into PostGIS as a planning unit grid feature class
-#https://andrewcottam.com:8080/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5
 class importPlanningUnitGrid(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1587,29 +1633,18 @@ class importPlanningUnitGrid(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "File '" + self.get_argument('filename') + "' imported", 'feature_class_name': data['feature_class_name'], 'uploadId': data['uploadId'], 'alias': data['alias']})
 
-#https://andrewcottam.com:8080/marxan-server/deletePlanningUnitGrid?planning_grid_name=pu_sample&callback=__jp10        
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deletePlanningUnitGrid?planning_grid_name=pu_f9609f7a4cb0406e8bea4bfa00772&callback=__jp10        
 class deletePlanningUnitGrid(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
-        _validateArguments(self.request.arguments, ['planning_grid_name'])    
-        postgis = PostGIS()
-        #Delete the tileset on Mapbox only if the planning grid is an imported one - we dont want to delete standard country tilesets from Mapbox as they may be in use elsewhere
-        records = postgis.execute("SELECT source FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [self.get_argument('planning_grid_name')], "One")
-        if records:
-            source = records[0]
-            if (source != 'planning_grid function'):
-                _deleteTileset(self.get_argument('planning_grid_name'))
-            #delete the new planning unit record from the metadata_planning_units table
-            postgis.execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [self.get_argument('planning_grid_name')])
-            #delete the feature class
-            postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(self.get_argument('planning_grid_name'))))
-            #set the response
-            self.send_response({'info':'Planning grid deleted'})
-        else:
-            self.send_response({'info': "Nothing deleted - the planning grid does not exist"})
+        _validateArguments(self.request.arguments, ['planning_grid_name'])
+        #call the internal function
+        _deletePlanningUnitGrid(self.get_argument('planning_grid_name'))
+        #set the response
+        self.send_response({'info':'Planning grid deleted'})
 
 #validates a user with the passed credentials
-#https://andrewcottam.com:8080/marxan-server/validateUser?user=andrew&password=thargal88&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/validateUser?user=andrew&password=thargal88&callback=__jp2
 class validateUser(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1635,7 +1670,7 @@ class validateUser(MarxanRESTHandler):
             raise MarxanServicesError("Invalid login")    
 
 #logs the user out and resets the cookies
-#https://andrewcottam.com:8080/marxan-server/logout?callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/logout?callback=__jp2
 class logout(MarxanRESTHandler):
     def get(self):
         self.clear_cookie("user")
@@ -1651,7 +1686,7 @@ class resendPassword(MarxanRESTHandler):
         
 
 #gets a users information from the user folder
-#curl 'https://andrewcottam.com:8080/marxan-server/getUser?user=andrew&callback=__jp1' -H 'If-None-Match: "0798406453417c47c0b5ab5bd11d56a60fb4df7d"' -H 'Accept-Encoding: gzip, deflate, br' -H 'Accept-Language: en-US,en;q=0.9,fr;q=0.8' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36' -H 'Accept: */*' -H 'Referer: https://marxan-client-blishten.c9users.io/' -H 'Cookie: c9.live.user.jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJjb2RlIjoiOWNBUzdEQldsdWYwU2oyU01ZaEYiLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.yJ9mPz4bM7L3htL8vXVFMCcQpTO0pkRvhNHJP9WnJo8; c9.live.user.sso=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.ifW5qlkpC19iyMNBgZLtGZzxuMRyHKWldGg3He-__gI; role="2|1:0|10:1548151226|4:role|8:QWRtaW4=|d703b0f18c81cf22c85f41c536f99589ce11492925d85833e78d3d66f4d7fd62"; user="2|1:0|10:1548151226|4:user|8:YW5kcmV3|e5ed3b87979273b1b8d1b8983310280507941fe05fb665847e7dd5dacf36348d"' -H 'Connection: keep-alive' --compressed
+#curl 'https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getUser?user=andrew&callback=__jp1' -H 'If-None-Match: "0798406453417c47c0b5ab5bd11d56a60fb4df7d"' -H 'Accept-Encoding: gzip, deflate, br' -H 'Accept-Language: en-US,en;q=0.9,fr;q=0.8' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36' -H 'Accept: */*' -H 'Referer: https://marxan-client-blishten.c9users.io/' -H 'Cookie: c9.live.user.jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJjb2RlIjoiOWNBUzdEQldsdWYwU2oyU01ZaEYiLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.yJ9mPz4bM7L3htL8vXVFMCcQpTO0pkRvhNHJP9WnJo8; c9.live.user.sso=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.ifW5qlkpC19iyMNBgZLtGZzxuMRyHKWldGg3He-__gI; role="2|1:0|10:1548151226|4:role|8:QWRtaW4=|d703b0f18c81cf22c85f41c536f99589ce11492925d85833e78d3d66f4d7fd62"; user="2|1:0|10:1548151226|4:user|8:YW5kcmV3|e5ed3b87979273b1b8d1b8983310280507941fe05fb665847e7dd5dacf36348d"' -H 'Connection: keep-alive' --compressed
 class getUser(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1665,7 +1700,7 @@ class getUser(MarxanRESTHandler):
         self.send_response({'info': "User data received", "userData" : {k: v for k, v in self.userData.items() if k != 'PASSWORD'}, "unauthorisedMethods": unauthorised})
 
 #gets a list of all users
-#https://andrewcottam.com:8080/marxan-server/getUsers
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getUsers
 class getUsers(MarxanRESTHandler):
     def get(self):
         #get the users
@@ -1676,7 +1711,7 @@ class getUsers(MarxanRESTHandler):
         self.send_response({'info': 'Users data received', 'users': usersData})
 
 #deletes a user
-#https://andrewcottam.com:8080/marxan-server/deleteUser?user=asd2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteUser?user=asd2
 class deleteUser(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1686,7 +1721,7 @@ class deleteUser(MarxanRESTHandler):
         self.send_response({'info': 'User deleted'})
     
 #gets project information from the input.dat file
-#https://andrewcottam.com:8080/marxan-server/getProject?user=admin&project=Start%20project&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProject?user=admin&project=Start%20project&callback=__jp2
 class getProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1722,7 +1757,7 @@ class getProject(MarxanRESTHandler):
             self.send_response({'user': self.get_argument("user"), 'project': self.projectData["project"], 'metadata': self.projectData["metadata"], 'files': self.projectData["files"], 'runParameters': self.projectData["runParameters"], 'renderer': self.projectData["renderer"], 'features': self.speciesData.to_dict(orient="records"), 'feature_preprocessing': self.speciesPreProcessingData.to_dict(orient="split")["data"], 'planning_units': self.planningUnitsData, 'protected_area_intersections': self.protectedAreaIntersectionsData})
 
 #gets feature information from postgis
-#https://andrewcottam.com:8080/marxan-server/getFeature?oid=63407942&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getFeature?oid=63407942&callback=__jp2
 class getFeature(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1733,7 +1768,7 @@ class getFeature(MarxanRESTHandler):
         self.send_response({"data": self.data.to_dict(orient="records")})
 
 #gets the features planning unit ids from the puvspr.dat file
-#https://andrewcottam.com:8080/marxan-server/getFeaturePlanningUnits?user=andrew&project=Tonga%20marine%2030Km2&oid=63407942&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getFeaturePlanningUnits?user=andrew&project=Tonga%20marine%2030Km2&oid=63407942&callback=__jp2
 class getFeaturePlanningUnits(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1746,7 +1781,7 @@ class getFeaturePlanningUnits(MarxanRESTHandler):
         self.send_response({"data": puids})
 
 #gets species information for a specific project from the spec.dat file
-#https://andrewcottam.com:8080/marxan-server/getSpeciesData?user=admin&project=Start%20project&callback=__jp3
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getSpeciesData?user=admin&project=Start%20project&callback=__jp3
 class getSpeciesData(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1757,7 +1792,7 @@ class getSpeciesData(MarxanRESTHandler):
         self.send_response({"data": self.speciesData.to_dict(orient="records")})
 
 #gets all species information from the PostGIS database
-#https://andrewcottam.com:8080/marxan-server/getAllSpeciesData?callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getAllSpeciesData?callback=__jp2
 class getAllSpeciesData(MarxanRESTHandler):
     def get(self):
         #get all the species data
@@ -1766,7 +1801,7 @@ class getAllSpeciesData(MarxanRESTHandler):
         self.send_response({"info": "All species data received", "data": self.allSpeciesData.to_dict(orient="records")})
 
 #gets the species preprocessing information from the feature_preprocessing.dat file
-#https://andrewcottam.com:8080/marxan-server/getSpeciesPreProcessingData?user=admin&project=Start%20project&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getSpeciesPreProcessingData?user=admin&project=Start%20project&callback=__jp2
 class getSpeciesPreProcessingData(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1777,7 +1812,7 @@ class getSpeciesPreProcessingData(MarxanRESTHandler):
         self.send_response({"data": self.speciesPreProcessingData.to_dict(orient="split")["data"]})
 
 #gets the planning units status information from the pu.dat file
-#https://andrewcottam.com:8080/marxan-server/getPlanningUnitsData?user=admin&project=Start%20project&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitsData?user=admin&project=Start%20project&callback=__jp2
 class getPlanningUnitsData(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1788,7 +1823,7 @@ class getPlanningUnitsData(MarxanRESTHandler):
         self.send_response({"data": self.planningUnitsData})
 
 #gets the planning units cost information from the pu.dat file
-#https://andrewcottam.com:8080/marxan-server/getPlanningUnitsCostData?user=admin&project=Start%20project&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitsCostData?user=admin&project=Start%20project&callback=__jp2
 class getPlanningUnitsCostData(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1799,7 +1834,7 @@ class getPlanningUnitsCostData(MarxanRESTHandler):
         self.send_response({"data": self.planningUnitsData})
 
 #gets the intersections of the planning units with the protected areas from the protected_area_intersections.dat file
-#https://andrewcottam.com:8080/marxan-server/getProtectedAreaIntersectionsData?user=admin&project=Start%20project&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProtectedAreaIntersectionsData?user=admin&project=Start%20project&callback=__jp2
 class getProtectedAreaIntersectionsData(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1810,7 +1845,7 @@ class getProtectedAreaIntersectionsData(MarxanRESTHandler):
         self.send_response({"data": self.protectedAreaIntersectionsData})
 
 #gets the Marxan log for the project
-#https://andrewcottam.com:8080/marxan-server/getMarxanLog?user=admin&project=Start%20project&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getMarxanLog?user=admin&project=Start%20project&callback=__jp2
 class getMarxanLog(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1821,7 +1856,7 @@ class getMarxanLog(MarxanRESTHandler):
         self.send_response({"log": self.marxanLog})
 
 #gets the best solution for the project
-#https://andrewcottam.com:8080/marxan-server/getBestSolution?user=admin&project=Start%20project&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getBestSolution?user=admin&project=Start%20project&callback=__jp2
 class getBestSolution(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1832,7 +1867,7 @@ class getBestSolution(MarxanRESTHandler):
         self.send_response({"data": self.bestSolution.to_dict(orient="split")["data"]})
 
 #gets the output summary for the project
-#https://andrewcottam.com:8080/marxan-server/getOutputSummary?user=admin&project=Start%20project&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getOutputSummary?user=admin&project=Start%20project&callback=__jp2
 class getOutputSummary(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1843,7 +1878,7 @@ class getOutputSummary(MarxanRESTHandler):
         self.send_response({"data": self.outputSummary.to_dict(orient="split")["data"]})
 
 #gets the summed solution for the project
-#https://andrewcottam.com:8080/marxan-server/getSummedSolution?user=admin&project=Start%20project&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getSummedSolution?user=admin&project=Start%20project&callback=__jp2
 class getSummedSolution(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1854,7 +1889,7 @@ class getSummedSolution(MarxanRESTHandler):
         self.send_response({"data": self.summedSolution})
 
 #gets an individual solution
-#https://andrewcottam.com:8080/marxan-server/getSolution?user=admin&project=Start%20project&solution=1&callback=__jp7
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getSolution?user=admin&project=Start%20project&solution=1&callback=__jp7
 class getSolution(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1867,7 +1902,7 @@ class getSolution(MarxanRESTHandler):
         self.send_response({'solution': self.solution, 'mv': self.missingValues, 'user': self.get_argument("user"), 'project': self.get_argument("project")})
  
 #gets the missing values for a single solution
-#https://andrewcottam.com:8080/marxan-server/getMissingValues?user=admin&project=Start%20project&solution=1&callback=__jp7
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getMissingValues?user=admin&project=Start%20project&solution=1&callback=__jp7
 class getMissingValues(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1878,7 +1913,7 @@ class getMissingValues(MarxanRESTHandler):
         self.send_response({'missingValues': self.missingValues})
  
 #gets the combined results for the project
-#https://andrewcottam.com:8080/marxan-server/getResults?user=admin&project=Start%20project&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getResults?user=admin&project=Start%20project&callback=__jp2
 class getResults(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1898,7 +1933,7 @@ class getResults(MarxanRESTHandler):
             self.send_response({'info':'No results available'})
 
 #gets the data from the server.dat file as an abject
-#https://andrewcottam.com:8080/marxan-server/getServerData
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getServerData
 class getServerData(MarxanRESTHandler):
     def get(self):
         #get the data from the server.dat file
@@ -1915,7 +1950,7 @@ class getServerData(MarxanRESTHandler):
         self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
 
 #gets a list of projects for the user
-#https://andrewcottam.com:8080/marxan-server/getProjects?user=andrew&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProjects?user=andrew&callback=__jp2
 class getProjects(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1926,7 +1961,7 @@ class getProjects(MarxanRESTHandler):
         self.send_response({"projects": self.projects})
 
 #gets all projects and their planning unit grids
-#https://andrewcottam.com:8080/marxan-server/getProjectsWithGrids?&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProjectsWithGrids?&callback=__jp2
 class getProjectsWithGrids(MarxanRESTHandler):
     def get(self):
         matches = []
@@ -1983,7 +2018,7 @@ class updatePUFile(MarxanRESTHandler):
         self.send_response({'info': "pu.dat file updated"})
 
 #returns a set of features for the planning unit id
-#https://andrewcottam.com:8080/marxan-server/getPUSpeciesList?user=admin&project=PNG&puid=36500&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPUSpeciesList?user=admin&project=PNG&puid=36500&callback=__jp2
 class getPUSpeciesList(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -1999,7 +2034,7 @@ class getPUSpeciesList(MarxanRESTHandler):
         self.send_response({"info": 'Feature list returned', 'data': features.to_dict(orient="records")})
 
 #used to populate the feature_preprocessing.dat file from an imported puvspr.dat file
-#https://andrewcottam.com:8080/marxan-server/createFeaturePreprocessingFileFromImport?user=andrew&project=test&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createFeaturePreprocessingFileFromImport?user=andrew&project=test&callback=__jp2
 class createFeaturePreprocessingFileFromImport(MarxanRESTHandler): #not currently used
     def get(self):
         #validate the input arguments
@@ -2036,7 +2071,7 @@ class updateProjectParameters(MarxanRESTHandler):
         self.send_response({'info': ",".join(list(params.keys())) + " parameters updated"})
 
 #lists all of the projects that a feature is in        
-#https://andrewcottam.com:8080/marxan-server/listProjectsForFeature?feature_class_id=63407942&callback=__jp9
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/listProjectsForFeature?feature_class_id=63407942&callback=__jp9
 class listProjectsForFeature(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -2046,8 +2081,19 @@ class listProjectsForFeature(MarxanRESTHandler):
         #set the response for uploading to mapbox
         self.send_response({'info': "Projects info returned", "projects": projects})
         
+#lists all of the projects that a planning grid is used in     
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/listProjectsForPlanningGrid?feature_class_name=pu_89979654c5d044baa27b6008f9d06&callback=__jp9
+class listProjectsForPlanningGrid(MarxanRESTHandler):
+    def get(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['feature_class_name'])  
+        #get the projects which contain the planning grid
+        projects = _getProjectsForPlanningGrid(self.get_argument('feature_class_name'))
+        #set the response for uploading to mapbox
+        self.send_response({'info': "Projects info returned", "projects": projects})
+        
 #uploads a feature class with the passed feature class name to MapBox as a tileset using the MapBox Uploads API
-#https://andrewcottam.com:8080/marxan-server/uploadTilesetToMapBox?feature_class_name=pu_ton_marine_hexagon_20&mapbox_layer_name=hexagon&callback=__jp9
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/uploadTilesetToMapBox?feature_class_name=pu_ton_marine_hexagon_20&mapbox_layer_name=hexagon&callback=__jp9
 class uploadTilesetToMapBox(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -2079,7 +2125,7 @@ class uploadFile(MarxanRESTHandler):
         self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
             
 #deletes a feature from the PostGIS database
-#https://andrewcottam.com:8080/marxan-server/deleteFeature?feature_name=test_feature1&callback=__jp5
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteFeature?feature_name=test_feature1&callback=__jp5
 class deleteFeature(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -2106,7 +2152,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         self.send_response({'info': "Feature '" + feature_class_name + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
         
 #kills a running marxan job
-#https://andrewcottam.com:8080/marxan-server/stopMarxan?pid=12345&callback=__jp5
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/stopMarxan?pid=12345&callback=__jp5
 class stopMarxan(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -2123,14 +2169,14 @@ class stopMarxan(MarxanRESTHandler):
             
             
 #gets the run log
-#https://andrewcottam.com:8080/marxan-server/getRunLogs?
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getRunLogs?
 class getRunLogs(MarxanRESTHandler):
     def get(self):
         runlog = _getRunLogs()
         self.send_response({'info': "Run log returned", 'data': runlog.to_dict(orient="records")})
 
 #clears the run log
-#https://andrewcottam.com:8080/marxan-server/clearRunLogs?
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/clearRunLogs?
 class clearRunLogs(MarxanRESTHandler):
     def get(self):
         runlog = _getRunLogs()
@@ -2138,7 +2184,7 @@ class clearRunLogs(MarxanRESTHandler):
         self.send_response({'info': "Run log cleared"})
 
 #for testing role access to servivces            
-#https://andrewcottam.com:8080/marxan-server/testRoleAuthorisation&callback=__jp5
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/testRoleAuthorisation&callback=__jp5
 class testRoleAuthorisation(MarxanRESTHandler):
     def get(self):
         self.send_response({'info': "Service successful"})
@@ -2203,7 +2249,7 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
 ## MarxanWebSocketHandler subclasses
 ####################################################################################################################################################################################################################################################################
 
-#wss://andrewcottam.com:8080/marxan-server/runMarxan?user=admin&project=Start%20project
+#wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/runMarxan?user=admin&project=Start%20project
 #starts a Marxan run on the server and streams back the output as websockets
 class runMarxan(MarxanWebSocketHandler):
     #authenticate and get the user folder and project folders
@@ -2540,7 +2586,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
 ####################################################################################################################################################################################################################################################################
 
 #preprocesses the features by intersecting them with the planning units
-#wss://andrewcottam.com:8080/marxan-server/preprocessFeature?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30&feature_class_name=volcano&alias=volcano&id=63408475
+#wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessFeature?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30&feature_class_name=volcano&alias=volcano&id=63408475
 class preprocessFeature(QueryWebSocketHandler):
 
     #run the preprocessing
@@ -2604,7 +2650,7 @@ class preprocessFeature(QueryWebSocketHandler):
         self.close()
 
 #preprocesses the protected areas by intersecting them with the planning units
-#wss://andrewcottam.com:8080/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30
+#wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30
 class preprocessProtectedAreas(QueryWebSocketHandler):
 
     #run the preprocessing
@@ -2634,7 +2680,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
         self.send_response({'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData, 'status':'Finished'})
     
 #preprocesses the planning units to get the boundary lengths where they intersect - produces the bounds.dat file
-#wss://andrewcottam.com:8080/marxan-server/preprocessPlanningUnits?user=admin&project=Start%20project
+#wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessPlanningUnits?user=admin&project=Start%20project
 class preprocessPlanningUnits(QueryWebSocketHandler):
 
     #run the preprocessing
@@ -2695,6 +2741,7 @@ def make_app():
         ("/marxan-server/renameProject", renameProject),
         ("/marxan-server/updateProjectParameters", updateProjectParameters),
         ("/marxan-server/listProjectsForFeature", listProjectsForFeature),
+        ("/marxan-server/listProjectsForPlanningGrid", listProjectsForPlanningGrid),
         ("/marxan-server/getCountries", getCountries),
         ("/marxan-server/getPlanningUnitGrids", getPlanningUnitGrids),
         ("/marxan-server/createPlanningUnitGrid", createPlanningUnitGrid),

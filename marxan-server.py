@@ -917,8 +917,22 @@ def _deleteTileset(tilesetid):
         
 #deletes a feature
 def _deleteFeature(feature_class_name):
-    #delete the feature class
+    #get the data for the feature
     postgis = PostGIS()
+    data = postgis.getDict("SELECT oid, created_by FROM marxan.metadata_interest_features WHERE feature_class_name = %s;", [feature_class_name])
+    #return if it is not found
+    if len(data)==0:
+        return
+    #if it is a system supplied planning grid then raise an error
+    if "created_by" in data[0].keys():
+        if data[0]['created_by']=='global admin':
+            raise MarxanServicesError("The feature cannot be deleted as it is a system supplied item. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#the-planning-grid-cannot-be-deleted-as-it-is-a-system-supplied-item' target='blank'>here</a>")
+    #get a list of projects that the feature is used in
+    projects = _getProjectsForFeature(int(data[0]['oid']))
+    #if it is in use then return an error
+    if len(projects) > 0:
+        raise MarxanServicesError("The feature cannot be deleted as it is currently being used")   
+    #delete the feature class
     postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
     #delete the record in the metadata_interest_features
     postgis.execute("DELETE FROM marxan.metadata_interest_features WHERE feature_class_name =%s;", [feature_class_name])

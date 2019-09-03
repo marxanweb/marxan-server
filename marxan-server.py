@@ -882,6 +882,7 @@ def _unzipFile(filename, searchTerm = None):
     else: # nested files/folders - raise an error
         raise MarxanServicesError("The zipped file should not contain directories. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#importing-existing-marxan-projects' target='blank'>here</a>")
         
+#starts an upload job to mapbox from the passed feature class and returns the uploadid        
 def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
     cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
@@ -938,8 +939,8 @@ def _finishImportingFeature(feature_class_name, name, description, source, user)
     id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT sum(ST_Area(geometry)) _area, box2d(ST_Transform(ST_SetSRID(ST_Collect(geometry),3410),4326)) extent FROM marxan.{}) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user], "One")[0]
     return id
 
-#imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox - this is for importing marxan old version files
-def _importPlanningUnitGrid(filename, name, description):
+#imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox
+def _importPlanningUnitGrid(filename, name, description, user):
     #unzip the shapefile and get the name of the shapefile without an extension, e.g. PlanningUnitsData.zip -> planningunits.shp -> planningunits
     rootfilename = _unzipFile(filename)
     #get a unique feature class name for the import
@@ -951,7 +952,7 @@ def _importPlanningUnitGrid(filename, name, description):
         #import the shapefile into PostGIS
         postgis = PostGIS()
         #create a record for this new feature in the metadata_planning_units table
-        postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s);", [feature_class_name, name, description,self.get_current_user()])
+        postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s);", [feature_class_name, name, description,user])
         #import the shapefile
         postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
         #make sure the puid column is an integer
@@ -969,7 +970,7 @@ def _importPlanningUnitGrid(filename, name, description):
         #delete the shapefile and the zip file
         _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
         pass
-    return {'feature_class_name': feature_class_name, 'uploadId': uploadId}
+    return {'feature_class_name': feature_class_name, 'uploadId': uploadId, 'alias': name}
 
 #searches the folder recursively for the filename and returns an array of full filenames, e.g. ['/home/ubuntu/environment/marxan-server/users/admin/British Columbia Marine Case Study/input/spec.dat', etc]
 def _getFilesInFolderRecursive(folder, filename):
@@ -1566,13 +1567,25 @@ class createPlanningUnitGrid(MarxanRESTHandler):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
         #create the new planning unit and get the first row back
-        data = PostGIS().execute("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape')], "One")
+        data = PostGIS().execute("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], "One")
         #get the feature class name
         fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
         #create a primary key so the feature class can be used in ArcGIS
-        PostGIS().createPrimaryKey(fc, "puid")        
+        PostGIS().createPrimaryKey(fc, "puid")    
+        #start the upload to Mapbox
+        uploadId = _uploadTilesetToMapbox(fc, fc)
+        self.send_response({'info':'Planning unit grid created', 'feature_class_name': fc, 'alias':data[0], 'uploadId': uploadId})
+
+#imports a zipped planning unit shapefile which has been uploaded to the marxan root folder into PostGIS as a planning unit grid feature class
+#https://andrewcottam.com:8080/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5
+class importPlanningUnitGrid(MarxanRESTHandler):
+    def get(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['filename','name','description'])   
+        #import the shapefile
+        data = _importPlanningUnitGrid(self.get_argument('filename'), self.get_argument('name'), self.get_argument('description'), self.get_current_user())
         #set the response
-        self.send_response({'info':'Planning unit grid created', 'planning_unit_grid': data[0]})
+        self.send_response({'info': "File '" + self.get_argument('filename') + "' imported", 'feature_class_name': data['feature_class_name'], 'uploadId': data['uploadId'], 'alias': data['alias']})
 
 #https://andrewcottam.com:8080/marxan-server/deletePlanningUnitGrid?planning_grid_name=pu_sample&callback=__jp10        
 class deletePlanningUnitGrid(MarxanRESTHandler):
@@ -2092,17 +2105,6 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "Feature '" + feature_class_name + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
         
-#imports a zipped planning unit shapefile which has been uploaded to the marxan root folder into PostGIS as a planning unit grid feature class
-#https://andrewcottam.com:8080/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5
-class importPlanningUnitGrid(MarxanRESTHandler):
-    def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['filename','name','description'])   
-        #import the shapefile
-        data = _importPlanningUnitGrid(self.get_argument('filename'), self.get_argument('name'), self.get_argument('description'))
-        #set the response
-        self.send_response({'info': "File '" + self.get_argument('filename') + "' imported", 'feature_class_name': data['feature_class_name'], 'uploadId': data['uploadId']})
-
 #kills a running marxan job
 #https://andrewcottam.com:8080/marxan-server/stopMarxan?pid=12345&callback=__jp5
 class stopMarxan(MarxanRESTHandler):
@@ -2455,8 +2457,7 @@ class importFeature(MarxanWebSocketHandler):
                 #upload the feature class to Mapbox
                 self.send_response({'info': "Uploading to MapBox..", 'status':'Importing feature'})
                 uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
-                self.send_response({'info': "Uploaded", 'status':'Importing feature'})
-                self.send_response({'info': "File '" + filename + "' imported", 'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
+                self.send_response({'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
             except (MarxanServicesError) as e:
                 self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
             finally:

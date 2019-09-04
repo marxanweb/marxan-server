@@ -1036,9 +1036,16 @@ def _getProjectsForFeature(featureId):
         df = _loadCSV(file)
         #search the dataframe for the species id of id
         if _dataFrameContainsValue(df, 'id', featureId):
-            #if the feature is in the project, then add it to the list
+            #get the project paths
             prjPaths = file[len(MARXAN_USERS_FOLDER):].split(os.sep)
-            projects.append({'user': prjPaths[0], 'name': prjPaths[1]})
+            #if the featureid is in the projects spec.dat file, check it is not an imported project
+            prjFolder = file[:len(MARXAN_USERS_FOLDER)] + prjPaths[0] + os.sep + prjPaths[1] + os.sep
+            #open the input file and get the key values
+            values = _getKeyValuesFromFile(prjFolder + "input.dat")
+            #get the OLDVERSION
+            if 'OLDVERSION' in values.keys():
+                if not values['OLDVERSION']:
+                    projects.append({'user': prjPaths[0], 'name': prjPaths[1]})
     return projects
     
 #returns a list of projects that use the planning grid

@@ -580,8 +580,11 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
     for i in range(len(ids)):
         if i not in removedIds:
             records.append({'id': ids[i], 'prop': str(props[i]/100), 'spf': spfs[i]})
-    #create a data frame with the records        
-    new_df = pandas.DataFrame(records)
+    #create a data frame with the records  
+    if len(records) == 0:
+        new_df = pandas.DataFrame(columns=['id', 'prop', 'spf'])
+    else:
+        new_df = pandas.DataFrame(records)
     #if there are optional columns like target, targetocc or name etc., merge the new data with any existing data in the spec.dat file
     if create == False:
         if (len(cols) != 3):
@@ -592,7 +595,8 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
             #output the fields in the correct order id,prop,spf
             new_df = new_df[cols]
     #sort the records by the id field
-    new_df = new_df.sort_values(by=['id'])
+    if not new_df.empty:
+        new_df = new_df.sort_values(by=['id'])
     #write the data to file
     _writeCSV(obj, "SPECNAME", new_df)
 

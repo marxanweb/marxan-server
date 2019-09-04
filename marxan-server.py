@@ -81,7 +81,8 @@ PROTECTED_AREA_INTERSECTIONS_FILENAME = "protected_area_intersections.dat"
 SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
-ERRORS_PAGE = "https://andrewcottam.github.io/marxan-web/documentation/docs_errors.html"
+DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
+ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
 LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
@@ -858,6 +859,10 @@ def _unzipFile(filename, searchTerm = None):
         raise MarxanServicesError("The zip file '" + filename + "' does not exist")
     zip_ref = zipfile.ZipFile(MARXAN_FOLDER + filename, 'r')
     filenames = zip_ref.namelist()
+    #check there is only one set of files
+    extensions = [f[-3:] for f in filenames]
+    if (len(extensions)!=len(set(extensions))):
+        raise MarxanServicesError("The zip file contains multiple shapefiles. See <a href='" + ERRORS_PAGE + "#the-zip-file-contains-multiple-shapefiles' target='blank'>here</a>")
     #if a search term is specified then only get those files with the matching search term
     if searchTerm:
         filenames = [f for f in filenames if searchTerm in f]
@@ -2513,29 +2518,31 @@ class importFeature(MarxanWebSocketHandler):
             name = self.get_argument('name')
             description = self.get_argument('description')
             #unzip the shapefile
-            self.send_response({'info': "Unzipping shapefile..", 'status':'Importing feature'})
-            rootfilename = _unzipFile(filename) 
-            self.send_response({'info': "Unzipped", 'status':'Importing feature'})
-            #get a unique feature class name for the import
-            feature_class_name = _getUniqueFeatureclassName("f_")
             try:
-                #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
-                postgis = PostGIS()
-                self.send_response({'info': "Importing to '" + feature_class_name + "'..", 'status':'Importing feature'})
-                postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
-                self.send_response({'info': "Imported", 'status':'Importing feature'})
-                id = _finishImportingFeature(feature_class_name, name, description, "Import shapefile", self.get_current_user())
-                #upload the feature class to Mapbox
-                self.send_response({'info': "Uploading to MapBox..", 'status':'Importing feature'})
-                uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
-                self.send_response({'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
+                self.send_response({'info': "Unzipping shapefile..", 'status':'Importing feature'})
+                rootfilename = _unzipFile(filename) 
             except (MarxanServicesError) as e:
                 self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
-            finally:
-                # delete the shapefile and the zip file
-                _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
-                #close the websocket
-                self.close()
+            else:
+                #get a unique feature class name for the import
+                feature_class_name = _getUniqueFeatureclassName("f_")
+                try:
+                    #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
+                    postgis = PostGIS()
+                    self.send_response({'info': "Importing to '" + feature_class_name + "'..", 'status':'Importing feature'})
+                    postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
+                    id = _finishImportingFeature(feature_class_name, name, description, "Import shapefile", self.get_current_user())
+                    #upload the feature class to Mapbox
+                    self.send_response({'info': "Uploading to MapBox..", 'status':'Importing feature'})
+                    uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
+                    self.send_response({'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
+                except (MarxanServicesError) as e:
+                    self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
+                finally:
+                    # delete the shapefile and the zip file
+                    _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
+                    #close the websocket
+                    self.close()
 
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets

@@ -54,7 +54,7 @@ DISABLE_SECURITY = False
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopMarxan","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeature","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA"],
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
@@ -2182,20 +2182,27 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         self.send_response({'info': "Feature '" + feature_class_name + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
         
 #kills a running marxan job
-#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/stopMarxan?pid=12345&callback=__jp5
-class stopMarxan(MarxanRESTHandler):
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/stopProcess?pid=m12345&callback=__jp5
+class stopProcess(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
-        _validateArguments(self.request.arguments, ['pid'])   
+        _validateArguments(self.request.arguments, ['pid'])
+        #get the pid from the pid request parameter - this will be an identifier followed by the pid, e.g. m1234 is a marxan run process with a pid of 1234
+        pid = self.get_argument('pid')[1:]
         try:
-            #to distinguish between a process killed by the user and by the OS, we need to update the runlog.dat file to set this process as stopped and not killed
-            _updateRunLog(int(self.get_argument('pid')), None, None, None, 'Stopped')
-            #now kill the process
-            os.kill(int(self.get_argument('pid')), signal.SIGTERM)
+            #if the process is a marxan run, then update the run log
+            if (self.get_argument('pid')[:1] == 'm'):
+                #to distinguish between a process killed by the user and by the OS, we need to update the runlog.dat file to set this process as stopped and not killed
+                _updateRunLog(int(pid), None, None, None, 'Stopped')
+                #now kill the process
+                os.kill(int(pid), signal.SIGTERM)
+            else:
+                #cancel the query
+                PostGIS().execute("SELECT pg_cancel_backend(%s);",[pid])
         except OSError:
-            raise MarxanServicesError("The PID does not exist")
+            raise MarxanServicesError("The pid does not exist")
         else:
-            self.send_response({'info': "PID '" + self.get_argument('pid') + "' terminated"})
+            self.send_response({'info': "pid '" + pid + "' terminated"})
             
             
 #gets the run log
@@ -2326,8 +2333,8 @@ class runMarxan(MarxanWebSocketHandler):
                         self.logRun()
                     #print the details of the run out to the tornado log stream
                     #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
-                    #return the pid so that the process can be stopped
-                    self.send_response({'pid': self.marxanProcess.pid, 'status':'pid'})
+                    #return the pid so that the process can be stopped - prefix with an 'm' indicating that the pid is for a marxan run
+                    self.send_response({'pid': 'm' + str(self.marxanProcess.pid), 'status':'pid'})
                     #callback on the next I/O loop
                     IOLoop.current().spawn_callback(self.stream_marxan_output)
             else: #project does not exist
@@ -2587,6 +2594,8 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
             _debugSQLStatement(sql, self.conn)                
             #execute the query
             cur.execute(sql)
+            #send the pid back to the client so that the query can be stopped - and prefix it with a 'q'
+            self.send_response({'pid': 'q' + str(self.conn.get_backend_pid()), 'status':'pid'})
             #poll to get the state of the query
             state = self.conn.poll()
             #poll at regular intervals to see if the query has finished
@@ -2650,7 +2659,11 @@ class preprocessFeature(QueryWebSocketHandler):
         #get the intersection data
         if (future): #i.e. new version of marxan
             #get the intersection data as a dataframe from the queryresults - TODO - this needs to be rewritten to be scalable - getting the records in this way fails when you have > 1000 records and you need to use a method that creates a tmp table - see preprocessPlanningUnits
-            intersectionData = pandas.DataFrame.from_records(self.queryResults["records"], columns = self.queryResults["columns"])
+            if hasattr(self, "queryResults"):
+                intersectionData = pandas.DataFrame.from_records(self.queryResults["records"], columns = self.queryResults["columns"])
+            else:
+                #query cancelled
+                return
         else:
             #old version of marxan so an empty dataframe
             intersectionData = emptyDataFrame
@@ -2820,7 +2833,7 @@ def make_app():
         ("/marxan-server/preprocessPlanningUnits", preprocessPlanningUnits),
         ("/marxan-server/preprocessProtectedAreas", preprocessProtectedAreas),
         ("/marxan-server/runMarxan", runMarxan),
-        ("/marxan-server/stopMarxan", stopMarxan),
+        ("/marxan-server/stopProcess", stopProcess),
         ("/marxan-server/getRunLogs", getRunLogs),
         ("/marxan-server/clearRunLogs", clearRunLogs),
         ("/marxan-server/updateWDPA", updateWDPA),

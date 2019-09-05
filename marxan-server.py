@@ -2537,7 +2537,10 @@ class importFeature(MarxanWebSocketHandler):
                     uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
                     self.send_response({'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
                 except (MarxanServicesError) as e:
-                    self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
+                    if "Database integrity error" in e.args[0]:
+                        self.send_response({'error':"The feature '" + name + "' already exists", 'status':'Finished', 'info': 'Failed to import feature'})
+                    else:
+                        self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
                 finally:
                     # delete the shapefile and the zip file
                     _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)

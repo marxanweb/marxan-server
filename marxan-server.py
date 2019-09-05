@@ -83,7 +83,7 @@ MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -2181,7 +2181,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "Feature '" + feature_class_name + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
         
-#kills a running marxan job
+#kills a running process
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/stopProcess?pid=m12345&callback=__jp5
 class stopProcess(MarxanRESTHandler):
     def get(self):
@@ -2618,7 +2618,12 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
             if ("SSL connection has been closed unexpectedly" in e.pgerror):
                 self.send_response({'error': "The database server shutdown unexpectedly", 'status':' RunningQuery'})
             else:
-                self.send_response({'error': e.pgerror, 'status':' RunningQuery'})
+                if (type(e)==psycopg2.extensions.QueryCanceledError):
+                    #user stopped query
+                    self.send_response({'error': 'Query interupted by ' + self.get_current_user(), 'status':' RunningQuery'})
+                else:
+                    self.send_response({'error': e.pgerror, 'status':' RunningQuery'})
+            
         #clean up code
         finally:
             cur.close()

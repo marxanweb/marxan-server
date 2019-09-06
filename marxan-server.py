@@ -852,8 +852,8 @@ def _deleteZippedShapefile(folder, zipfile, archivename):
     if (os.path.exists(folder + zipfile)):
         os.remove(folder + zipfile)
 
-#unzips a zip file and returns the rootname - if searchTerm is specified then only the files that match the searchTerm will be extracted 
-def _unzipFile(filename, searchTerm = None):
+#unzips a zip file and returns the rootname - if rejectMultipleShapefiles is True then an exception will be thrown if the zip file contains multiple shapefiles -  if searchTerm is specified then only the files that match the searchTerm will be extracted 
+def _unzipFile(filename, rejectMultipleShapefiles = True, searchTerm = None):
     #unzip the shapefile
     if not os.path.exists(MARXAN_FOLDER + filename):
         raise MarxanServicesError("The zip file '" + filename + "' does not exist")
@@ -861,7 +861,7 @@ def _unzipFile(filename, searchTerm = None):
     filenames = zip_ref.namelist()
     #check there is only one set of files
     extensions = [f[-3:] for f in filenames]
-    if (len(extensions)!=len(set(extensions))):
+    if (len(extensions)!=len(set(extensions))) and rejectMultipleShapefiles:
         raise MarxanServicesError("The zip file contains multiple shapefiles. See <a href='" + ERRORS_PAGE + "#the-zip-file-contains-multiple-shapefiles' target='blank'>here</a>")
     #if a search term is specified then only get those files with the matching search term
     if searchTerm:
@@ -2435,7 +2435,7 @@ class updateWDPA(MarxanWebSocketHandler):
                 try:
                     #download finished - upzip the polygons shapefile
                     self.send_response({'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'", 'status':'Updating WDPA'})
-                    rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE, "polygons") 
+                    rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE, False, "polygons") 
                 except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
                     #delete the zip file
                     os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)

@@ -2579,7 +2579,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                 
     @gen.coroutine
     #runs a PostGIS query asynchronously, i.e. non-blocking
-    def executeQueryAsynchronously(self, sql, data = None, startedMessage = "", processingMessage = "", finishedMessage = ""):
+    def executeQueryAsynchronously(self, sql, data = None, startedMessage = "", processingMessage = ""):
         try:
             self.send_response({'info': startedMessage, 'status':'Started'})
             #connect to postgis asyncronously
@@ -2613,22 +2613,21 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                 self.queryResults = {}
                 self.queryResults.update({'columns': columns, 'records': records})
 
-        #handle any issues with the query syntax
-        except (psycopg2.Error) as e:
+        except (psycopg2.extensions.QueryCanceledError): #stopped by user
+            self.send_response({'error': 'Preprocessing stopped by ' + self.get_current_user(), 'status':' FinishedQuery'})
+        except (psycopg2.OperationalError) as e: #killed by operating system
+            if ("SSL SYSCALL error: EOF detected" in e.args[0]):
+                self.send_response({'error': "Preprocessing stopped by operating system", 'status':' FinishedQuery'})
+        except (psycopg2.Error) as e: #other exception
             if ("SSL connection has been closed unexpectedly" in e.pgerror):
-                self.send_response({'error': "The database server shutdown unexpectedly", 'status':' RunningQuery'})
+                self.send_response({'error': "The database server shutdown unexpectedly", 'status':' FinishedQuery'})
             else:
-                if (type(e)==psycopg2.extensions.QueryCanceledError):
-                    #user stopped query
-                    self.send_response({'error': 'Query interupted by ' + self.get_current_user(), 'status':' RunningQuery'})
-                else:
-                    self.send_response({'error': e.pgerror, 'status':' RunningQuery'})
-            
+                self.send_response({'error': e.pgerror, 'status':' FinishedQuery'})
+        
         #clean up code
         finally:
             cur.close()
             self.conn.close()
-            self.send_response({'info': finishedMessage, 'status':'FinishedQuery'})
 
 ####################################################################################################################################################################################################################################################################
 ## WebSocket subclasses
@@ -2650,7 +2649,7 @@ class preprocessFeature(QueryWebSocketHandler):
             _getProjectData(self)
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #now as an inline SQL statement to make updates easier
-                future = self.executeQueryAsynchronously(sql.SQL("SELECT metadata.oid::integer species, puid pu, sum(ST_Area(ST_Intersection(grid.geometry,feature.geometry))) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))),[self.get_argument('feature_class_name')],"Preprocessing '" + self.get_argument('alias') + "'", "  Preprocessing..", "  Preprocessing finished")
+                future = self.executeQueryAsynchronously(sql.SQL("SELECT metadata.oid::integer species, puid pu, sum(ST_Area(ST_Intersection(grid.geometry,feature.geometry))) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))),[self.get_argument('feature_class_name')],"Preprocessing '" + self.get_argument('alias') + "'..", "  Preprocessing..")
                 future.add_done_callback(self.intersectionComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan
@@ -2667,7 +2666,8 @@ class preprocessFeature(QueryWebSocketHandler):
             if hasattr(self, "queryResults"):
                 intersectionData = pandas.DataFrame.from_records(self.queryResults["records"], columns = self.queryResults["columns"])
             else:
-                #query cancelled
+                #close the websocket
+                self.close()
                 return
         else:
             #old version of marxan so an empty dataframe
@@ -2717,7 +2717,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
             #get the project data
             _getProjectData(self)
             #do the intersection with the protected areas
-            future = self.executeQueryAsynchronously(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(ST_Transform(wdpa.geometry,3410), grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))),[self.get_argument('planning_grid_name')], "Preprocessing protected areas", "  Preprocessing protected areas..", "  Preprocessing finished")
+            future = self.executeQueryAsynchronously(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(ST_Transform(wdpa.geometry,3410), grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))),[self.get_argument('planning_grid_name')], "Preprocessing protected areas", "  Preprocessing protected areas..")
             future.add_done_callback(self.preprocessProtectedAreasComplete) # pylint:disable=no-member
     
     #callback which is called when the intersection has been done
@@ -2749,7 +2749,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #new version of marxan - get the boundary lengths
                 PostGIS().execute("DROP TABLE IF EXISTS marxan.tmp;") 
-                future = self.executeQueryAsynchronously(sql.SQL("CREATE TABLE marxan.tmp AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(a.geometry, b.geometry), 2))/1000 boundary  FROM marxan.{0} a, marxan.{0} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])), None, "Getting boundary lengths", "  Processing ..", "  Preprocessing finished")
+                future = self.executeQueryAsynchronously(sql.SQL("CREATE TABLE marxan.tmp AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(a.geometry, b.geometry), 2))/1000 boundary  FROM marxan.{0} a, marxan.{0} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])), None, "Getting boundary lengths", "  Processing ..")
                 future.add_done_callback(self.preprocessPlanningUnitsComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan

@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.8.58"
+MARXAN_SERVER_VERSION = "0.8.60"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -144,6 +144,7 @@ def _setGlobalVariables():
     #print out which operating system is being used
     print(" Operating system:\t" + platform.system()) 
     print(" Tornado version:\t" + tornado.version)
+    print(" Permitted domains:\t" + _getDictValue(serverData,'PERMITTED_DOMAINS')) 
     #output the ssl information if it is being used
     if CERTFILE != "None":
         print(" SSL certificate file:\t" + CERTFILE)

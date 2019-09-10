@@ -39,7 +39,7 @@ import shutil
 import uuid
 import signal 
 import platform  
-import colorama 
+import colorama
 import io 
 import requests 
 
@@ -83,7 +83,7 @@ MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -941,14 +941,18 @@ def _deleteFeature(feature_class_name):
     projects = _getProjectsForFeature(int(data[0]['oid']))
     #if it is in use then return an error
     if len(projects) > 0:
-        raise MarxanServicesError("The feature cannot be deleted as it is currently being used")   
-    #delete the feature class
-    postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
-    #delete the record in the metadata_interest_features
+        raise MarxanServicesError("The feature cannot be deleted as it is currently being used")  
+    #delete the feature
+    _deleteFeatureClass(feature_class_name)
+    #delete the metadata record
     postgis.execute("DELETE FROM marxan.metadata_interest_features WHERE feature_class_name =%s;", [feature_class_name])
     #delete the Mapbox tileset
     _deleteTileset(feature_class_name)
     
+def _deleteFeatureClass(feature_class_name):
+    #delete the feature class
+    PostGIS().execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
+
 def _getUniqueFeatureclassName(prefix):
     return prefix + uuid.uuid4().hex[:(32 - len(prefix))] #mapbox tileset ids are limited to 32 characters
     
@@ -959,8 +963,15 @@ def _finishImportingFeature(feature_class_name, name, description, source, user)
     #create an index
     postgis = PostGIS()
     postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
-    #create a record for this new feature in the metadata_interest_features table
-    id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT sum(ST_Area(geometry)) _area, box2d(ST_Transform(ST_SetSRID(ST_Collect(geometry),3410),4326)) extent FROM marxan.{}) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user], "One")[0]
+    try:    
+        #create a record for this new feature in the metadata_interest_features table
+        id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT sum(ST_Area(geometry)) _area, box2d(ST_Transform(ST_SetSRID(ST_Collect(geometry),3410),4326)) extent FROM marxan.{}) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user], "One")[0]
+    except (MarxanServicesError) as e:
+        _deleteFeatureClass(feature_class_name)
+        if "Database integrity error" in e.args[0]:
+            raise MarxanServicesError("The feature '" + name + "' already exists")
+        else:
+            raise MarxanServicesError(e.args[0])
     return id
 
 #imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox
@@ -988,6 +999,8 @@ def _importPlanningUnitGrid(filename, name, description, user):
     except (MarxanServicesError) as e:
         if 'column' and 'puid' and 'does not exist' in e.args[0]:
             raise MarxanServicesError("The field 'puid' does not exist in the shapefile. See <a href='" + ERRORS_PAGE + "#the-field-puid-does-not-exist-in-the-shapefile' target='blank'>here</a>")
+        elif 'violates unique constraint' in e.args[0]:
+            raise MarxanServicesError("The planning grid '" + name + "' already exists")
         else:
             raise
     finally:
@@ -2545,7 +2558,7 @@ class importFeature(MarxanWebSocketHandler):
                     uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
                     self.send_response({'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
                 except (MarxanServicesError) as e:
-                    if "Database integrity error" in e.args[0]:
+                    if "already exists" in e.args[0]:
                         self.send_response({'error':"The feature '" + name + "' already exists", 'status':'Finished', 'info': 'Failed to import feature'})
                     else:
                         self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})

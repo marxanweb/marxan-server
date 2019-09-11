@@ -687,7 +687,12 @@ def _readFile(filename):
 #gets a files contents as a unicode string
 def _readFileUnicode(filename):
     f = io.open(filename, mode="r", encoding="utf-8")
-    s = f.read()
+    try:
+        s = f.read()
+    except (UnicodeDecodeError) as e:
+        f = io.open(filename, mode="r", encoding="ISO-8859-1")
+        s = f.read()
+    f.close()
     return s
 
 #writes a files contents as a unicode string

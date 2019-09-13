@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.9.0"
+MARXAN_SERVER_VERSION = "0.9.1"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -1656,21 +1656,6 @@ class getPlanningUnitGrids(MarxanRESTHandler):
         planningUnitGrids = _getPlanningUnitGrids()
         self.send_response({'info': 'Planning unit grids retrieved', 'planning_unit_grids': planningUnitGrids})        
         
-#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon&callback=__jp10        
-class createPlanningUnitGrid(MarxanRESTHandler):
-    def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
-        #create the new planning unit and get the first row back
-        data = PostGIS().execute("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], "One")
-        #get the feature class name
-        fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
-        #create a primary key so the feature class can be used in ArcGIS
-        PostGIS().createPrimaryKey(fc, "puid")    
-        #start the upload to Mapbox
-        uploadId = _uploadTilesetToMapbox(fc, fc)
-        self.send_response({'info':'Planning unit grid created', 'feature_class_name': fc, 'alias':data[0], 'uploadId': uploadId})
-
 #imports a zipped planning unit shapefile which has been uploaded to the marxan root folder into PostGIS as a planning unit grid feature class
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5
 class importPlanningUnitGrid(MarxanRESTHandler):
@@ -2790,6 +2775,37 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
                 _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'BOUNDNAME': 'bounds.dat'})
                 #set the response
                 self.send_response({'info': 'Boundary lengths calculated', 'status':'Finished'})
+        except (MarxanServicesError) as e:
+            self.send_response({'error': e.args[0], 'status': 'Finished'})
+
+#creates a new planning grid
+#wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon   
+class createPlanningUnitGrid(QueryWebSocketHandler):
+    
+    #run the preprocessing
+    def open(self):
+        try:
+            super(createPlanningUnitGrid, self).open()
+        except (HTTPError) as e:
+            self.send_response({'error': e.reason, 'status': 'Finished'})
+        else:
+            _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
+            future = self.executeQueryAsynchronously("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], "Creating planning grid..", "  Processing ..")
+            future.add_done_callback(self.createPlanningUnitGridComplete) # pylint:disable=no-member
+    
+    #callback which is called when the planning grid has been created
+    def createPlanningUnitGridComplete(self, future):
+        try:
+            #get the planning grid alias
+            alias = self.queryResults["records"][0][0]
+            #get the feature class name
+            fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
+            #create a primary key so the feature class can be used in ArcGIS
+            PostGIS().createPrimaryKey(fc, "puid")    
+            #start the upload to Mapbox
+            uploadId = _uploadTilesetToMapbox(fc, fc)
+            #set the response
+            self.send_response({'info':'Planning unit grid created', 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId, 'status':'Finished'})
         except (MarxanServicesError) as e:
             self.send_response({'error': e.args[0], 'status': 'Finished'})
 

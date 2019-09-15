@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.9.1"
+MARXAN_SERVER_VERSION = "0.9.11"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -440,6 +440,7 @@ def _getSpeciesData(obj):
     if obj.projectData["metadata"]["OLDVERSION"]:
         #return the data from the spec.dat file with additional fields manually added
         output_df['tmp'] = 'Unique identifer: '
+        #if the spec.dat file has a field called 'name' then this will be used as the alias
         if ('name' in output_df.columns):
             output_df['alias'] = output_df['name']
         else:

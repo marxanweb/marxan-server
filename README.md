@@ -7,7 +7,7 @@ The following image shows the high level architecture of marxan-server.
 
 ## Installation
 The following installation was testing on Ubuntu 16.04.  
-### Download the files  
+### Clone the repo  
 In the folder where you want to install marxan-server, type the following:
 ```
 git clone https://github.com/andrewcottam/marxan-server.git

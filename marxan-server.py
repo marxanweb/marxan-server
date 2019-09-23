@@ -2484,6 +2484,7 @@ class updateWDPA(MarxanWebSocketHandler):
                         #update the WDPA_VERSION variable in the server.dat file
                         _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
                         #delete all of the existing intersections between planning units and the old version of the WDPA
+                        self.send_response({'info': 'Invalidating existing WDPA intersections', 'status': 'Updating WDPA'})
                         _resetProtectedAreaInformation()
                         #send the response
                         self.send_response({'info': 'WDPA update completed succesfully', 'status': 'Finished'})

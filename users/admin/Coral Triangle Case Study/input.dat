@@ -11,7 +11,7 @@ BLM 0
 PROP 5.00000000000000E-0001
 RANDSEED -1
 BESTSCORE  1.00000000000000E+0001
-NUMREPS 100
+NUMREPS 10
 
 Annealing Parameters
 NUMITNS 1000000
@@ -56,7 +56,7 @@ VERBOSITY 3
 SAVESOLUTIONSMATRIX 3
 
 DESCRIPTION Regional case study in the Coral Triangle from: Beger, M., McGowan, J., Treml, E.A., Green, A.L., White, A.T., Wolff, N.H., Klein, C.J., Mumby, P.J. & Possingham, H.P. (2015) Integrating regional conservation priorities for multiple objectives into national policy. Nature Communications, 6, 8208. (imported from an existing Marxan project)
-CREATEDATE Mon Aug 19 2019 11:11:52 GMT+0200 (Central European Summer Time)
+CREATEDATE 07/08/19 09:30:42
 PLANNING_UNIT_NAME pu_5e39a4ea5f38484196d285f601491
 IUCN_CATEGORY None
 OLDVERSION True

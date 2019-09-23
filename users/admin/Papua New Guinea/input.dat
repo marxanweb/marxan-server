@@ -56,7 +56,7 @@ VERBOSITY 3
 SAVESOLUTIONSMATRIX 3
 
 DESCRIPTION National Marine Conservation Assessment for Papua New Guinea. Full report available here: https://www.environment.gov.au/system/files/resources/63ab788f-3aa2-4894-9958-188b3434cfe4/files/national-marine-conservation-assessment-png.pdf (imported from an existing Marxan project)
-CREATEDATE Mon Aug 19 2019 11:20:28 GMT+0200 (Central European Summer Time)
+CREATEDATE 07/08/19 09:30:42
 PLANNING_UNIT_NAME pu_c22403423da84b7ba480060bf307b
 IUCN_CATEGORY None
 OLDVERSION True

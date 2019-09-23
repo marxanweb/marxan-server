@@ -501,7 +501,7 @@ def _getProtectedAreaIntersectionsData(obj):
     obj.protectedAreaIntersectionsData = _normaliseDataFrame(df, "iucn_cat", "puid")
     
 #resets all of the protected area intersections information - for example when a new version of the wdpa is installed 
-def _resetProtectedAreaInformation():
+def _invalidateProtectedAreaIntersections():
     #get all of the existing protected area intersection files
     files = _getFilesInFolderRecursive(MARXAN_FOLDER, PROTECTED_AREA_INTERSECTIONS_FILENAME)
     #iterate through all of these files and replace them with an empty file
@@ -1206,6 +1206,13 @@ def _shapefileHasField(shapefile, fieldname):
                 return True
     return False
     
+#returns True if the users project is currently running
+def _isProjectRunning(user, project):
+    #get the data from the run log file
+    df = _loadCSV(MARXAN_FOLDER + RUN_LOG_FILENAME)
+    #filter for running projects from the passed user and project
+    return not df.loc[(df['status'] == 'Running') & (df["user"] == user) & (df["project"] == project)].empty
+
 #gets the data from the run log as a dataframe
 def _getRunLogs():
     #get the data from the run log file
@@ -2310,50 +2317,56 @@ class runMarxan(MarxanWebSocketHandler):
             self.send_response({'error': e.reason, 'status': 'Finished'})
             self.close()
         else:
-            self.send_response({'info': "Running Marxan..", 'status':'Started'})
-            #set the current folder to the project folder so files can be found in the input.dat file
-            if (os.path.exists(self.folder_project)):
-                os.chdir(self.folder_project)
-                #delete all of the current output files
-                _deleteAllFiles(self.folder_output)
-                #run marxan 
-                #the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) instead of the tornado process - see here: https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
-                try:
-                    if platform.system() != "Windows":
-                        #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM - the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) 
-                        self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=PIPE, shell=True)
-                        #add a callback when the process finishes
-                        self.marxanProcess.set_exit_callback(self.finishOutput)
-                    else:
-                        #custom class as the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
-                        self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdout=PIPE, stdin=PIPE)
-                        self.marxanProcess.stdout.close() #to ensure that the child process is stopped when it ends on windows
-                        #add a callback when the process finishes on windows
-                        self.marxanProcess.set_exit_callback_windows(self.finishOutput)
-                    #make sure that the marxan process will end by sending ENTER to the stdin
-                    self.marxanProcess.stdin.write('\n'.encode("utf-8")) 
-                    self.marxanProcess.stdin.close()
-                except (WindowsError) as e: # pylint:disable=undefined-variable
-                    if (e.winerror == 1260):
-                        self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
-                        #close the websocket
-                        self.close()
-                else: #no errors
-                    #get the number of runs that were in the input.dat file
-                    self.numRunsRequired = _getNumberOfRunsRequired(self)
-                    #log the run to the run log file
-                    if not (self.user == '_clumping'): #dont log any clumping runs
-                        self.logRun()
-                    #print the details of the run out to the tornado log stream
-                    #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
-                    #return the pid so that the process can be stopped - prefix with an 'm' indicating that the pid is for a marxan run
-                    self.send_response({'pid': 'm' + str(self.marxanProcess.pid), 'status':'pid'})
-                    #callback on the next I/O loop
-                    IOLoop.current().spawn_callback(self.stream_marxan_output)
-            else: #project does not exist
-                self.send_response({'error': "Project '" + self.get_argument("project") + "' does not exist", 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+            #see if the project is already running - if it is then return an error
+            if _isProjectRunning(self.get_argument("user"), self.get_argument("project")):
+                self.send_response({'error': "The project is already running. See <a href='" + ERRORS_PAGE + "#the-project-is-already-running' target='blank'>here</a>", 'status': 'Finished','info':''})            
                 #close the websocket
                 self.close()
+            else:
+                self.send_response({'info': "Running Marxan..", 'status':'Started'})
+                #set the current folder to the project folder so files can be found in the input.dat file
+                if (os.path.exists(self.folder_project)):
+                    os.chdir(self.folder_project)
+                    #delete all of the current output files
+                    _deleteAllFiles(self.folder_output)
+                    #run marxan 
+                    #the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) instead of the tornado process - see here: https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
+                    try:
+                        if platform.system() != "Windows":
+                            #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM - the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) 
+                            self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=PIPE, shell=True)
+                            #add a callback when the process finishes
+                            self.marxanProcess.set_exit_callback(self.finishOutput)
+                        else:
+                            #custom class as the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
+                            self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdout=PIPE, stdin=PIPE)
+                            self.marxanProcess.stdout.close() #to ensure that the child process is stopped when it ends on windows
+                            #add a callback when the process finishes on windows
+                            self.marxanProcess.set_exit_callback_windows(self.finishOutput)
+                        #make sure that the marxan process will end by sending ENTER to the stdin
+                        self.marxanProcess.stdin.write('\n'.encode("utf-8")) 
+                        self.marxanProcess.stdin.close()
+                    except (WindowsError) as e: # pylint:disable=undefined-variable
+                        if (e.winerror == 1260):
+                            self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
+                            #close the websocket
+                            self.close()
+                    else: #no errors
+                        #get the number of runs that were in the input.dat file
+                        self.numRunsRequired = _getNumberOfRunsRequired(self)
+                        #log the run to the run log file
+                        if not (self.user == '_clumping'): #dont log any clumping runs
+                            self.logRun()
+                        #print the details of the run out to the tornado log stream
+                        #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
+                        #return the pid so that the process can be stopped - prefix with an 'm' indicating that the pid is for a marxan run
+                        self.send_response({'pid': 'm' + str(self.marxanProcess.pid), 'status':'pid'})
+                        #callback on the next I/O loop
+                        IOLoop.current().spawn_callback(self.stream_marxan_output)
+                else: #project does not exist
+                    self.send_response({'error': "Project '" + self.get_argument("project") + "' does not exist", 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+                    #close the websocket
+                    self.close()
 
     #called on the first IOLoop callback and then streams the marxan output back to the client
     @gen.coroutine
@@ -2485,7 +2498,7 @@ class updateWDPA(MarxanWebSocketHandler):
                         _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
                         #delete all of the existing intersections between planning units and the old version of the WDPA
                         self.send_response({'info': 'Invalidating existing WDPA intersections', 'status': 'Updating WDPA'})
-                        _resetProtectedAreaInformation()
+                        _invalidateProtectedAreaIntersections()
                         #send the response
                         self.send_response({'info': 'WDPA update completed succesfully', 'status': 'Finished'})
                     finally:

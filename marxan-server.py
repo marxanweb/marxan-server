@@ -468,11 +468,11 @@ def _getSpeciesData(obj):
         
 #gets data for a single feature
 def _getFeature(obj, oid):
-    obj.data = PostGIS().getDataFrame("SELECT oid::integer id,feature_class_name,alias,description,_area area,extent, to_char(creation_date, 'Dy, DD Mon YYYY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features WHERE oid=%s;",[oid])
+    obj.data = PostGIS().getDataFrame("SELECT oid::integer id,feature_class_name,alias,description,_area area,extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features WHERE oid=%s;",[oid])
 
 #get all species information from the PostGIS database
 def _getAllSpeciesData(obj):
-    obj.allSpeciesData = PostGIS().getDataFrame("SELECT oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'Dy, DD Mon YYYY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features ORDER BY alias;")
+    obj.allSpeciesData = PostGIS().getDataFrame("SELECT oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features ORDER BY alias;")
 
 #get the information about which species have already been preprocessed
 def _getSpeciesPreProcessingData(obj):
@@ -492,7 +492,7 @@ def _getPlanningUnitsCostData(obj):
 
 #gets the data for the planning grids
 def _getPlanningUnitGrids():
-    return PostGIS().getDict("SELECT feature_class_name ,alias ,description ,creation_date::text ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
+    return PostGIS().getDict("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
 
 #get the protected area intersections information
 def _getProtectedAreaIntersectionsData(obj):

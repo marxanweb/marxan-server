@@ -500,6 +500,14 @@ def _getProtectedAreaIntersectionsData(obj):
     #normalise the protected area intersections to make the payload smaller           
     obj.protectedAreaIntersectionsData = _normaliseDataFrame(df, "iucn_cat", "puid")
     
+#resets all of the protected area intersections information - for example when a new version of the wdpa is installed 
+def _resetProtectedAreaInformation():
+    #get all of the existing protected area intersection files
+    files = _getFilesInFolderRecursive(MARXAN_FOLDER, PROTECTED_AREA_INTERSECTIONS_FILENAME)
+    #iterate through all of these files and replace them with an empty file
+    for file in files:
+        shutil.copyfile(EMPTY_PROJECT_TEMPLATE_FOLDER + "input" + os.sep + PROTECTED_AREA_INTERSECTIONS_FILENAME, file)    
+
 #gets the marxan log after a run
 def _getMarxanLog(obj):
     if (os.path.exists(obj.folder_output + OUTPUT_LOG_FILENAME)):
@@ -2475,6 +2483,8 @@ class updateWDPA(MarxanWebSocketHandler):
                     else: 
                         #update the WDPA_VERSION variable in the server.dat file
                         _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
+                        #delete all of the existing intersections between planning units and the old version of the WDPA
+                        _resetProtectedAreaInformation()
                         #send the response
                         self.send_response({'info': 'WDPA update completed succesfully', 'status': 'Finished'})
                     finally:

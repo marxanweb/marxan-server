@@ -333,6 +333,25 @@ def _cloneProject(source_folder, destination_folder):
     #return the name of the new project
     return new_project_folder[:-1].split(os.sep)[-1]
 
+#upgrades an old version of marxan to a new one
+def _upgradeProject(obj):
+    #get the projects existing data from the input.dat file
+    old = _readFileUnicode(obj.folder_project + PROJECT_DATA_FILENAME)
+    #get an empty projects data
+    new = _readFileUnicode(EMPTY_PROJECT_TEMPLATE_FOLDER + PROJECT_DATA_FILENAME)
+    #everything from the 'DESCRIPTION No description' needs to be added
+    pos = new.find("DESCRIPTION No description")
+    if pos > -1:
+        newText = new[pos:]
+        old = old + "\n" + newText
+        _writeFileUnicode(obj.folder_project + PROJECT_DATA_FILENAME, old)
+    else:
+        raise MarxanServicesError("Unable to update the old version of Marxan to the new one")
+    #populate the feature_preprocessing.dat file using data in the puvspr.dat file
+    _createFeaturePreprocessingFileFromImport(obj)
+    #delete the contents of the output folder
+    _deleteAllFiles(obj.folder_output)
+
 #sets the various paths to the users folder and project folders using the request arguments in the passed object
 def _setFolderPaths(obj, arguments):
     if "user" in list(arguments.keys()):
@@ -1558,28 +1577,42 @@ class createImportProject(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "Project '" + self.get_argument('project') + "' created", 'name': self.get_argument('project')})
 
+#imports a project
+#POST ONLY
+class importProject(MarxanRESTHandler):
+    def post(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['user','project','puZipFilename','planning_grid_name'])  
+        try:
+            #create the empty project folder
+            _createProject(self, self.get_argument('project'))
+        except MarxanServicesError as e:
+            pass #delete the project
+        else:
+            try:
+                #import the planning unit grid shapefile
+                data = _importPlanningUnitGrid(self.get_argument('puZipFilename'), self.get_argument('planning_grid_name'), "Imported with the '" + self.get_argument('project') + "' project", self.get_current_user())
+            except MarxanServicesError as e:
+                pass #delete the project
+            else:
+                try:
+                    _upgradeProject(self)
+                except MarxanServicesError as e:
+                    pass #delete the project
+                else:
+                    pass #do something else
+                    
+        #set the response
+        self.send_response({'info': "Project '" + self.get_argument('project') + "' created", 'name': self.get_argument('project')})
+
 #updates a project from the Marxan old version to the new version
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/upgradeProject?user=andrew&project=test2&callback=__jp7
 class upgradeProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project'])  
-        #get the projects existing data from the input.dat file
-        old = _readFileUnicode(self.folder_project + PROJECT_DATA_FILENAME)
-        #get an empty projects data
-        new = _readFileUnicode(EMPTY_PROJECT_TEMPLATE_FOLDER + PROJECT_DATA_FILENAME)
-        #everything from the 'DESCRIPTION No description' needs to be added
-        pos = new.find("DESCRIPTION No description")
-        if pos > -1:
-            newText = new[pos:]
-            old = old + "\n" + newText
-            _writeFileUnicode(self.folder_project + PROJECT_DATA_FILENAME, old)
-        else:
-            raise MarxanServicesError("Unable to update the old version of Marxan to the new one")
-        #populate the feature_preprocessing.dat file using data in the puvspr.dat file
-        _createFeaturePreprocessingFileFromImport(self)
-        #delete the contents of the output folder
-        _deleteAllFiles(self.folder_output)
+        #upgrade the project
+        _upgradeProject(self)
         #set the response
         self.send_response({'info': "Project '" + self.get_argument("project") + "' updated", 'project': self.get_argument("project")})
 
@@ -2846,6 +2879,7 @@ def make_app():
         ("/marxan-server/getProject", getProject),
         ("/marxan-server/createProject", createProject),
         ("/marxan-server/createImportProject", createImportProject),
+        ("/marxan-server/importProject", importProject),
         ("/marxan-server/upgradeProject", upgradeProject),
         ("/marxan-server/deleteProject", deleteProject),
         ("/marxan-server/cloneProject", cloneProject),

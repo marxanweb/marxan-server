@@ -333,25 +333,6 @@ def _cloneProject(source_folder, destination_folder):
     #return the name of the new project
     return new_project_folder[:-1].split(os.sep)[-1]
 
-#upgrades an old version of marxan to a new one
-def _upgradeProject(obj):
-    #get the projects existing data from the input.dat file
-    old = _readFileUnicode(obj.folder_project + PROJECT_DATA_FILENAME)
-    #get an empty projects data
-    new = _readFileUnicode(EMPTY_PROJECT_TEMPLATE_FOLDER + PROJECT_DATA_FILENAME)
-    #everything from the 'DESCRIPTION No description' needs to be added
-    pos = new.find("DESCRIPTION No description")
-    if pos > -1:
-        newText = new[pos:]
-        old = old + "\n" + newText
-        _writeFileUnicode(obj.folder_project + PROJECT_DATA_FILENAME, old)
-    else:
-        raise MarxanServicesError("Unable to update the old version of Marxan to the new one")
-    #populate the feature_preprocessing.dat file using data in the puvspr.dat file
-    _createFeaturePreprocessingFileFromImport(obj)
-    #delete the contents of the output folder
-    _deleteAllFiles(obj.folder_output)
-
 #sets the various paths to the users folder and project folders using the request arguments in the passed object
 def _setFolderPaths(obj, arguments):
     if "user" in list(arguments.keys()):
@@ -1577,42 +1558,28 @@ class createImportProject(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "Project '" + self.get_argument('project') + "' created", 'name': self.get_argument('project')})
 
-#imports a project
-#POST ONLY
-class importProject(MarxanRESTHandler):
-    def post(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project','puZipFilename','planning_grid_name'])  
-        try:
-            #create the empty project folder
-            _createProject(self, self.get_argument('project'))
-        except MarxanServicesError as e:
-            pass #delete the project
-        else:
-            try:
-                #import the planning unit grid shapefile
-                data = _importPlanningUnitGrid(self.get_argument('puZipFilename'), self.get_argument('planning_grid_name'), "Imported with the '" + self.get_argument('project') + "' project", self.get_current_user())
-            except MarxanServicesError as e:
-                pass #delete the project
-            else:
-                try:
-                    _upgradeProject(self)
-                except MarxanServicesError as e:
-                    pass #delete the project
-                else:
-                    pass #do something else
-                    
-        #set the response
-        self.send_response({'info': "Project '" + self.get_argument('project') + "' created", 'name': self.get_argument('project')})
-
 #updates a project from the Marxan old version to the new version
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/upgradeProject?user=andrew&project=test2&callback=__jp7
 class upgradeProject(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project'])  
-        #upgrade the project
-        _upgradeProject(self)
+        #get the projects existing data from the input.dat file
+        old = _readFileUnicode(self.folder_project + PROJECT_DATA_FILENAME)
+        #get an empty projects data
+        new = _readFileUnicode(EMPTY_PROJECT_TEMPLATE_FOLDER + PROJECT_DATA_FILENAME)
+        #everything from the 'DESCRIPTION No description' needs to be added
+        pos = new.find("DESCRIPTION No description")
+        if pos > -1:
+            newText = new[pos:]
+            old = old + "\n" + newText
+            _writeFileUnicode(self.folder_project + PROJECT_DATA_FILENAME, old)
+        else:
+            raise MarxanServicesError("Unable to update the old version of Marxan to the new one")
+        #populate the feature_preprocessing.dat file using data in the puvspr.dat file
+        _createFeaturePreprocessingFileFromImport(self)
+        #delete the contents of the output folder
+        _deleteAllFiles(self.folder_output)
         #set the response
         self.send_response({'info': "Project '" + self.get_argument("project") + "' updated", 'project': self.get_argument("project")})
 
@@ -2656,8 +2623,9 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
             _debugSQLStatement(sql, self.conn)                
             #execute the query
             cur.execute(sql)
-            #send the pid back to the client so that the query can be stopped - and prefix it with a 'q'
-            self.send_response({'pid': 'q' + str(self.conn.get_backend_pid()), 'status':'pid'})
+            #get the pid of the query so that it can be stopped - and prefix it with a 'q'
+            self.pid = 'q' + str(self.conn.get_backend_pid())
+            self.send_response({'status':'pid'})
             #poll to get the state of the query
             state = self.conn.poll()
             #poll at regular intervals to see if the query has finished
@@ -2674,22 +2642,26 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                 #set the values on the current object
                 self.queryResults = {}
                 self.queryResults.update({'columns': columns, 'records': records})
-
-        except (psycopg2.extensions.QueryCanceledError): #stopped by user
-            self.send_response({'error': 'Preprocessing stopped by ' + self.get_current_user(), 'status':' FinishedQuery'})
+        except (psycopg2.extensions.QueryCanceledError, psycopg2.InternalError): #stopped by user
+            self.send_response({'error': 'Preprocessing stopped by ' + self.get_current_user(), 'status':'Finished'})
         except (psycopg2.OperationalError) as e: #killed by operating system
             if ("SSL SYSCALL error: EOF detected" in e.args[0]):
-                self.send_response({'error': "Preprocessing stopped by operating system", 'status':' FinishedQuery'})
+                self.send_response({'error': "Preprocessing stopped by operating system", 'status':'Finished'})
         except (psycopg2.Error) as e: #other exception
             if ("SSL connection has been closed unexpectedly" in e.pgerror):
-                self.send_response({'error': "The database server shutdown unexpectedly", 'status':' FinishedQuery'})
+                self.send_response({'error': "The database server shutdown unexpectedly", 'status':'Finished'})
             else:
-                self.send_response({'error': e.pgerror, 'status':' FinishedQuery'})
-        
+                self.send_response({'error': e.pgerror, 'status':'Finished'})
         #clean up code
         finally:
             cur.close()
             self.conn.close()
+    
+    def send_response(self, message):
+        #all websocket messages will contain the pid of the query
+        if hasattr(self, 'pid'):
+            message.update({'pid': self.pid})
+        super(QueryWebSocketHandler, self).send_response(message)
 
 ####################################################################################################################################################################################################################################################################
 ## WebSocket subclasses
@@ -2711,7 +2683,7 @@ class preprocessFeature(QueryWebSocketHandler):
             _getProjectData(self)
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #now as an inline SQL statement to make updates easier
-                future = self.executeQueryAsynchronously(sql.SQL("SELECT metadata.oid::integer species, puid pu, sum(ST_Area(ST_Intersection(grid.geometry,feature.geometry))) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))),[self.get_argument('feature_class_name')],"Preprocessing '" + self.get_argument('alias') + "'..", "  Preprocessing..")
+                future = self.executeQueryAsynchronously(sql.SQL("SELECT metadata.oid::integer species, puid pu, sum(ST_Area(ST_Intersection(grid.geometry,feature.geometry))) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))),[self.get_argument('feature_class_name')],"Preprocessing '" + self.get_argument('alias') + "'..", "Preprocessing..")
                 future.add_done_callback(self.intersectionComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan
@@ -2879,7 +2851,6 @@ def make_app():
         ("/marxan-server/getProject", getProject),
         ("/marxan-server/createProject", createProject),
         ("/marxan-server/createImportProject", createImportProject),
-        ("/marxan-server/importProject", importProject),
         ("/marxan-server/upgradeProject", upgradeProject),
         ("/marxan-server/deleteProject", deleteProject),
         ("/marxan-server/cloneProject", cloneProject),

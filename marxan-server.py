@@ -1681,7 +1681,7 @@ class importPlanningUnitGrid(MarxanRESTHandler):
         #import the shapefile
         data = _importPlanningUnitGrid(self.get_argument('filename'), self.get_argument('name'), self.get_argument('description'), self.get_current_user())
         #set the response
-        self.send_response({'info': "File '" + self.get_argument('filename') + "' imported", 'feature_class_name': data['feature_class_name'], 'uploadId': data['uploadId'], 'alias': data['alias']})
+        self.send_response({'info': "Planning grid '" + self.get_argument('name') + "' imported", 'feature_class_name': data['feature_class_name'], 'uploadId': data['uploadId'], 'alias': data['alias']})
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deletePlanningUnitGrid?planning_grid_name=pu_f9609f7a4cb0406e8bea4bfa00772&callback=__jp10        
 class deletePlanningUnitGrid(MarxanRESTHandler):
@@ -2199,7 +2199,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #start the upload to mapbox
         uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
         #set the response
-        self.send_response({'info': "Feature '" + feature_class_name + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
+        self.send_response({'info': "Feature '" + self.get_argument('name') + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
         
 #kills a running process
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/stopProcess?pid=m12345&callback=__jp5
@@ -2457,7 +2457,7 @@ class updateWDPA(MarxanWebSocketHandler):
             except (MarxanServicesError) as e: #download failed
                 self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'WDPA not updated'})
             else:
-                self.send_response({'info': "Downloaded", 'status':'Updating WDPA'})
+                self.send_response({'info': "Downloaded", 'status':'Downloaded'})
                 try:
                     #download finished - upzip the polygons shapefile
                     self.send_response({'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'", 'status':'Updating WDPA'})
@@ -2530,7 +2530,7 @@ class updateWDPA(MarxanWebSocketHandler):
                         break
                     file_size_dl += len(buffer)
                     f.write(buffer)
-                    self.send_response({'info': "Downloading " + url, 'status':'Updating WDPA', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
+                    self.send_response({'info': "Downloading " + url, 'status':'Downloading', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
                 #downloaded succesfully
                 f.close()
                 
@@ -2555,7 +2555,7 @@ class importFeature(MarxanWebSocketHandler):
             description = self.get_argument('description')
             #unzip the shapefile
             try:
-                self.send_response({'info': "Unzipping shapefile..", 'status':'Importing feature'})
+                # self.send_response({'info': "Unzipping shapefile..", 'status':'Importing feature'})
                 rootfilename = _unzipFile(filename) 
             except (MarxanServicesError) as e:
                 self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import feature'})
@@ -2565,13 +2565,12 @@ class importFeature(MarxanWebSocketHandler):
                 try:
                     #import the shapefile into a PostGIS undissolved feature class in EPSG:3410
                     postgis = PostGIS()
-                    self.send_response({'info': "Importing to '" + feature_class_name + "'..", 'status':'Importing feature'})
+                    # self.send_response({'info': "Importing to '" + feature_class_name + "'..", 'status':'Importing feature'})
                     postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
                     id = _finishImportingFeature(feature_class_name, name, description, "Import shapefile", self.get_current_user())
                     #upload the feature class to Mapbox
-                    self.send_response({'info': "Uploading to MapBox..", 'status':'Importing feature'})
                     uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
-                    self.send_response({'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'status': 'Finished'})
+                    self.send_response({'file': filename, 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + name + "' imported", 'status': 'Finished'})
                 except (MarxanServicesError) as e:
                     if "already exists" in e.args[0]:
                         self.send_response({'error':"The feature '" + name + "' already exists", 'status':'Finished', 'info': 'Failed to import feature'})
@@ -2783,7 +2782,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #new version of marxan - get the boundary lengths
                 PostGIS().execute("DROP TABLE IF EXISTS marxan.tmp;") 
-                future = self.executeQueryAsynchronously(sql.SQL("CREATE TABLE marxan.tmp AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(a.geometry, b.geometry), 2))/1000 boundary  FROM marxan.{0} a, marxan.{0} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])), None, "Getting boundary lengths", "  Processing ..")
+                future = self.executeQueryAsynchronously(sql.SQL("CREATE TABLE marxan.tmp AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(a.geometry, b.geometry), 2))/1000 boundary  FROM marxan.{0} a, marxan.{0} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])), None, "Calculating boundary lengths", "  Processing ..")
                 future.add_done_callback(self.preprocessPlanningUnitsComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan
@@ -2835,7 +2834,7 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
             #start the upload to Mapbox
             uploadId = _uploadTilesetToMapbox(fc, fc)
             #set the response
-            self.send_response({'info':'Planning unit grid created', 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId, 'status':'Finished'})
+            self.send_response({'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId, 'status':'Finished'})
         except (MarxanServicesError) as e:
             self.send_response({'error': e.args[0], 'status': 'Finished'})
 

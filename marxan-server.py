@@ -2641,6 +2641,8 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                 #set the values on the current object
                 self.queryResults = {}
                 self.queryResults.update({'columns': columns, 'records': records})
+            else: #an error
+                self.queryResults = {}
         except (psycopg2.extensions.QueryCanceledError, psycopg2.InternalError): #stopped by user
             self.send_response({'error': 'Preprocessing stopped by ' + self.get_current_user(), 'status':'Finished'})
         except (psycopg2.OperationalError) as e: #killed by operating system
@@ -2649,6 +2651,8 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
         except (psycopg2.Error) as e: #other exception
             if ("SSL connection has been closed unexpectedly" in e.pgerror):
                 self.send_response({'error': "The database server shutdown unexpectedly", 'status':'Finished'})
+            elif ("duplicate key value" in e.pgerror):
+                self.send_response({'error': "That item already exists", 'status':'Finished'})
             else:
                 self.send_response({'error': e.pgerror, 'status':'Finished'})
         #clean up code

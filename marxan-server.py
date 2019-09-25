@@ -116,6 +116,7 @@ def _setGlobalVariables():
     global PORT
     global CERTFILE
     global KEYFILE
+    global PLANNING_GRID_UNITS_LIMIT
     #initialise colorama to be able to show log messages on windows in color
     colorama.init()
     #get the folder from this files path
@@ -133,6 +134,7 @@ def _setGlobalVariables():
     PORT = str(_getDictValue(serverData, 'PORT'))
     CERTFILE = _getDictValue(serverData,'CERTFILE')
     KEYFILE = _getDictValue(serverData,'KEYFILE')
+    PLANNING_GRID_UNITS_LIMIT = int(_getDictValue(serverData,'PLANNING_GRID_UNITS_LIMIT'))
     CONNECTION_STRING = "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
     #get the database version
     postgis = PostGIS()
@@ -494,6 +496,16 @@ def _getPlanningUnitsCostData(obj):
 def _getPlanningUnitGrids():
     return PostGIS().getDict("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
 
+#estimates the number of planning grid units in the passed country, area and domain
+def _estimatePlanningUnitCount(areakm2, iso3, domain):
+    postgis = PostGIS()
+    #see if we are using terrestrial or marine
+    if (domain == 'Terrestrial'):
+        unitCount = postgis.execute("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.gaul_2015_simplified_1km WHERE iso3 = %s;", [areakm2,iso3], "One")[0]
+    else:
+        unitCount = postgis.execute("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.eez_2015_simplified_1km WHERE iso3 = %s;", [areakm2,iso3], "One")[0]
+    return unitCount
+    
 #get the protected area intersections information
 def _getProtectedAreaIntersectionsData(obj):
     df = _loadCSV(obj.folder_input + PROTECTED_AREA_INTERSECTIONS_FILENAME)
@@ -2823,8 +2835,14 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
             self.send_response({'error': e.reason, 'status': 'Finished'})
         else:
             _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
-            future = self.executeQueryAsynchronously("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], "Creating planning grid..", "  Processing ..")
-            future.add_done_callback(self.createPlanningUnitGridComplete) # pylint:disable=no-member
+            #estimate how many planning units are in the grid that will be created
+            unitCount = _estimatePlanningUnitCount(self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'))
+            #see if the unit count is above the PLANNING_GRID_UNITS_LIMIT
+            if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
+                self.send_response({'error': "Number of planning units exceeds the threshold of " + str(PLANNING_GRID_UNITS_LIMIT) + ". See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>", 'status': 'Finished'})
+            else:
+                future = self.executeQueryAsynchronously("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], "Creating planning grid..", "  Processing ..")
+                future.add_done_callback(self.createPlanningUnitGridComplete) # pylint:disable=no-member
     
     #callback which is called when the planning grid has been created
     def createPlanningUnitGridComplete(self, future):

@@ -134,13 +134,13 @@ def _setGlobalVariables():
     PORT = str(_getDictValue(serverData, 'PORT'))
     CERTFILE = _getDictValue(serverData,'CERTFILE')
     KEYFILE = _getDictValue(serverData,'KEYFILE')
-    PLANNING_GRID_UNITS_LIMIT = int(_getDictValue(serverData,'PLANNING_GRID_UNITS_LIMIT'))
     CONNECTION_STRING = "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
     #get the database version
     postgis = PostGIS()
     DATABASE_VERSION_POSTGRESQL, DATABASE_VERSION_POSTGIS = postgis.execute("SELECT version(), PostGIS_Version();", None, "One")  
     COOKIE_RANDOM_VALUE = _getDictValue(serverData,'COOKIE_RANDOM_VALUE')
     PERMITTED_DOMAINS = _getDictValue(serverData,'PERMITTED_DOMAINS').split(",")
+    PLANNING_GRID_UNITS_LIMIT = int(_getDictValue(serverData,'PLANNING_GRID_UNITS_LIMIT'))
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
     print("\x1b[1;32;48m\nStarting marxan-server v" + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..\x1b[0m")
     #print out which operating system is being used
@@ -160,12 +160,14 @@ def _setGlobalVariables():
     print(" Database:\t\t" + "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='****************'")
     print(" PostgreSQL:\t\t" + DATABASE_VERSION_POSTGRESQL)
     print(" PostGIS:\t\t" + DATABASE_VERSION_POSTGIS)
+    print(" WDPA Version:\t\t" + _getDictValue(serverData,'WDPA_VERSION'))
+    print(" Planning grid limit:\t" + str(PLANNING_GRID_UNITS_LIMIT))
     print(" Python executable:\t" + sys.executable)
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
         ogr2ogr_executable = "ogr2ogr.exe"
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep + "library" + os.sep + "bin" + os.sep # sys.executable is the Python.exe file and will likely be in C:\Users\a_cottam\Miniconda2 folder - ogr2ogr is then in /library/bin on windows
-        marxan_executable = "Marxan.exe"
+        marxan_executable = "Marxan.exe" #TODO Use Marxan_x64.exe for 64 bit processors
         stopCmd = "\x1b[1;31;48mPress CTRL+C or CTRL+Fn+Pause to stop the server\x1b[0m\n"
     else:
         ogr2ogr_executable = "ogr2ogr"
@@ -505,7 +507,7 @@ def _estimatePlanningUnitCount(areakm2, iso3, domain):
     else:
         unitCount = postgis.execute("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.eez_2015_simplified_1km WHERE iso3 = %s;", [areakm2,iso3], "One")[0]
     return unitCount
-    
+
 #get the protected area intersections information
 def _getProtectedAreaIntersectionsData(obj):
     df = _loadCSV(obj.folder_input + PROTECTED_AREA_INTERSECTIONS_FILENAME)
@@ -2839,11 +2841,11 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
             unitCount = _estimatePlanningUnitCount(self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'))
             #see if the unit count is above the PLANNING_GRID_UNITS_LIMIT
             if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
-                self.send_response({'error': "Number of planning units exceeds the threshold of " + str(PLANNING_GRID_UNITS_LIMIT) + ". See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>", 'status': 'Finished'})
+                self.send_response({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + ". See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>", 'status': 'Finished'})
             else:
                 future = self.executeQueryAsynchronously("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], "Creating planning grid..", "  Processing ..")
                 future.add_done_callback(self.createPlanningUnitGridComplete) # pylint:disable=no-member
-    
+                
     #callback which is called when the planning grid has been created
     def createPlanningUnitGridComplete(self, future):
         try:

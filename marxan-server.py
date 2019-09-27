@@ -83,7 +83,7 @@ MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -1336,7 +1336,9 @@ class PostGIS():
     def _getDataFrame(self, sql, data):
         #do any argument binding 
         sql = self._mogrify(sql, data)
-        return pandas.read_sql_query(sql, self.connection)
+        df = pandas.read_sql_query(sql, self.connection)
+        self.connection.commit() #needed as read_sql_query leaves the database idle and blocks any more calls - see https://github.com/pandas-dev/pandas/issues/11521
+        return df
 
     #called in exceptions to close the cursor and connection
     def _cleanup(self):

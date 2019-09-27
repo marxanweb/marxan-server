@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.9.14"
+MARXAN_SERVER_VERSION = "0.9.15"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -83,7 +83,7 @@ MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -2234,6 +2234,16 @@ class deleteFeature(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "Feature deleted"})
 
+#deletes a shapefile 
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteShapefile?zipfile=test.zip&shapefile=wibble.shp&callback=__jp5
+class deleteShapefile(MarxanRESTHandler):
+    def get(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['zipfile','shapefile'])   
+        _deleteZippedShapefile(MARXAN_FOLDER, self.get_argument('zipfile'), self.get_argument('shapefile')[:-4])
+        #set the response
+        self.send_response({'info': "Shapefile deleted"})
+
 #creates a new feature from a passed linestring 
 class createFeatureFromLinestring(MarxanRESTHandler):
     def post(self):
@@ -2644,8 +2654,6 @@ class importFeatures(MarxanWebSocketHandler):
             finally:
                 #delete the scratch feature class
                 _deleteFeatureClass(scratch_name)
-                # delete the shapefile and the zip file
-                _deleteZippedShapefile(MARXAN_FOLDER, self.get_argument('zipfile'), shapefile[:-4])
                 #close the websocket
                 self.close()
 
@@ -2943,6 +2951,7 @@ def make_app():
         ("/marxan-server/uploadTilesetToMapBox", uploadTilesetToMapBox),
         ("/marxan-server/uploadShapefile", uploadShapefile),
         ("/marxan-server/unzipShapefile", unzipShapefile),
+        ("/marxan-server/deleteShapefile", deleteShapefile),
         ("/marxan-server/getShapefileFieldnames", getShapefileFieldnames),
         ("/marxan-server/uploadFile", uploadFile),
         ("/marxan-server/importPlanningUnitGrid", importPlanningUnitGrid),

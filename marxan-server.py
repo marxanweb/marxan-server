@@ -54,11 +54,11 @@ DISABLE_SECURITY = False
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring"],
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.9.13"
+MARXAN_SERVER_VERSION = "0.9.14"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -1206,9 +1206,18 @@ def _guestUserEnabled(obj):
 def _shapefileHasField(shapefile, fieldname):
     #check that all the required files are present for the shapefile
     _checkZippedShapefile(shapefile)
+    #get the field name list
+    fieldnames = _getShapefileFieldNames(shapefile)
+    return fieldname in fieldnames
+    
+#gets the names of the fields in a shapefile
+def _getShapefileFieldNames(shapefile):
+    fieldnames = []
     ogr.UseExceptions()
     try:
         dataSource = ogr.Open(shapefile)
+        if not dataSource:
+            raise MarxanServicesError("Shapefile '" + shapefile + "' not found")
         daLayer = dataSource.GetLayer(0)
     except (RuntimeError) as e:
         raise MarxanServicesError(e.args[1])
@@ -1216,9 +1225,8 @@ def _shapefileHasField(shapefile, fieldname):
         layerDefinition = daLayer.GetLayerDefn()
         count = layerDefinition.GetFieldCount()
         for i in range(count):
-            if (layerDefinition.GetFieldDefn(i).GetName() == fieldname):
-                return True
-    return False
+            fieldnames.append(layerDefinition.GetFieldDefn(i).GetName())
+        return fieldnames
     
 #returns True if the users project is currently running
 def _isProjectRunning(user, project):
@@ -1284,6 +1292,10 @@ def _debugSQLStatement(sql, connection):
     
 #checks that all the necessary files in the shapefile are present - if not raises an error
 def _checkZippedShapefile(shapefile):
+    #check there are any files present
+    files = glob.glob(shapefile[:-4] + "*") 
+    if (len(files) == 0):
+        raise MarxanServicesError("The shapefile '"  + shapefile + "' was not found")
     #check all the required files are present .shp, .shx and .dbf
     if not os.path.exists(shapefile):
         raise MarxanServicesError("The *.shp file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
@@ -2187,7 +2199,29 @@ class uploadFile(MarxanRESTHandler):
         _writeFile(self.folder_project + self.get_argument('filename'), self.request.files['value'][0].body)
         #set the response
         self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
-            
+
+#unzips a shapefile and returns the rootname
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/unzipShapefile?filename=test&callback=__jp5
+class unzipShapefile(MarxanRESTHandler):
+    def get(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['filename'])   
+        #write the file to the server
+        rootfilename = _unzipFile(self.get_argument('filename')) 
+        #set the response
+        self.send_response({'info': "File '" + self.get_argument('filename') + "' unzipped", 'rootfilename': rootfilename})
+        
+#gets a field list from a shapefile 
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getShapefileFieldnames=test&callback=__jp5
+class getShapefileFieldnames(MarxanRESTHandler):
+    def get(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['filename'])  
+        #get the field list
+        fields = _getShapefileFieldNames(MARXAN_FOLDER + self.get_argument('filename'))
+        #set the response
+        self.send_response({'info': "Field list returned", 'fieldnames': fields})
+    
 #deletes a feature from the PostGIS database
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteFeature?feature_name=test_feature1&callback=__jp5
 class deleteFeature(MarxanRESTHandler):
@@ -2209,7 +2243,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #create the table
         PostGIS().execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
         #add an index and a record in the metadata_interest_features table
-        id = _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Draw on screen", self.get_current_user())
+        id = _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Drawn on screen", self.get_current_user())
         #start the upload to mapbox
         uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
         #set the response
@@ -2553,70 +2587,65 @@ class importFeatures(MarxanWebSocketHandler):
         try:
             super(importFeatures, self).open()
             #validate the input arguments
-            _validateArguments(self.request.arguments, ['filename','description'])   
+            _validateArguments(self.request.arguments, ['zipfile', 'shapefile'])   
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'Failed to import features'})
         except (MarxanServicesError) as e:
             self.send_response({'error': e.args[0], 'status': 'Finished', 'info': 'Failed to import features'})
         else:
             self.send_response({'info': "Importing features..", 'status':'Started'})
-            filename = self.get_argument('filename')
+            shapefile = self.get_argument('shapefile')
             #if a name is passed then this is a single feature class
             if "name" in list(self.request.arguments.keys()):
                 name = self.get_argument('name')
             else:
                 name = None
-            #unzip the shapefile
             try:
-                # self.send_response({'info': "Unzipping shapefile..", 'status':'Importing feature'})
-                rootfilename = _unzipFile(filename) 
-            except (MarxanServicesError) as e:
-                self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import features'})
-            else:
                 #get a scratch name for the import
                 scratch_name = _getUniqueFeatureclassName("scratch_")
-                try:
-                    #import the shapefile into a PostGIS feature class in EPSG:3410
-                    postgis = PostGIS()
-                    # self.send_response({'info': "Importing to '" + scratch_name + "'..", 'status':'Importing features'})
-                    postgis.importShapefile(rootfilename + ".shp", scratch_name, "EPSG:3410")
-                    #get the feature names 
+                #import the shapefile into a PostGIS feature class in EPSG:3410
+                postgis = PostGIS()
+                # self.send_response({'info': "Importing to '" + scratch_name + "'..", 'status':'CreatingFeature'})
+                postgis.importShapefile(shapefile, scratch_name, "EPSG:3410")
+                #get the feature names 
+                if name: #single feature name
+                    feature_names = [name]
+                else: #get the feature names from a field in the shapefile
+                    splitfield = self.get_argument('splitfield')
+                    features = postgis.getDataFrame(sql.SQL("SELECT {splitfield} FROM marxan.{scratchTable}").format(splitfield=sql.Identifier(splitfield),scratchTable=sql.Identifier(scratch_name)))
+                    feature_names = features[splitfield].tolist()
+                    #if they are not unique then return an error
+                    if (len(feature_names) != len(set(feature_names))):
+                        raise MarxanServicesError("Feature names are not unique for the field '" + splitfield + "'")
+                #split the imported feature class into separate feature classes
+                for feature_name in feature_names:
+                    feature_class_name = _getUniqueFeatureclassName("fs_")
+                    #create the new feature class
                     if name: #single feature name
-                        feature_names = [name]
-                    else: #get the feature names from a field in the shapefile
-                        namefield = self.get_argument('namefield')
-                        features = postgis.getDataFrame(sql.SQL("SELECT {nameField} FROM marxan.{scratchTable}").format(nameField=sql.Identifier(namefield),scratchTable=sql.Identifier(scratch_name)))
-                        feature_names = features[namefield].tolist()
-                        #if they are not unique then return an error
-                        if (len(feature_names) != len(set(feature_names))):
-                            raise MarxanServicesError("Feature names are not unique for the field '" + namefield + "'")
-                    #split the imported feature class into separate feature classes
-                    for feature_name in feature_names:
-                        feature_class_name = _getUniqueFeatureclassName("fs_")
-                        #create the new feature class
-                        if name: #single feature name
-                            postgis.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable};").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
-                        else:
-                            postgis.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable} WHERE species = %s;").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
-                        #finish the import by adding a record in the metadata table
-                        id = _finishImportingFeature(feature_class_name, feature_name, self.get_argument('description'), "importFeatures", self.get_current_user())
-                        #upload the feature class to Mapbox
-                        uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
-                        self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'Importing features'})
-                    #complete
-                    self.send_response({'info': "Features imported", 'status':'Finished'})
-                except (MarxanServicesError) as e:
-                    if "already exists" in e.args[0]:
-                        self.send_response({'error':"The feature '" + feature_name + "' already exists", 'status':'Finished', 'info': 'Failed to import features'})
+                        postgis.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable};").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
+                        description = self.get_argument('description')
                     else:
-                        self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import features'})
-                finally:
-                    #delete the scratch feature class
-                    _deleteFeatureClass(scratch_name)
-                    # delete the shapefile and the zip file
-                    _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
-                    #close the websocket
-                    self.close()
+                        postgis.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable} WHERE species = %s;").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
+                        description = "Imported from shapefile '" + shapefile + "' and split by the '" + splitfield + "' field"
+                    #finish the import by adding a record in the metadata table
+                    id = _finishImportingFeature(feature_class_name, feature_name, description, "importFeatures", self.get_current_user())
+                    #upload the feature class to Mapbox
+                    uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+                    self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
+                #complete
+                self.send_response({'info': "Features imported", 'status':'Finished'})
+            except (MarxanServicesError) as e:
+                if "already exists" in e.args[0]:
+                    self.send_response({'error':"The feature '" + feature_name + "' already exists", 'status':'Finished', 'info': 'Failed to import features'})
+                else:
+                    self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import features'})
+            finally:
+                #delete the scratch feature class
+                _deleteFeatureClass(scratch_name)
+                # delete the shapefile and the zip file
+                _deleteZippedShapefile(MARXAN_FOLDER, self.get_argument('zipfile'), shapefile[:-4])
+                #close the websocket
+                self.close()
 
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
@@ -2911,6 +2940,8 @@ def make_app():
         ("/marxan-server/deletePlanningUnitGrid", deletePlanningUnitGrid),
         ("/marxan-server/uploadTilesetToMapBox", uploadTilesetToMapBox),
         ("/marxan-server/uploadShapefile", uploadShapefile),
+        ("/marxan-server/unzipShapefile", unzipShapefile),
+        ("/marxan-server/getShapefileFieldnames", getShapefileFieldnames),
         ("/marxan-server/uploadFile", uploadFile),
         ("/marxan-server/importPlanningUnitGrid", importPlanningUnitGrid),
         ("/marxan-server/createFeaturePreprocessingFileFromImport", createFeaturePreprocessingFileFromImport),
@@ -2954,7 +2985,6 @@ def make_app():
         ("/marxan-server/updateWDPA", updateWDPA),
         ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
         ("/marxan-server/testTornado", testTornado),
-        ("/marxan-server/test", test),
         ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
         (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
     ], cookie_secret=COOKIE_RANDOM_VALUE, websocket_ping_timeout=30, websocket_ping_interval=29)

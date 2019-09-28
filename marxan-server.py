@@ -878,7 +878,7 @@ def _deleteZippedShapefile(folder, zipfile, archivename):
     files = glob.glob(folder + archivename + '.*')
     if len(files)>0:
         [os.remove(f) for f in files if f[-3:] in ['shx','shp','xml','sbx','prj','sbn','zip','dbf','cpg','qpj','SHX','SHP','XML','SBX','PRJ','SBN','ZIP','DBF','CPG','QPJ']]       
-    if (os.path.exists(folder + zipfile)):
+    if (zipfile !="" and os.path.exists(folder + zipfile)):
         os.remove(folder + zipfile)
 
 #unzips a zip file and returns the rootname - if rejectMultipleShapefiles is True then an exception will be thrown if the zip file contains multiple shapefiles -  if searchTerm is specified then only the files that match the searchTerm will be extracted 

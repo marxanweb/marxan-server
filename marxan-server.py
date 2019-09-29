@@ -1018,7 +1018,7 @@ def _importPlanningUnitGrid(filename, name, description, user):
         #import the shapefile into PostGIS
         postgis = PostGIS()
         #create a record for this new feature in the metadata_planning_units table
-        postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s);", [feature_class_name, name, description,user])
+        postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by,tilesetid) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s,%s);", [feature_class_name, name, description,user,MAPBOX_USER + "." + feature_class_name])
         #import the shapefile
         postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
         #make sure the puid column is an integer

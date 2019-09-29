@@ -5,5 +5,4 @@ NAME Admin user
 EMAIL 
 PASSWORD password
 BASEMAP Light
-MAPBOXACCESSTOKEN sk.eyJ1IjoiYmxpc2h0ZW4iLCJhIjoiY2piNm1tOGwxMG9lajMzcXBlZDR4aWVjdiJ9.Z1Jq4UAgGpXukvnUReLO1g
 ROLE Admin

@@ -91,6 +91,7 @@ LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logge
 
 #run when the server starts to set all of the global path variables
 def _setGlobalVariables():
+    global MBAT
     global MARXAN_FOLDER
     global MARXAN_USERS_FOLDER
     global MARXAN_CLIENT_BUILD_FOLDER
@@ -220,7 +221,7 @@ def _getRESTMethod(path):
         return ""
     
 #creates a new user
-def _createUser(obj, user, fullname, email, password, mapboxaccesstoken):
+def _createUser(obj, user, fullname, email, password):
     #get the list of users
     users = _getUsers()
     if user in users:
@@ -231,7 +232,7 @@ def _createUser(obj, user, fullname, email, password, mapboxaccesstoken):
     #copy the user.dat file
     shutil.copyfile(MARXAN_WEB_RESOURCES_FOLDER + USER_DATA_FILENAME, obj.folder_user + USER_DATA_FILENAME)
     #update the user.dat file parameters
-    _updateParameters(obj.folder_user + USER_DATA_FILENAME, {'NAME': fullname,'EMAIL': email,'PASSWORD': password,'MAPBOXACCESSTOKEN': mapboxaccesstoken})
+    _updateParameters(obj.folder_user + USER_DATA_FILENAME, {'NAME': fullname,'EMAIL': email,'PASSWORD': password})
 
 #gets a simple list of users
 def _getUsers():
@@ -1567,9 +1568,9 @@ class toggleEnableGuestUser(MarxanRESTHandler):
 class createUser(MarxanRESTHandler):
     def post(self):
         #validate the input arguments 
-        _validateArguments(self.request.arguments, ["user","password", "fullname", "email", "mapboxaccesstoken"])  
+        _validateArguments(self.request.arguments, ["user","password", "fullname", "email"])  
         #create the user
-        _createUser(self, self.get_argument('user'), self.get_argument('fullname'), self.get_argument('email'), self.get_argument('password'), self.get_argument('mapboxaccesstoken'))
+        _createUser(self, self.get_argument('user'), self.get_argument('fullname'), self.get_argument('email'), self.get_argument('password'))
         #copy the start project into the users folder
         _cloneProject(START_PROJECT_FOLDER, MARXAN_USERS_FOLDER + self.get_argument('user') + os.sep)
         #copy the british columbia marine case study into the users folder

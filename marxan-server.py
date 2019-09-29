@@ -59,11 +59,11 @@ ROLE_UNAUTHORISED_METHODS = {
     "Admin": []
 }
 MARXAN_SERVER_VERSION = "0.9.15"
+MARXAN_REGISTRY = "https://andrewcottam.github.io/marxan-web/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
 MAPBOX_USER = "blishten"
-MBAT = "sk.eyJ1IjoiYmxpc2h0ZW4iLCJhIjoiY2piNm1tOGwxMG9lajMzcXBlZDR4aWVjdiJ9.Z1Jq4UAgGpXukvnUReLO1g"
 SERVER_CONFIG_FILENAME = "server.dat"
 RUN_LOG_FILENAME = "runlog.dat"
 USER_DATA_FILENAME = "user.dat"
@@ -117,6 +117,8 @@ def _setGlobalVariables():
     global CERTFILE
     global KEYFILE
     global PLANNING_GRID_UNITS_LIMIT
+    #get data from the marxan registry
+    MBAT = _getMBAT()
     #initialise colorama to be able to show log messages on windows in color
     colorama.init()
     #get the folder from this files path
@@ -1303,6 +1305,23 @@ def _checkZippedShapefile(shapefile):
         raise MarxanServicesError("The *.shx file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
     if (not os.path.exists(shapefile[:-3] + "dbf")) and (not os.path.exists(shapefile[:-3] + "DBF")):
         raise MarxanServicesError("The *.dbf file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
+
+def _getMBAT():
+    with urllib.request.urlopen(MARXAN_REGISTRY) as response:
+        data = response.read().decode("utf-8")
+        pos = data.find("MBAT")
+        if (pos == -1):
+            raise MarxanServicesError("MBAT not found in Marxan Registry")
+        else:
+            pos2 = data[pos:].find(";")
+            if (pos2 == -1):
+                raise MarxanServicesError("MBAT not found in Marxan Registry")
+            else:
+                mbat_line = data[pos:pos + pos2]
+                startPos = (mbat_line.find('"')) + 1;
+                if (startPos == -1):
+                    raise MarxanServicesError("MBAT not found in Marxan Registry")
+                return mbat_line[startPos:-1]
 
 ####################################################################################################################################################################################################################################################################
 ## generic classes

@@ -499,7 +499,7 @@ def _getPlanningUnitsCostData(obj):
 
 #gets the data for the planning grids
 def _getPlanningUnitGrids():
-    return PostGIS().getDict("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
+    return PostGIS().getDict("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by,tilesetid FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
 
 #estimates the number of planning grid units in the passed country, area and domain
 def _estimatePlanningUnitCount(areakm2, iso3, domain):

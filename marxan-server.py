@@ -561,14 +561,19 @@ def _getSummedSolution(obj):
 
 #loads the data from a marxan single solution file
 def _getSolution(obj, solutionId):
-    filename = _getOutputFilename(obj.folder_output + SOLUTION_FILE_PREFIX + "%05d" % int(solutionId))
-    if os.path.exists(filename):
-        df = _loadCSV(filename)
-        #normalise the data by the planning unit field and solution field - these may be called planning_unit,solution or PUID,SOLUTION - so get their names by position 
-        obj.solution = _normaliseDataFrame(df, df.columns[1], df.columns[0])
-    else:
+    try:
+        filename = _getOutputFilename(obj.folder_output + SOLUTION_FILE_PREFIX + "%05d" % int(solutionId))
+    except MarxanServicesError as e: #the solution no longer exists - probably a clumping project
         obj.solution = []
-        raise MarxanServicesError("Solution '" + str(solutionId) + "' in project '" + obj.get_argument('project') + "' no longer exists")
+        if (obj.get_argument('user') != "_clumping"):
+            raise MarxanServicesError("Solution '" + str(solutionId) + "' in project '" + obj.get_argument('project') + "' no longer exists")
+        else:
+            pass
+    else:
+        if os.path.exists(filename):
+            df = _loadCSV(filename)
+            #normalise the data by the planning unit field and solution field - these may be called planning_unit,solution or PUID,SOLUTION - so get their names by position 
+            obj.solution = _normaliseDataFrame(df, df.columns[1], df.columns[0])
         
 def _getMissingValues(obj, solutionId):
     filename = _getOutputFilename(obj.folder_output + MISSING_VALUES_FILE_PREFIX + "%05d" % int(solutionId))
@@ -1994,10 +1999,13 @@ class getSolution(MarxanRESTHandler):
         _validateArguments(self.request.arguments, ['user','project','solution'])  
         #get the solution
         _getSolution(self, self.get_argument("solution"))
-        #get the corresponding missing values file, e.g. output_mv00031.txt
-        _getMissingValues(self, self.get_argument("solution"))
-        #set the response
-        self.send_response({'solution': self.solution, 'mv': self.missingValues, 'user': self.get_argument("user"), 'project': self.get_argument("project")})
+        #get the corresponding missing values file, e.g. output_mv00031.txt - not for clumping projects
+        if (self.get_argument("user") != '_clumping'):
+            _getMissingValues(self, self.get_argument("solution"))
+            #set the response
+            self.send_response({'solution': self.solution, 'mv': self.missingValues, 'user': self.get_argument("user"), 'project': self.get_argument("project")})
+        else:
+            self.send_response({'solution': self.solution, 'user': self.get_argument("user"), 'project': self.get_argument("project")})
  
 #gets the missing values for a single solution
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getMissingValues?user=admin&project=Start%20project&solution=1&callback=__jp7
@@ -2429,7 +2437,7 @@ class runMarxan(MarxanWebSocketHandler):
                         #get the number of runs that were in the input.dat file
                         self.numRunsRequired = _getNumberOfRunsRequired(self)
                         #log the run to the run log file
-                        if not (self.user == '_clumping'): #dont log any clumping runs
+                        if (self.user != '_clumping'): #dont log any clumping runs
                             self.logRun()
                         #print the details of the run out to the tornado log stream
                         #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
@@ -2494,7 +2502,7 @@ class runMarxan(MarxanWebSocketHandler):
         try: 
             #log the end of the run
             #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.user + "." + self.project + " has finished running"
-            if not (self.user == '_clumping'): #dont show clumping runs to the user
+            if (self.user != '_clumping'): #dont show clumping runs to the user
                 #get the number of runs completed
                 numRunsCompleted = _getNumberOfRunsCompleted(self)
                 #write the response depending on if the run completed or not

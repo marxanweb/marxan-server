@@ -58,7 +58,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "0.9.15"
+MARXAN_SERVER_VERSION = "v0.9.15"
 MARXAN_REGISTRY = "https://andrewcottam.github.io/marxan-web/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -78,6 +78,7 @@ OUTPUT_SUMMARY_FILENAME = "output_sum"
 SUMMED_SOLUTION_FILENAME = "output_ssoln"
 FEATURE_PREPROCESSING_FILENAME = "feature_preprocessing.dat"
 PROTECTED_AREA_INTERSECTIONS_FILENAME = "protected_area_intersections.dat"
+NOTIFICATIONS_FILENAME = "notifications.dat"
 SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
@@ -266,6 +267,23 @@ def _getUsersData(users):
         combinedDict.update({'user': user})
         usersData.append(combinedDict)
     return usersData         
+    
+def _getNotificationsData(obj):
+    #get the data from the notifications file
+    s =_readFile(obj.folder_user + NOTIFICATIONS_FILENAME)
+    if (s == ""):
+        return []
+    else:
+        return s.split(",")
+    
+def _dismissNotification(obj, notificationid):
+    #get the data from the notifications file
+    ids = _getNotificationsData(obj)
+    ids.append(notificationid)
+    _writeFileUnicode(obj.folder_user + NOTIFICATIONS_FILENAME, ",".join(ids))    
+    
+def _resetNotifications(obj):
+    _writeFileUnicode(obj.folder_user + NOTIFICATIONS_FILENAME, "")    
     
 #gets the projects for the specified user
 def _getProjectsForUser(user):
@@ -1796,11 +1814,13 @@ class getUser(MarxanRESTHandler):
         _validateArguments(self.request.arguments, ['user'])    
         #get the user data from the user.dat file
         _getUserData(self)
+        #get the notifications data from the notifications.dat file
+        ids = _getNotificationsData(self)
         #get the permissions for the users role
         role = self.userData["ROLE"]
         unauthorised = ROLE_UNAUTHORISED_METHODS[role]
         #set the response
-        self.send_response({'info': "User data received", "userData" : {k: v for k, v in self.userData.items() if k != 'PASSWORD'}, "unauthorisedMethods": unauthorised})
+        self.send_response({'info': "User data received", "userData" : {k: v for k, v in self.userData.items() if k != 'PASSWORD'}, "unauthorisedMethods": unauthorised, 'dismissedNotifications': ids})
 
 #gets a list of all users
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getUsers
@@ -2327,6 +2347,22 @@ class clearRunLogs(MarxanRESTHandler):
         runlog = _getRunLogs()
         runlog.loc[runlog['pid'] == -1].to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
         self.send_response({'info': "Run log cleared"})
+        
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/dismissNotification?user=admin&notificationid=1
+class dismissNotification(MarxanRESTHandler):
+    def get(self):
+        #validate the input arguments
+        _validateArguments(self.request.arguments, ['notificationid'])
+        #dismiss the notification
+        _dismissNotification(self, self.get_argument('notificationid'))
+        self.send_response({'info': "Notification dismissed"})
+
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/resetNotifications?user=admin
+class resetNotifications(MarxanRESTHandler):
+    def get(self):
+        #reset the notification
+        _resetNotifications(self)
+        self.send_response({'info': "Notifications reset"})
 
 #for testing role access to servivces            
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/testRoleAuthorisation&callback=__jp5
@@ -3022,6 +3058,8 @@ def make_app():
         ("/marxan-server/getRunLogs", getRunLogs),
         ("/marxan-server/clearRunLogs", clearRunLogs),
         ("/marxan-server/updateWDPA", updateWDPA),
+        ("/marxan-server/dismissNotification", dismissNotification),
+        ("/marxan-server/resetNotifications", resetNotifications),
         ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
         ("/marxan-server/testTornado", testTornado),
         ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server

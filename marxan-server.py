@@ -42,6 +42,8 @@ import platform
 import colorama
 import io 
 import requests 
+import platform
+import ctypes
 
 ####################################################################################################################################################################################################################################################################
 ## constant declarations
@@ -232,6 +234,8 @@ def _createUser(obj, user, fullname, email, password):
     os.mkdir(obj.folder_user)
     #copy the user.dat file
     shutil.copyfile(MARXAN_WEB_RESOURCES_FOLDER + USER_DATA_FILENAME, obj.folder_user + USER_DATA_FILENAME)
+    #copy the notifications.dat file
+    shutil.copyfile(MARXAN_WEB_RESOURCES_FOLDER + NOTIFICATIONS_FILENAME, obj.folder_user + NOTIFICATIONS_FILENAME)
     #update the user.dat file parameters
     _updateParameters(obj.folder_user + USER_DATA_FILENAME, {'NAME': fullname,'EMAIL': email,'PASSWORD': password})
 
@@ -440,12 +444,24 @@ def _getKeyValuesFromFile(filename):
         data[key] = value
     return data
 
+def _get_free_space_mb():
+    """Return folder/drive free space (in megabytes)."""
+    if platform.system() == 'Windows':
+        free_bytes = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(MARXAN_FOLDER), None, None, ctypes.pointer(free_bytes))
+        return free_bytes.value / 1024 / 1024 # pylint:disable=old-division
+    else:
+        st = os.statvfs(MARXAN_FOLDER)
+        return st.f_bavail * st.f_frsize / 1024 / 1024 # pylint:disable=old-division
+        
 #gets the server data
 def _getServerData(obj):
     #get the data from the server configuration file - these key/values are changed by the marxan-client
     obj.serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
+    #get the free space in Mb
+    space = _get_free_space_mb()
     #set the return values: permitted CORS domains - these are set in this Python module; the server os and hardware; the version of the marxan-server software
-    obj.serverData.update({"DATABASE_VERSION_POSTGIS": DATABASE_VERSION_POSTGIS, "DATABASE_VERSION_POSTGRESQL": DATABASE_VERSION_POSTGRESQL, "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION})
+    obj.serverData.update({"DATABASE_VERSION_POSTGIS": DATABASE_VERSION_POSTGIS, "DATABASE_VERSION_POSTGRESQL": DATABASE_VERSION_POSTGRESQL, "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION, "DISK_FREE_SPACE": space})
         
 #get the data on the user from the user.dat file 
 def _getUserData(obj):
@@ -2070,8 +2086,6 @@ class getServerData(MarxanRESTHandler):
         del self.serverData['DATABASE_NAME']
         del self.serverData['DATABASE_PASSWORD']
         del self.serverData['DATABASE_USER']
-        #get the version of postgis
-        
         #set the response
         self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
 

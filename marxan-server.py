@@ -56,7 +56,7 @@ DISABLE_SECURITY = False
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis"],
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
@@ -148,7 +148,7 @@ def _setGlobalVariables():
     PERMITTED_DOMAINS = _getDictValue(serverData,'PERMITTED_DOMAINS').split(",")
     PLANNING_GRID_UNITS_LIMIT = int(_getDictValue(serverData,'PLANNING_GRID_UNITS_LIMIT'))
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
-    print("\x1b[1;32;48m\nStarting marxan-server v" + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..\x1b[0m")
+    print("\x1b[1;32;48m\nStarting marxan-server " + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..\x1b[0m")
     #print out which operating system is being used
     print(" Operating system:\t" + platform.system()) 
     print(" Tornado version:\t" + tornado.version)
@@ -209,7 +209,7 @@ def _setGlobalVariables():
         f = open(packageJson)
         MARXAN_CLIENT_VERSION = json.load(f)['version']
         f.close()
-        print("\x1b[1;32;48mmarxan-client v" + MARXAN_CLIENT_VERSION + " installed\x1b[0m")
+        print("\x1b[1;32;48mmarxan-client " + MARXAN_CLIENT_VERSION + " installed\x1b[0m")
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
@@ -2617,8 +2617,8 @@ class updateWDPA(MarxanWebSocketHandler):
                         #rename the tmp feature class
                         postgis.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
                         self.send_response({'info': "Renamed '" + feature_class_name + "' to 'wdpa'", 'status': "Updating WDPA"})
-                        #drop the tables that are not needed
-                        postgis.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso,DROP COLUMN IF EXISTS iso3;")
+                        #drop the columns that are not needed
+                        postgis.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso;")
                         self.send_response({'info': "Removed unneccesary columns", 'status': "Updating WDPA"})
                         #delete the old wdpa feature class
                         postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
@@ -3001,6 +3001,35 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
         except (MarxanServicesError) as e:
             self.send_response({'error': e.args[0], 'status': 'Finished'})
 
+#runs a gap analysis
+#wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/runGapAnalysis?user=admin&project=British%20Columbia%20Marine%20Case%20Study
+class runGapAnalysis(QueryWebSocketHandler):
+    
+    def open(self):
+        try:
+            super(runGapAnalysis, self).open()
+        except (HTTPError) as e:
+            self.send_response({'error': e.reason, 'status': 'Finished'})
+        else:
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the identifiers of the features for the project
+            df = _getProjectInputData(self, "SPECNAME")
+            featureIds = df['id'].to_numpy().tolist()
+            #get the planning grid name
+            _getProjectData(self)
+            future = self.executeQueryAsynchronously("SELECT * FROM marxan.gap_analysis(%s,%s)", [self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds], "Running gap analysis..", "  Processing ..")
+            future.add_done_callback(self.runGapAnalysisComplete) # pylint:disable=no-member
+                
+    #callback which is called when the gap analysis has been done
+    def runGapAnalysisComplete(self, future):
+        try:
+            #get the results as a data frame
+            df = pandas.DataFrame.from_records(self.queryResults["records"], columns = self.queryResults["columns"])
+            self.send_response({'info':"Gap analysis complete", 'status':'Finished', 'data': df.to_dict(orient="records")})
+        except (MarxanServicesError) as e:
+            self.send_response({'error': e.args[0], 'status': 'Finished'})
+
+
 ####################################################################################################################################################################################################################################################################
 ## tornado functions
 ####################################################################################################################################################################################################################################################################
@@ -3072,6 +3101,7 @@ def make_app():
         ("/marxan-server/getRunLogs", getRunLogs),
         ("/marxan-server/clearRunLogs", clearRunLogs),
         ("/marxan-server/updateWDPA", updateWDPA),
+        ("/marxan-server/runGapAnalysis", runGapAnalysis),
         ("/marxan-server/dismissNotification", dismissNotification),
         ("/marxan-server/resetNotifications", resetNotifications),
         ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
@@ -3118,4 +3148,7 @@ if __name__ == "__main__":
                 print("\x1b[1;32;48mOr run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
-        print(e.args[0])
+        if (e.args[0] == 98):
+            print ("The port " + str(PORT) + " is already in use")
+        else:
+            print(e.args)

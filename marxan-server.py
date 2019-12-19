@@ -1186,7 +1186,7 @@ def _requestIsWebSocket(request):
 def _checkCORS(obj):
     #no CORS policy if security is disabled or if the server is running on localhost or if the request is for a permitted method
     # or if the user is 'guest' (if this is enabled) - dont set any headers - this will only work for GET requests - cross-domwin POST requests must have the headers
-    if (obj.request.method == "GET" or DISABLE_SECURITY or obj.request.host[:9] == "localhost" or (obj.current_user == GUEST_USERNAME)):
+    if (DISABLE_SECURITY or obj.request.host[:9] == "localhost" or (obj.current_user == GUEST_USERNAME)):
         return 
     #get the referer
     if "Referer" in list(obj.request.headers.keys()):

@@ -60,7 +60,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.20"
+MARXAN_SERVER_VERSION = "v0.9.21"
 MARXAN_REGISTRY = "https://andrewcottam.github.io/marxan-web/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -2129,8 +2129,8 @@ class getProjectsWithGrids(MarxanRESTHandler):
         df2 = df2.drop(columns=['description','aoi_id','country_id','source'])
         #set an index on the dataframe
         df2 = df2.set_index("feature_class_name")
-        #join the projects to the planning grids
-        df = df.join(df2)
+        #join the projects to the planning grids and replace NaNs (in number fields) with None - otherwise the output json is '_area': NaN which causes some json parses to raise an error - it will be replaced with '_area': null
+        df = df.join(df2).replace({pandas.np.nan: None})
         self.send_response({'info': "Projects data returned", 'data': df.to_dict(orient="records")})
 
 #updates the spec.dat file with the posted data

@@ -1524,12 +1524,12 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
 
     #called before the request is processed - does the neccessary authentication/authorisation
     def prepare(self):
-        #check the referer can call the REST end point from their domain
-        _checkCORS(self)
         #get the requested method
         method = _getRESTMethod(self.request.path)
         #allow access to some methods without authentication/authorisation, e.g. to create new users or validate a user
         if method not in PERMITTED_METHODS:
+            #check the referer can call the REST end point from their domain
+            _checkCORS(self)
             #check the request is authenticated
             _authenticate(self)
             #check the users role has access to the requested service

@@ -16,6 +16,7 @@ from psycopg2 import sql
 from mapbox import Uploader 
 from mapbox import errors 
 from osgeo import ogr 
+import multiprocessing
 import urllib
 import tornado.options 
 import webbrowser 
@@ -460,8 +461,10 @@ def _getServerData(obj):
     obj.serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
     #get the free space in Mb
     space = _get_free_space_mb()
+    #get the number of processors
+    processors = multiprocessing.cpu_count()
     #set the return values: permitted CORS domains - these are set in this Python module; the server os and hardware; the version of the marxan-server software
-    obj.serverData.update({"DATABASE_VERSION_POSTGIS": DATABASE_VERSION_POSTGIS, "DATABASE_VERSION_POSTGRESQL": DATABASE_VERSION_POSTGRESQL, "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION, "DISK_FREE_SPACE": space})
+    obj.serverData.update({"PROCESSOR_COUNT": processors, "DATABASE_VERSION_POSTGIS": DATABASE_VERSION_POSTGIS, "DATABASE_VERSION_POSTGRESQL": DATABASE_VERSION_POSTGRESQL, "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION, "DISK_FREE_SPACE": space})
         
 #get the data on the user from the user.dat file 
 def _getUserData(obj):

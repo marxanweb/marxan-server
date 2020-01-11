@@ -61,7 +61,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.22"
+MARXAN_SERVER_VERSION = "v0.9.23"
 MARXAN_REGISTRY = "https://andrewcottam.github.io/marxan-web/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -2334,7 +2334,7 @@ class stopProcess(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['pid'])
-        #get the pid from the pid request parameter - this will be an identifier followed by the pid, e.g. m1234 is a marxan run process with a pid of 1234
+        #get the pid from the pid request parameter - this will be an identifier (m=marxan run, q=query) followed by the pid, e.g. m1234 is a marxan run process with a pid of 1234
         pid = self.get_argument('pid')[1:]
         try:
             #if the process is a marxan run, then update the run log
@@ -2943,8 +2943,9 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
             _getProjectData(self)
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #new version of marxan - get the boundary lengths
-                PostGIS().execute("DROP TABLE IF EXISTS marxan.tmp;") 
-                future = self.executeQueryAsynchronously(sql.SQL("CREATE TABLE marxan.tmp AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(a.geometry, b.geometry), 2))/1000 boundary  FROM marxan.{0} a, marxan.{0} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])), None, "Calculating boundary lengths", "  Processing ..")
+                self.feature_class_name = _getUniqueFeatureclassName("tmp_")
+                PostGIS().execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(self.feature_class_name))) 
+                future = self.executeQueryAsynchronously(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(a.geometry, b.geometry), 2))/1000 boundary  FROM marxan.{planning_unit_name} a, marxan.{planning_unit_name} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(feature_class_name=sql.Identifier(self.feature_class_name), planning_unit_name=sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])), None, "Calculating boundary lengths", "  Processing ..")
                 future.add_done_callback(self.preprocessPlanningUnitsComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan
@@ -2959,9 +2960,9 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
                     os.remove(self.folder_input + BOUNDARY_LENGTH_FILENAME)
                 #write the boundary lengths to file
                 postgis = PostGIS()
-                postgis.executeToText("COPY (SELECT * FROM marxan.tmp) TO STDOUT WITH CSV HEADER;", self.folder_input + BOUNDARY_LENGTH_FILENAME)
+                postgis.executeToText("COPY (SELECT * FROM marxan." + self.feature_class_name + ") TO STDOUT WITH CSV HEADER;", self.folder_input + BOUNDARY_LENGTH_FILENAME)
                 #delete the tmp table
-                postgis.execute("DROP TABLE IF EXISTS marxan.tmp;") 
+                postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(self.feature_class_name))) 
                 #update the input.dat file
                 _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'BOUNDNAME': 'bounds.dat'})
                 #set the response

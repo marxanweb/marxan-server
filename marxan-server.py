@@ -61,7 +61,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.23"
+MARXAN_SERVER_VERSION = "v0.9.24"
 MARXAN_REGISTRY = "https://andrewcottam.github.io/marxan-web/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -87,7 +87,7 @@ MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -1471,6 +1471,8 @@ class PostGIS():
             if not self.connection.closed:
                 self._cleanup()
             raise MarxanServicesError(e.output.decode("utf-8"))
+        #split the feature class at the dateline
+        self.execute(sql.SQL("UPDATE marxan.{} SET geometry = ST_Transform(marxan.ST_SplitAtDateLine(ST_Transform(geometry,4326)),3410);").format(sql.Identifier(feature_class_name)))
         #shapefile imported - check that the geometries are valid and if not raise an error
         if checkGeometry:
             self.isValid(feature_class_name)
@@ -2321,6 +2323,8 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         feature_class_name = _getUniqueFeatureclassName("f_")
         #create the table
         PostGIS().execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
+        #split the feature at the dateline
+        PostGIS().execute(sql.SQL("UPDATE marxan.{} SET geometry = ST_Transform(marxan.ST_SplitAtDateLine(ST_Transform(geometry,4326)),3410);").format(sql.Identifier(feature_class_name)))
         #add an index and a record in the metadata_interest_features table
         id = _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Drawn on screen", self.get_current_user())
         #start the upload to mapbox

@@ -87,7 +87,7 @@ MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -238,7 +238,7 @@ def _createUser(obj, user, fullname, email, password):
     #copy the notifications.dat file
     shutil.copyfile(MARXAN_WEB_RESOURCES_FOLDER + NOTIFICATIONS_FILENAME, obj.folder_user + NOTIFICATIONS_FILENAME)
     #update the user.dat file parameters
-    _updateParameters(obj.folder_user + USER_DATA_FILENAME, {'NAME': fullname,'EMAIL': email,'PASSWORD': password})
+    _updateParameters(obj.folder_user + USER_DATA_FILENAME, {'NAME': fullname,'EMAIL': email,'PASSWORD': password, 'CREATEDATE': datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S")})
 
 #gets a simple list of users
 def _getUsers():
@@ -1193,6 +1193,11 @@ def _checkCORS(obj):
     # or if the user is 'guest' (if this is enabled) - dont set any headers - this will only work for GET requests - cross-domwin POST requests must have the headers
     if (DISABLE_SECURITY or obj.request.host[:9] == "localhost" or (obj.current_user == GUEST_USERNAME)):
         return 
+    #set the CORS headers
+    _setCORS(obj)
+
+#sets the CORS headers
+def _setCORS(obj):
     #get the referer
     if "Referer" in list(obj.request.headers.keys()):
         #get the referer url, e.g. https://marxan-client-blishten.c9users.io/ or https://beta.biopama.org/marxan-client/build/
@@ -1545,6 +1550,9 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
             _authoriseUser(self)
             #instantiate the response dictionary
             self.response = {}
+        else:
+            #a permitted method so set the CORS headers
+            _setCORS(self)
         #set the folder paths for the user and optionally project
         _setFolderPaths(self, self.request.arguments)
         # self.send_response({"error": repr(e)})

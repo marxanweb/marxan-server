@@ -547,7 +547,7 @@ def _estimatePlanningUnitCount(areakm2, iso3, domain):
     if (domain == 'Terrestrial'):
         unitCount = postgis.execute("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.gaul_2015_simplified_1km WHERE iso3 = %s;", [areakm2,iso3], "One")[0]
     else:
-        unitCount = postgis.execute("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.eez_2015_simplified_1km WHERE iso3 = %s;", [areakm2,iso3], "One")[0]
+        unitCount = postgis.execute("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.eez_simplified_1km WHERE iso3 = %s;", [areakm2,iso3], "One")[0]
     return unitCount
 
 #get the protected area intersections information

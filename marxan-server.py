@@ -61,7 +61,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.24"
+MARXAN_SERVER_VERSION = "v0.9.25"
 MARXAN_REGISTRY = "https://andrewcottam.github.io/marxan-web/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -450,10 +450,11 @@ def _get_free_space_mb():
     if platform.system() == 'Windows':
         free_bytes = ctypes.c_ulonglong(0)
         ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(MARXAN_FOLDER), None, None, ctypes.pointer(free_bytes))
-        return free_bytes.value / 1024 / 1024 # pylint:disable=old-division
+        space = free_bytes.value / 1024 / 1024 # pylint:disable=old-division
     else:
         st = os.statvfs(MARXAN_FOLDER)
-        return st.f_bavail * st.f_frsize / 1024 / 1024 # pylint:disable=old-division
+        space = st.f_bavail * st.f_frsize / 1024 / 1024 # pylint:disable=old-division
+    return (str("{:.1f}".format(space/1000)) + " Gb")
         
 #gets the server data
 def _getServerData(obj):
@@ -464,7 +465,7 @@ def _getServerData(obj):
     #get the number of processors
     processors = psutil.cpu_count()
     #get the virtual memory
-    memory = (str("{:.1f}".format(psutil.virtual_memory().total/1000000000)) + "Gb")
+    memory = (str("{:.1f}".format(psutil.virtual_memory().total/1000000000)) + " Gb")
     #set the return values: permitted CORS domains - these are set in this Python module; the server os and hardware; the version of the marxan-server software
     obj.serverData.update({"RAM": memory, "PROCESSOR_COUNT": processors, "DATABASE_VERSION_POSTGIS": DATABASE_VERSION_POSTGIS, "DATABASE_VERSION_POSTGRESQL": DATABASE_VERSION_POSTGRESQL, "SYSTEM": platform.system(), "NODE": platform.node(), "RELEASE": platform.release(), "VERSION": platform.version(), "MACHINE": platform.machine(), "PROCESSOR": platform.processor(), "MARXAN_SERVER_VERSION": MARXAN_SERVER_VERSION,"MARXAN_CLIENT_VERSION": MARXAN_CLIENT_VERSION, "SERVER_NAME": SERVER_NAME, "SERVER_DESCRIPTION": SERVER_DESCRIPTION, "DISK_FREE_SPACE": space})
         
@@ -538,7 +539,7 @@ def _getPlanningUnitsCostData(obj):
 
 #gets the data for the planning grids
 def _getPlanningUnitGrids():
-    return PostGIS().getDict("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by,tilesetid FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
+    return PostGIS().getDict("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by,tilesetid, planning_unit_count FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;")
 
 #estimates the number of planning grid units in the passed country, area and domain
 def _estimatePlanningUnitCount(areakm2, iso3, domain):
@@ -1069,6 +1070,8 @@ def _importPlanningUnitGrid(filename, name, description, user):
         postgis.execute(sql.SQL("ALTER TABLE marxan.{} ALTER COLUMN puid TYPE integer;").format(sql.Identifier(feature_class_name)))
         #create the envelope for the new planning grid
         postgis.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(geometry) AS geometry FROM marxan.{}) AS f) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
+        #set the number of planning units for the new planning grid
+        postgis.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET planning_unit_count = (SELECT count(puid) FROM marxan.{}) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
         #start the upload to mapbox
         uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
     except (MarxanServicesError) as e:

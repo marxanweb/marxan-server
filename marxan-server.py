@@ -968,8 +968,21 @@ def _unzipFile(filename, rejectMultipleShapefiles = True, searchTerm = None):
     else: # nested files/folders - raise an error
         raise MarxanServicesError("The zipped file should not contain directories. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#importing-existing-marxan-projects' target='blank'>here</a>")
         
+#checks to see if the tileset already exists on mapbox
+def _tilesetExists(tilesetid):
+    url = "https://api.mapbox.com/tilesets/v1/" + MAPBOX_USER + "." + tilesetid + "?access_token=" + MBAT
+    try:
+        urllib.request.urlopen(url)
+    except (Exception) as e:
+        if (e.code == 404):
+            return False
+    else:
+        return True
+
 #starts an upload job to mapbox from the passed feature class and returns the uploadid        
 def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
+    if (_tilesetExists(feature_class_name)):
+        return -1
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
     cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
     try:

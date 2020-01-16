@@ -649,7 +649,7 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
                 _deleteRecordsInTextFile(obj.folder_input + puvsprFilename, "species", removedIds, False)
             #update the preprocessing.dat file to remove any species that are no longer in the project - these will need to be preprocessed again
             if (os.path.exists(obj.folder_input + FEATURE_PREPROCESSING_FILENAME)):
-                _deleteRecordsInTextFile(obj.folder_input + FEATURE_PREPROCESSING_FILENAME, "id", removedIds, False)
+                _deleteRecordsInTextFile(obj.folder_input + FEATURE_PREPROCESSING_FILENAME, "id", removedIds, False) 
     #create the dataframe to write to file
     records = []
     for i in range(len(ids)):

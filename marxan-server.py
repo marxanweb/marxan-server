@@ -61,7 +61,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.25"
+MARXAN_SERVER_VERSION = "v0.9.26"
 MARXAN_REGISTRY = "https://andrewcottam.github.io/marxan-web/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -2658,6 +2658,9 @@ class updateWDPA(MarxanWebSocketHandler):
                         #delete the old wdpa feature class
                         postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
                         self.send_response({'info': "Deleted 'wdpa_old' table", 'status': "Updating WDPA"})
+                        #delete all of the existing dissolved country wdpa feature classes
+                        postgis.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
+                        self.send_response({'info': "Deleted dissolved country WDPAP feature classes", 'status': "Updating WDPA"})
                     except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
                         self.send_response({'error': 'No space left on device importing the WDPA into PostGIS', 'status':'Finished', 'info': 'WDPA not updated'})
                     else: 

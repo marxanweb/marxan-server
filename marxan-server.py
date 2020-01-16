@@ -402,10 +402,10 @@ def _getProjectData(obj):
             if k=='PLANNING_UNIT_NAME':
                 df2 = PostGIS().getDataFrame("select * from marxan.get_planning_units_metadata(%s)", [value])
                 if (df2.shape[0] == 0):
-                    metadataDict.update({'pu_alias': value,'pu_description': 'No description','pu_domain': 'Unknown domain','pu_area': 'Unknown area','pu_creation_date': 'Unknown date','pu_created_by':'Unknown'})
+                    metadataDict.update({'pu_alias': value,'pu_description': 'No description','pu_domain': 'Unknown domain','pu_area': 'Unknown area','pu_creation_date': 'Unknown date','pu_created_by':'Unknown','pu_country':'Unknown'})
                 else:
                     #get the data from the metadata_planning_units table
-                    metadataDict.update({'pu_alias': df2.iloc[0]['alias'],'pu_description': df2.iloc[0]['description'],'pu_domain': df2.iloc[0]['domain'],'pu_area': df2.iloc[0]['area'],'pu_creation_date': df2.iloc[0]['creation_date'],'pu_created_by':df2.iloc[0]['created_by']})
+                    metadataDict.update({'pu_alias': df2.iloc[0]['alias'],'pu_country': df2.iloc[0]['country'],'pu_description': df2.iloc[0]['description'],'pu_domain': df2.iloc[0]['domain'],'pu_area': df2.iloc[0]['area'],'pu_creation_date': df2.iloc[0]['creation_date'],'pu_created_by':df2.iloc[0]['created_by']})
 
         elif k in ['CLASSIFICATION', 'NUMCLASSES','COLORCODE', 'TOPCLASSES','OPACITY']: # renderer section of the input.dat file
             key, value = _getKeyValue(s, k)
@@ -645,9 +645,11 @@ def _updateSpeciesFile(obj, interest_features, target_values, spf_values, create
             #get the name of the puvspr file from the project data
             puvsprFilename = _getProjectInputFilename(obj, "PUVSPRNAME")
             #update the puvspr.dat file
-            _deleteRecordsInTextFile(obj.folder_input + puvsprFilename, "species", removedIds, False)
+            if (os.path.exists(obj.folder_input + puvsprFilename)):
+                _deleteRecordsInTextFile(obj.folder_input + puvsprFilename, "species", removedIds, False)
             #update the preprocessing.dat file to remove any species that are no longer in the project - these will need to be preprocessed again
-            _deleteRecordsInTextFile(obj.folder_input + FEATURE_PREPROCESSING_FILENAME, "id", removedIds, False)
+            if (os.path.exists(obj.folder_input + FEATURE_PREPROCESSING_FILENAME)):
+                _deleteRecordsInTextFile(obj.folder_input + FEATURE_PREPROCESSING_FILENAME, "id", removedIds, False)
     #create the dataframe to write to file
     records = []
     for i in range(len(ids)):
@@ -982,7 +984,7 @@ def _tilesetExists(tilesetid):
 #starts an upload job to mapbox from the passed feature class and returns the uploadid        
 def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     if (_tilesetExists(feature_class_name)):
-        return -1
+        return "0"
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
     cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
     try:

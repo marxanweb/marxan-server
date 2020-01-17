@@ -1225,7 +1225,6 @@ def _setCORS(obj):
         origin = parsed.scheme + "://" + parsed.netloc
         #check the origin is permitted either by being in the list of permitted domains or if the referer and host are on the same machine, i.e. not cross domain
         if (origin in PERMITTED_DOMAINS) or (referer.find(obj.request.host_name)!=-1):
-            #if so, write the headers
             obj.set_header("Access-Control-Allow-Origin", origin)
             obj.set_header("Access-Control-Allow-Credentials", "true")
         else:
@@ -1570,8 +1569,9 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
             #instantiate the response dictionary
             self.response = {}
         else:
-            #a permitted method so set the CORS headers
-            _setCORS(self)
+            if (method != "testTornado"):
+                #a permitted method so set the CORS headers
+                _setCORS(self)
         #set the folder paths for the user and optionally project
         _setFolderPaths(self, self.request.arguments)
         # self.send_response({"error": repr(e)})
@@ -1620,7 +1620,7 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
 
 class methodNotFound(MarxanRESTHandler):
     def prepare(self):
-        raise tornado.web.HTTPError(501, "The method is not supported on this Marxan Server v" + MARXAN_SERVER_VERSION) # return a 501 - Not implemented
+        raise tornado.web.HTTPError(501, "The method is not supported on this Marxan Server " + MARXAN_SERVER_VERSION) # return a 501 - Not implemented
     
 #toggles whether the guest user is enabled or not on this server
 class toggleEnableGuestUser(MarxanRESTHandler):

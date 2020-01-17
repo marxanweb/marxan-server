@@ -1480,7 +1480,7 @@ class PostGIS():
                 raise MarxanServicesError("The query '" + sql + "' produced no records")
         
     #imports a shapefile into PostGIS
-    def importShapefile(self, shapefile, feature_class_name, epsgCode, checkGeometry = True):
+    def importShapefile(self, shapefile, feature_class_name, epsgCode, checkGeometry = True, splitAtDateline = True):
         try:
             #check that all the required files are present for the shapefile
             _checkZippedShapefile(MARXAN_FOLDER + shapefile)
@@ -1495,7 +1495,8 @@ class PostGIS():
                 self._cleanup()
             raise MarxanServicesError(e.output.decode("utf-8"))
         #split the feature class at the dateline
-        self.execute(sql.SQL("UPDATE marxan.{} SET geometry = ST_Transform(marxan.ST_SplitAtDateLine(ST_Transform(geometry,4326)),3410);").format(sql.Identifier(feature_class_name)))
+        if (splitAtDateline):
+            self.execute(sql.SQL("UPDATE marxan.{} SET geometry = ST_Transform(marxan.ST_SplitAtDateLine(ST_Transform(geometry,4326)),3410);").format(sql.Identifier(feature_class_name)))
         #shapefile imported - check that the geometries are valid and if not raise an error
         if checkGeometry:
             self.isValid(feature_class_name)
@@ -2644,7 +2645,7 @@ class updateWDPA(MarxanWebSocketHandler):
                         feature_class_name = _getUniqueFeatureclassName("wdpa_")
                         self.send_response({'info': "Importing '" + rootfilename + "' into PostGIS..", 'status': "Updating WDPA"})
                         #import the wdpa to a tmp feature class
-                        postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326", False)
+                        postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326", False, False)
                         self.send_response({'info': "Imported into '" + feature_class_name + "'", 'status': "Updating WDPA"})
                         #rename the existing wdpa feature class
                         postgis.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")

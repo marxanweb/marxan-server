@@ -1,3 +1,0 @@
-Marxan v 2.43 begin execution
-
-LoadOptions

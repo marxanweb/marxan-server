@@ -1047,13 +1047,15 @@ def _deleteFeatureClass(feature_class_name):
 def _getUniqueFeatureclassName(prefix):
     return prefix + uuid.uuid4().hex[:(32 - len(prefix))] #mapbox tileset ids are limited to 32 characters
     
-#finishes a feature import by adding an index and a record in the metadata_interest_features table
+#finishes a feature import by adding a spatial index and a record in the metadata_interest_features table
 def _finishImportingFeature(feature_class_name, name, description, source, user):
     #get the Mapbox tilesetId 
     tilesetId = MAPBOX_USER + "." + feature_class_name
     #create an index
     postgis = PostGIS()
     postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
+    #create a primary key
+    postgis.execute(sql.SQL("ALTER TABLE marxan.{} ADD COLUMN id SERIAL PRIMARY KEY;").format(sql.Identifier(feature_class_name)))
     try:    
         #create a record for this new feature in the metadata_interest_features table
         id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT sum(ST_Area(geometry)) _area, box2d(ST_Transform(ST_SetSRID(ST_Collect(geometry),3410),4326)) extent FROM marxan.{}) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user], "One")[0]

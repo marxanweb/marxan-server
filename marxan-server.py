@@ -1051,7 +1051,7 @@ def _getUniqueFeatureclassName(prefix):
 def _finishImportingFeature(feature_class_name, name, description, source, user):
     #get the Mapbox tilesetId 
     tilesetId = MAPBOX_USER + "." + feature_class_name
-    #create an index
+    #create an index on the geometry column
     postgis = PostGIS()
     postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
     #create a primary key
@@ -2724,6 +2724,8 @@ class importFeatures(MarxanWebSocketHandler):
         except (MarxanServicesError) as e:
             self.send_response({'error': e.args[0], 'status': 'Finished', 'info': 'Failed to import features'})
         else:
+            #initiate the upload ids array
+            uploadIds = []
             self.send_response({'info': "Importing features..", 'status':'Started'})
             shapefile = self.get_argument('shapefile')
             #if a name is passed then this is a single feature class
@@ -2750,21 +2752,24 @@ class importFeatures(MarxanWebSocketHandler):
                         raise MarxanServicesError("Feature names are not unique for the field '" + splitfield + "'")
                 #split the imported feature class into separate feature classes
                 for feature_name in feature_names:
-                    feature_class_name = _getUniqueFeatureclassName("fs_")
                     #create the new feature class
                     if name: #single feature name
+                        feature_class_name = _getUniqueFeatureclassName("f_")
                         postgis.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable};").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
                         description = self.get_argument('description')
-                    else:
+                    else: #multiple feature names
+                        feature_class_name = _getUniqueFeatureclassName("fs_")
                         postgis.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable} WHERE species = %s;").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
                         description = "Imported from shapefile '" + shapefile + "' and split by the '" + splitfield + "' field"
                     #finish the import by adding a record in the metadata table
-                    id = _finishImportingFeature(feature_class_name, feature_name, description, "importFeatures", self.get_current_user())
+                    id = _finishImportingFeature(feature_class_name, feature_name, description, "Imported shapefile", self.get_current_user())
                     #upload the feature class to Mapbox
                     uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+                    #append the uploadId to the uploadIds array
+                    uploadIds.append(uploadId)
                     self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
                 #complete
-                self.send_response({'info': "Features imported", 'status':'Finished'})
+                self.send_response({'info': "Features imported", 'status':'Finished','uploadIds':uploadIds})
             except (MarxanServicesError) as e:
                 if "already exists" in e.args[0]:
                     self.send_response({'error':"The feature '" + feature_name + "' already exists", 'status':'Finished', 'info': 'Failed to import features'})

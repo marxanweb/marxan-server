@@ -85,9 +85,11 @@ NOTIFICATIONS_FILENAME = "notifications.dat"
 SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
+GBIF_API_ROOT = "https://api.gbif.org/v1/"
+GBIF_PAGE_SIZE = 10
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -2784,6 +2786,90 @@ class importFeatures(MarxanWebSocketHandler):
                 #close the websocket
                 self.close()
 
+#imports an item from GBIF
+class importGBIFData(MarxanWebSocketHandler):
+    def open(self):
+        try:
+            super(importGBIFData, self).open()
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['taxonKey'])   
+        except (HTTPError) as e:
+            self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'Failed to import features'})
+        except (MarxanServicesError) as e:
+            self.send_response({'error': e.args[0], 'status': 'Finished', 'info': 'Failed to import features'})
+        else:
+            try:
+                taxonKey = self.get_argument('taxonKey')
+                #get the occurrences
+                data = self.getGBIFOccurrences(taxonKey)
+                if len(data)>0:
+                    self.send_response({'info': "Importing features from GBIF..", 'status':'Started'})
+                    #get the feature class name
+                    feature_class_name = "gbif_" + str(taxonKey)
+                    #create the table if it doesnt already exists
+                    postgis = PostGIS()
+                    postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(feature_class_name)))
+                    postgis.execute(sql.SQL("CREATE TABLE marxan.{} (gbifid bigint, geometry geometry, eventdate date)").format(sql.Identifier(feature_class_name))) 
+                    #iterate through the data and insert the records
+                    for d in data:
+                        postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, ST_Buffer(ST_Transform(ST_SetSRID( ST_Point( %s, %s), 4326),3410), 100), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], d['eventDate']))
+                    feature_name = "Fiji Long-legged Warbler" 
+                    description = "Common name"
+                    #finish the import by adding a record in the metadata table
+                    id = _finishImportingFeature(feature_class_name, feature_name, description, "Imported from GBIF", self.get_current_user())
+                    #upload the feature class to Mapbox
+                    uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+                    #complete
+                    self.send_response({'info': "Features imported", 'status':'Finished', 'uploadId':uploadId})
+                else:
+                    raise MarxanServicesError("No records were returned for " + str(taxonKey))
+                
+            except (MarxanServicesError) as e:
+                if "already exists" in e.args[0]:
+                    self.send_response({'error':"The feature '" + feature_name + "' already exists", 'status':'Finished', 'info': 'Failed to import features'})
+                else:
+                    self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import features'})
+            finally:
+                #close the websocket
+                self.close()
+
+    #gets GBIF occurrences using the passed taxon key and the page - page 0 is the first page
+    def getGBIFOccurrencePage(self, taxonKey, page):
+        try:
+            #build the url request - only occurrences, page size of 300 and only those which contain a value in both latitude and longitude
+            url = GBIF_API_ROOT + "occurrence/search?taxonKey=" + str(taxonKey) + "&basisOfRecord=HUMAN_OBSERVATION&limit=" + str(GBIF_PAGE_SIZE) + "&hasCoordinate=true&offset=" +str(page * GBIF_PAGE_SIZE)
+            #make the request
+            req = request.Request(url)
+            #get the response
+            resp = request.urlopen(req)
+            #parse the results as a json object
+            results = json.loads(resp.read())
+            return results
+        except (Exception) as e:
+            print (e.message)
+    
+    def getGBIFOccurrences(self, taxonKey):
+        try:
+            _json = self.getGBIFOccurrencePage(taxonKey, 0)
+            #get the number of occurrences
+            numOccurrences = _json['count']
+            #initialise the lat/long array
+            latLongs = []
+            #iterate through the occurrences and get the lat/longs
+            #get the page count
+            pageCount = int(numOccurrences//GBIF_PAGE_SIZE) + 1
+            for i in range(pageCount):
+                if (i!=0):
+                    #get the next page of results - TODO this should be done asynchronously
+                    _json = self.getGBIFOccurrencePage(taxonKey, i)
+                data = [{'lng':item['decimalLongitude'], 'lat': item['decimalLatitude'], 'eventDate': item['eventDate'], 'gbifID': item['gbifID']} for item in _json['results']]
+                latLongs.extend(data)
+            return latLongs
+        except(KeyError) as e:
+            print ("The key '" + e.args[0] + "' was not found")
+        except (Exception) as e:
+            print (e.args[0])
+    
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
 ####################################################################################################################################################################################################################################################################
@@ -3152,6 +3238,7 @@ def make_app():
         ("/marxan-server/clearRunLogs", clearRunLogs),
         ("/marxan-server/updateWDPA", updateWDPA),
         ("/marxan-server/runGapAnalysis", runGapAnalysis),
+        ("/marxan-server/importGBIFData", importGBIFData),
         ("/marxan-server/dismissNotification", dismissNotification),
         ("/marxan-server/resetNotifications", resetNotifications),
         ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),

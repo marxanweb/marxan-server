@@ -87,7 +87,7 @@ MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -2201,13 +2201,16 @@ class getPUSpeciesList(MarxanRESTHandler):
         _validateArguments(self.request.arguments, ['user','project','puid'])   
         #get the list as a set of IDs from the puvspr file
         df = _getProjectInputData(self, "PUVSPRNAME")
-        ids = df.loc[df['pu']==int(self.get_argument('puid'))]['species'].tolist()
-        #get the species data from the spec.dat file and the PostGIS database
-        _getSpeciesData(self)
-        #filter the species data by the ids
-        features = self.speciesData[self.speciesData.id.isin(ids)]
-        #set the response
-        self.send_response({"info": 'Feature list returned', 'data': features.to_dict(orient="records")})
+        if not df.empty:
+            ids = df.loc[df['pu']==int(self.get_argument('puid'))]['species'].tolist()
+            #get the species data from the spec.dat file and the PostGIS database
+            _getSpeciesData(self)
+            #filter the species data by the ids
+            features = self.speciesData[self.speciesData.id.isin(ids)]
+            #set the response
+            self.send_response({"info": 'Feature list returned', 'data': features.to_dict(orient="records")})
+        else:
+            self.send_response({"info": 'No features returned', 'data': []})
 
 #used to populate the feature_preprocessing.dat file from an imported puvspr.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createFeaturePreprocessingFileFromImport?user=andrew&project=test&callback=__jp2

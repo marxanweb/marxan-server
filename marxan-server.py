@@ -2810,7 +2810,7 @@ class importGBIFData(MarxanWebSocketHandler):
                     postgis.execute(sql.SQL("CREATE TABLE marxan.{} (gbifid bigint, geometry geometry, eventdate date)").format(sql.Identifier(feature_class_name))) 
                     #iterate through the data and insert the records
                     for d in data:
-                        postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, ST_Buffer(ST_SetSRID( ST_Point( %s, %s), 4326), 100), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], d['eventDate']))
+                        postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point( 178.057137,  -17.743455),4326),3410),1000),4326), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], d['eventDate']))
                     feature_name = self.get_argument('taxon') 
                     description = self.get_argument('vernacularName') 
                     #finish the import by adding a record in the metadata table

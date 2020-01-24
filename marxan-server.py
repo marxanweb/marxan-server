@@ -89,7 +89,7 @@ GBIF_API_ROOT = "https://api.gbif.org/v1/"
 GBIF_PAGE_SIZE = 10
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -988,7 +988,7 @@ def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     if (_tilesetExists(feature_class_name)):
         return "0"
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
-    cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -s_srs EPSG:3410 -t_srs EPSG:3857'
+    cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -t_srs EPSG:3857'
     try:
         subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
     #catch any unforeseen circumstances
@@ -1060,7 +1060,7 @@ def _finishImportingFeature(feature_class_name, name, description, source, user)
     postgis.execute(sql.SQL("ALTER TABLE marxan.{} ADD COLUMN id SERIAL PRIMARY KEY;").format(sql.Identifier(feature_class_name)))
     try:    
         #create a record for this new feature in the metadata_interest_features table
-        id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT sum(ST_Area(geometry)) _area, box2d(ST_Transform(ST_SetSRID(ST_Collect(geometry),3410),4326)) extent FROM marxan.{}) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user], "One")[0]
+        id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT sum(ST_Area(geometry)) _area, box2d(ST_SetSRID(ST_Collect(geometry),4326)) extent FROM marxan.{}) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user], "One")[0]
     except (MarxanServicesError) as e:
         _deleteFeatureClass(feature_class_name)
         if "Database integrity error" in e.args[0]:
@@ -1084,7 +1084,7 @@ def _importPlanningUnitGrid(filename, name, description, user):
         #create a record for this new feature in the metadata_planning_units table
         postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by,tilesetid) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s,%s);", [feature_class_name, name, description,user,MAPBOX_USER + "." + feature_class_name])
         #import the shapefile
-        postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:3410")
+        postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
         #make sure the puid column is an integer
         postgis.execute(sql.SQL("ALTER TABLE marxan.{} ALTER COLUMN puid TYPE integer;").format(sql.Identifier(feature_class_name)))
         #create the envelope for the new planning grid
@@ -1499,7 +1499,7 @@ class PostGIS():
             raise MarxanServicesError(e.output.decode("utf-8"))
         #split the feature class at the dateline
         if (splitAtDateline):
-            self.execute(sql.SQL("UPDATE marxan.{} SET geometry = ST_Transform(marxan.ST_SplitAtDateLine(ST_Transform(geometry,4326)),3410);").format(sql.Identifier(feature_class_name)))
+            self.execute(sql.SQL("UPDATE marxan.{} SET geometry = marxan.ST_SplitAtDateLine(geometry);").format(sql.Identifier(feature_class_name)))
         #shapefile imported - check that the geometries are valid and if not raise an error
         if checkGeometry:
             self.isValid(feature_class_name)
@@ -2355,10 +2355,8 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #create the undissolved feature class
         #get a unique feature class name for the import
         feature_class_name = _getUniqueFeatureclassName("f_")
-        #create the table
-        PostGIS().execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT ST_Transform(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326), 3410) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
-        #split the feature at the dateline
-        PostGIS().execute(sql.SQL("UPDATE marxan.{} SET geometry = ST_Transform(marxan.ST_SplitAtDateLine(ST_Transform(geometry,4326)),3410);").format(sql.Identifier(feature_class_name)))
+        #create the table and split the feature at the dateline
+        PostGIS().execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT marxan.ST_SplitAtDateLine(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326)) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
         #add an index and a record in the metadata_interest_features table
         id = _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Drawn on screen", self.get_current_user())
         #start the upload to mapbox
@@ -2741,10 +2739,10 @@ class importFeatures(MarxanWebSocketHandler):
             try:
                 #get a scratch name for the import
                 scratch_name = _getUniqueFeatureclassName("scratch_")
-                #import the shapefile into a PostGIS feature class in EPSG:3410
+                #import the shapefile into a PostGIS feature class in EPSG:4326
                 postgis = PostGIS()
                 # self.send_response({'info': "Importing to '" + scratch_name + "'..", 'status':'CreatingFeature'})
-                postgis.importShapefile(shapefile, scratch_name, "EPSG:3410")
+                postgis.importShapefile(shapefile, scratch_name, "EPSG:4326")
                 #get the feature names 
                 if name: #single feature name
                     feature_names = [name]
@@ -2812,7 +2810,7 @@ class importGBIFData(MarxanWebSocketHandler):
                     postgis.execute(sql.SQL("CREATE TABLE marxan.{} (gbifid bigint, geometry geometry, eventdate date)").format(sql.Identifier(feature_class_name))) 
                     #iterate through the data and insert the records
                     for d in data:
-                        postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, ST_Buffer(ST_Transform(ST_SetSRID( ST_Point( %s, %s), 4326),3410), 100), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], d['eventDate']))
+                        postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, ST_Buffer(ST_SetSRID( ST_Point( %s, %s), 4326), 100), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], d['eventDate']))
                     feature_name = self.get_argument('taxon') 
                     description = self.get_argument('vernacularName') 
                     #finish the import by adding a record in the metadata table
@@ -3042,7 +3040,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
             #get the project data
             _getProjectData(self)
             #do the intersection with the protected areas
-            future = self.executeQueryAsynchronously(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(ST_Transform(wdpa.geometry,3410), grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))),[self.get_argument('planning_grid_name')], "Preprocessing protected areas", "  Preprocessing protected areas..")
+            future = self.executeQueryAsynchronously(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))),[self.get_argument('planning_grid_name')], "Preprocessing protected areas", "  Preprocessing protected areas..")
             future.add_done_callback(self.preprocessProtectedAreasComplete) # pylint:disable=no-member
     
     #callback which is called when the intersection has been done

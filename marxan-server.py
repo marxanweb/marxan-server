@@ -86,7 +86,8 @@ SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 GBIF_API_ROOT = "https://api.gbif.org/v1/"
-GBIF_PAGE_SIZE = 10
+GBIF_PAGE_SIZE = 300
+GBIF_POINT_BUFFER_RADIUS = 1000
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
 LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
@@ -2790,18 +2791,18 @@ class importGBIFData(MarxanWebSocketHandler):
         try:
             super(importGBIFData, self).open()
             #validate the input arguments
-            _validateArguments(self.request.arguments, ['taxonKey', 'taxon', 'vernacularName'])   
+            _validateArguments(self.request.arguments, ['taxonKey','scientificName'])   
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'Failed to import features'})
         except (MarxanServicesError) as e:
             self.send_response({'error': e.args[0], 'status': 'Finished', 'info': 'Failed to import features'})
         else:
             try:
+                self.send_response({'info': "Importing features from GBIF..", 'status':'Started'})
                 taxonKey = self.get_argument('taxonKey')
                 #get the occurrences
                 data = self.getGBIFOccurrences(taxonKey)
                 if len(data)>0:
-                    self.send_response({'info': "Importing features from GBIF..", 'status':'Started'})
                     #get the feature class name
                     feature_class_name = "gbif_" + str(taxonKey)
                     #create the table if it doesnt already exists
@@ -2810,13 +2811,16 @@ class importGBIFData(MarxanWebSocketHandler):
                     postgis.execute(sql.SQL("CREATE TABLE marxan.{} (gbifid bigint, geometry geometry, eventdate date)").format(sql.Identifier(feature_class_name))) 
                     #iterate through the data and insert the records
                     for d in data:
-                        postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point( 178.057137,  -17.743455),4326),3410),1000),4326), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], d['eventDate']))
-                    feature_name = self.get_argument('taxon') 
-                    description = self.get_argument('vernacularName') 
+                        postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point( %s, %s),4326),3410),%s),4326), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], GBIF_POINT_BUFFER_RADIUS, d['eventDate']))
+                    #get the gbif vernacular name
+                    feature_name = self.get_argument('scientificName')
+                    vernacularNames = self.getVernacularNames(taxonKey)
+                    description = self.getCommonName(vernacularNames)
                     #finish the import by adding a record in the metadata table
                     id = _finishImportingFeature(feature_class_name, feature_name, description, "Imported from GBIF", self.get_current_user())
                     #upload the feature class to Mapbox
                     uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+                    self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
                     #complete
                     self.send_response({'info': "Features imported", 'status':'Finished', 'uploadId':uploadId})
                 else:
@@ -2834,6 +2838,7 @@ class importGBIFData(MarxanWebSocketHandler):
     #gets GBIF occurrences using the passed taxon key and the page - page 0 is the first page
     def getGBIFOccurrencePage(self, taxonKey, page):
         try:
+            logging.debug('getGBIFOccurrencePage: ' + str(page))
             #build the url request - only occurrences, page size of 300 and only those which contain a value in both latitude and longitude
             url = GBIF_API_ROOT + "occurrence/search?taxonKey=" + str(taxonKey) + "&basisOfRecord=HUMAN_OBSERVATION&limit=" + str(GBIF_PAGE_SIZE) + "&hasCoordinate=true&offset=" +str(page * GBIF_PAGE_SIZE)
             #make the request
@@ -2848,6 +2853,7 @@ class importGBIFData(MarxanWebSocketHandler):
     
     def getGBIFOccurrences(self, taxonKey):
         try:
+            logging.debug('getGBIFOccurrences')
             _json = self.getGBIFOccurrencePage(taxonKey, 0)
             #get the number of occurrences
             numOccurrences = _json['count']
@@ -2860,7 +2866,8 @@ class importGBIFData(MarxanWebSocketHandler):
                 if (i!=0):
                     #get the next page of results - TODO this should be done asynchronously
                     _json = self.getGBIFOccurrencePage(taxonKey, i)
-                data = [{'lng':item['decimalLongitude'], 'lat': item['decimalLatitude'], 'eventDate': item['eventDate'], 'gbifID': item['gbifID']} for item in _json['results']]
+                logging.debug('getGBIFOccurrences: getting the lat/long values')
+                data = [{'lng':item['decimalLongitude'], 'lat': item['decimalLatitude'], 'eventDate': item['eventDate'] if 'eventDate' in item.keys() else None, 'gbifID': item['gbifID']} for item in _json['results']]
                 latLongs.extend(data)
             return latLongs
         except(KeyError) as e:
@@ -2868,6 +2875,27 @@ class importGBIFData(MarxanWebSocketHandler):
         except (Exception) as e:
             print (e.args[0])
     
+    def getVernacularNames(self, taxonKey):
+        try:
+            #build the url request 
+            url = GBIF_API_ROOT + "species/" + str(taxonKey) + "/vernacularNames"
+            #make the request
+            req = request.Request(url)
+            #get the response
+            resp = request.urlopen(req)
+            #parse the results as a json object
+            results = json.loads(resp.read())
+            return results['results']
+        except (Exception) as e:
+            print (e.args[0])
+
+    def getCommonName(self, vernacularNames, language = 'eng'):
+        commonNames = [i['vernacularName'] for i in vernacularNames if i['language'] == language]
+        if (len(commonNames)>0):
+            return commonNames[0]
+        else:
+            return 'No common name'
+            
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
 ####################################################################################################################################################################################################################################################################

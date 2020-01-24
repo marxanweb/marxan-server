@@ -2792,7 +2792,7 @@ class importGBIFData(MarxanWebSocketHandler):
         try:
             super(importGBIFData, self).open()
             #validate the input arguments
-            _validateArguments(self.request.arguments, ['taxonKey'])   
+            _validateArguments(self.request.arguments, ['taxonKey', 'taxon', 'vernacularName'])   
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'Failed to import features'})
         except (MarxanServicesError) as e:
@@ -2813,8 +2813,8 @@ class importGBIFData(MarxanWebSocketHandler):
                     #iterate through the data and insert the records
                     for d in data:
                         postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, ST_Buffer(ST_Transform(ST_SetSRID( ST_Point( %s, %s), 4326),3410), 100), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], d['eventDate']))
-                    feature_name = "Fiji Long-legged Warbler" 
-                    description = "Common name"
+                    feature_name = self.get_argument('taxon') 
+                    description = self.get_argument('vernacularName') 
                     #finish the import by adding a record in the metadata table
                     id = _finishImportingFeature(feature_class_name, feature_name, description, "Imported from GBIF", self.get_current_user())
                     #upload the feature class to Mapbox

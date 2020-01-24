@@ -89,7 +89,7 @@ GBIF_API_ROOT = "https://api.gbif.org/v1/"
 GBIF_PAGE_SIZE = 10
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -1060,7 +1060,7 @@ def _finishImportingFeature(feature_class_name, name, description, source, user)
     postgis.execute(sql.SQL("ALTER TABLE marxan.{} ADD COLUMN id SERIAL PRIMARY KEY;").format(sql.Identifier(feature_class_name)))
     try:    
         #create a record for this new feature in the metadata_interest_features table
-        id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT sum(ST_Area(geometry)) _area, box2d(ST_SetSRID(ST_Collect(geometry),4326)) extent FROM marxan.{}) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user], "One")[0]
+        id = postgis.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT ST_Area(ST_Transform(geom, 3410)) _area, box2d(geom) extent FROM (SELECT ST_Union(geometry) geom FROM marxan.{}) AS sub2) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user], "One")[0]
     except (MarxanServicesError) as e:
         _deleteFeatureClass(feature_class_name)
         if "Database integrity error" in e.args[0]:
@@ -2972,7 +2972,7 @@ class preprocessFeature(QueryWebSocketHandler):
             _getProjectData(self)
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #now as an inline SQL statement to make updates easier
-                future = self.executeQueryAsynchronously(sql.SQL("SELECT metadata.oid::integer species, puid pu, sum(ST_Area(ST_Intersection(grid.geometry,feature.geometry))) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))),[self.get_argument('feature_class_name')],"Preprocessing '" + self.get_argument('alias') + "'..", "Preprocessing..")
+                future = self.executeQueryAsynchronously(sql.SQL("SELECT metadata.oid::integer species, puid pu, sum(ST_Area(ST_Transform(ST_Intersection(grid.geometry,feature.geometry),3410))) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))),[self.get_argument('feature_class_name')],"Preprocessing '" + self.get_argument('alias') + "'..", "Preprocessing..")
                 future.add_done_callback(self.intersectionComplete) # pylint:disable=no-member
             else:
                 #pass None as the Future object to the callback for the old version of marxan

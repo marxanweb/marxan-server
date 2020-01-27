@@ -24,7 +24,7 @@ Enter yes at the prompt Do you wish the installer to initialize Miniconda3 by ru
 
 Install dependencies:  
 ```  
-conda install tornado psycopg2 pandas gdal colorama psutil    
+conda install tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
 pip install mapbox  
 ```  
 

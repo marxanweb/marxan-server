@@ -7,7 +7,7 @@ from tornado.web import HTTPError
 from tornado.web import StaticFileHandler 
 from tornado.ioloop import IOLoop 
 from tornado import concurrent
-from tornado import gen
+from tornado import gen, queues, httpclient, concurrent
 from subprocess import Popen, PIPE, CalledProcessError
 from threading import Thread 
 from urllib.parse import urlparse
@@ -86,11 +86,13 @@ SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
 GBIF_API_ROOT = "https://api.gbif.org/v1/"
+GBIF_CONCURRENCY = 10
 GBIF_PAGE_SIZE = 300
 GBIF_POINT_BUFFER_RADIUS = 1000
+GBIF_OCCURRENCE_LIMIT = 200000 # from the GBIF docs here: https://www.gbif.org/developer/occurrence#search
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -2543,13 +2545,12 @@ class runMarxan(MarxanWebSocketHandler):
                     self.close()
 
     #called on the first IOLoop callback and then streams the marxan output back to the client
-    @gen.coroutine
-    def stream_marxan_output(self):
+    async def stream_marxan_output(self):
         if platform.system() != "Windows":
             try:
                 while True:
                     #read from the stdout stream
-                    line = yield self.marxanProcess.stdout.read_bytes(1024, partial=True)
+                    line = await self.marxanProcess.stdout.read_bytes(1024, partial=True)
                     self.send_response({'info':line.decode("utf-8"), 'status': 'RunningMarxan'})
             except (WebSocketClosedError):
                 print("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
@@ -2787,7 +2788,7 @@ class importFeatures(MarxanWebSocketHandler):
 
 #imports an item from GBIF
 class importGBIFData(MarxanWebSocketHandler):
-    def open(self):
+    async def open(self):
         try:
             super(importGBIFData, self).open()
             #validate the input arguments
@@ -2801,7 +2802,9 @@ class importGBIFData(MarxanWebSocketHandler):
                 self.send_response({'info': "Importing features from GBIF..", 'status':'Started'})
                 taxonKey = self.get_argument('taxonKey')
                 #get the occurrences
-                data = self.getGBIFOccurrences(taxonKey)
+                logging.info("Downloading GBIF data")
+                data = await self.getGBIFOccurrences(taxonKey)
+                logging.info("Finished downloading GBIF data")
                 if len(data)>0:
                     #get the feature class name
                     feature_class_name = "gbif_" + str(taxonKey)
@@ -2810,17 +2813,23 @@ class importGBIFData(MarxanWebSocketHandler):
                     postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(feature_class_name)))
                     postgis.execute(sql.SQL("CREATE TABLE marxan.{} (gbifid bigint, geometry geometry, eventdate date)").format(sql.Identifier(feature_class_name))) 
                     #iterate through the data and insert the records
+                    logging.info("Starting INSERT statements to import GBIF data into PostGIS")
                     for d in data:
                         postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, marxan.ST_SplitAtDateline(ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point( %s, %s),4326),3410),%s),4326)), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], GBIF_POINT_BUFFER_RADIUS, d['eventDate']))
+                    logging.info("Finished INSERT statements")
                     #get the gbif vernacular name
                     feature_name = self.get_argument('scientificName')
                     vernacularNames = self.getVernacularNames(taxonKey)
                     description = self.getCommonName(vernacularNames)
                     #finish the import by adding a record in the metadata table
+                    logging.info("Finishing import of GBIF data")
                     id = _finishImportingFeature(feature_class_name, feature_name, description, "Imported from GBIF", self.get_current_user())
+                    logging.info("Finished import of GBIF data")
                     #upload the feature class to Mapbox
+                    logging.info("Uploading GBIF data to Mapbox")
                     uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
                     self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
+                    logging.info("Finished uploading GBIF data to Mapbox")
                     #complete
                     self.send_response({'info': "Features imported", 'status':'Finished', 'uploadId':uploadId})
                 else:
@@ -2835,46 +2844,79 @@ class importGBIFData(MarxanWebSocketHandler):
                 #close the websocket
                 self.close()
 
-    #gets GBIF occurrences using the passed taxon key and the page - page 0 is the first page
-    def getGBIFOccurrencePage(self, taxonKey, page):
-        try:
-            logging.debug('getGBIFOccurrencePage: ' + str(page))
-            #build the url request - only occurrences, page size of 300 and only those which contain a value in both latitude and longitude
-            url = GBIF_API_ROOT + "occurrence/search?taxonKey=" + str(taxonKey) + "&basisOfRecord=HUMAN_OBSERVATION&limit=" + str(GBIF_PAGE_SIZE) + "&hasCoordinate=true&offset=" +str(page * GBIF_PAGE_SIZE)
-            #make the request
-            req = request.Request(url)
-            #get the response
-            resp = request.urlopen(req)
-            #parse the results as a json object
-            results = json.loads(resp.read())
-            return results
-        except (Exception) as e:
-            print (e.message)
+    #parallel asynchronous loading og gbif data
+    async def getGBIFOccurrences(self, taxonKey):
+        
+        def getGBIFUrl(taxonKey, limit, offset = 0):
+            return GBIF_API_ROOT + "occurrence/search?taxonKey=" + str(taxonKey) + "&basisOfRecord=HUMAN_OBSERVATION&limit=" + str(limit) + "&hasCoordinate=true&offset=" +str(offset)
+        
+        #makes a call to gbif
+        async def makeRequest(url):
+            response = await httpclient.AsyncHTTPClient().fetch(url)
+            return response.body.decode(errors="ignore")
+            
+        #fetches the url
+        async def fetch_url(current_url):
+            if current_url in fetching:
+                return
+            fetching.add(current_url)
+            response = await makeRequest(current_url)
+            #get the response as a json object
+            _json = json.loads(response)
+            #get the lat longs
+            data = [{'lng':item['decimalLongitude'], 'lat': item['decimalLatitude'], 'eventDate': item['eventDate'] if 'eventDate' in item.keys() else None, 'gbifID': item['gbifID']} for item in _json['results']]
+            #append them to the list
+            latLongs.extend(data)
+            fetched.add(current_url)
     
-    def getGBIFOccurrences(self, taxonKey):
-        try:
-            logging.debug('getGBIFOccurrences')
-            _json = self.getGBIFOccurrencePage(taxonKey, 0)
-            #get the number of occurrences
-            numOccurrences = _json['count']
-            #initialise the lat/long array
-            latLongs = []
-            #iterate through the occurrences and get the lat/longs
-            #get the page count
-            pageCount = int(numOccurrences//GBIF_PAGE_SIZE) + 1
-            for i in range(pageCount):
-                if (i!=0):
-                    #get the next page of results - TODO this should be done asynchronously
-                    _json = self.getGBIFOccurrencePage(taxonKey, i)
-                logging.debug('getGBIFOccurrences: getting the lat/long values')
-                data = [{'lng':item['decimalLongitude'], 'lat': item['decimalLatitude'], 'eventDate': item['eventDate'] if 'eventDate' in item.keys() else None, 'gbifID': item['gbifID']} for item in _json['results']]
-                latLongs.extend(data)
-            return latLongs
-        except(KeyError) as e:
-            print ("The key '" + e.args[0] + "' was not found")
-        except (Exception) as e:
-            print (e.args[0])
-    
+        #helper to request a specific url
+        async def worker():
+            async for url in q:
+                if url is None:
+                    return
+                try:
+                    #fetch the url
+                    await fetch_url(url)
+                except Exception as e:
+                    print("Exception: %s %s" % (e, url))
+                    dead.add(url)
+                finally:
+                    q.task_done()
+                    
+        #initialise the lat/longs
+        latLongs = []
+        #get the number of occurrences
+        _url = getGBIFUrl(taxonKey, 10)
+        req = request.Request(_url)
+        #get the response
+        resp = request.urlopen(req)
+        #parse the results as a json object
+        results = json.loads(resp.read())
+        numOccurrences = results['count']
+        #error check
+        if (numOccurrences > GBIF_OCCURRENCE_LIMIT):
+            raise MarxanServicesError("Number of GBIF occurrence records is greater than " + str(GBIF_OCCURRENCE_LIMIT))
+        #get the page count
+        pageCount = int(numOccurrences//GBIF_PAGE_SIZE) + 1
+        #get the urls to fetch
+        urls = [getGBIFUrl(taxonKey, GBIF_PAGE_SIZE, (i * GBIF_PAGE_SIZE)) for i in range(0, pageCount)]
+        #create a queue for the urls to fetch
+        q = queues.Queue()
+        #initialise the sets to track progress
+        fetching, fetched, dead = set(), set(), set()
+        #add all the urls to the queue
+        for _url in urls:
+            await q.put(_url)
+        # Start workers, then wait for the work queue to be empty.
+        workers = gen.multi([worker() for _ in range(GBIF_CONCURRENCY)])
+        await q.join()
+        assert fetching == (fetched | dead)
+        # Signal all the workers to exit.
+        for _ in range(GBIF_CONCURRENCY):
+            await q.put(None)
+        await workers
+        return latLongs
+        
     def getVernacularNames(self, taxonKey):
         try:
             #build the url request 

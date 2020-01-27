@@ -8,6 +8,8 @@ from tornado.web import StaticFileHandler
 from tornado.ioloop import IOLoop 
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent
+from sqlalchemy import create_engine
+from collections import OrderedDict
 from subprocess import Popen, PIPE, CalledProcessError
 from threading import Thread 
 from urllib.parse import urlparse
@@ -1396,6 +1398,19 @@ def _getMBAT():
                 if (startPos == -1):
                     raise MarxanServicesError("MBAT not found in Marxan Registry")
                 return mbat_line[startPos:-1]
+
+#imports a dataframe into a table - this is not part of the PostGIS class as it uses a different connection string
+def _importDataFrame(df, table_name):
+    engine_text = 'postgresql://' + DATABASE_USER + ':' + DATABASE_PASSWORD + '@' + DATABASE_HOST + '/' + DATABASE_NAME
+    engine = create_engine(engine_text)
+    conn = engine.raw_connection()
+    cur = conn.cursor()
+    output = io.StringIO()
+    df.to_csv(output, sep='\t', header=False, index=False)
+    output.seek(0)
+    contents = output.getvalue()
+    cur.copy_from(output, 'marxan.' + table_name , null="") # null values become ''
+    conn.commit()        
 
 ####################################################################################################################################################################################################################################################################
 ## generic classes
@@ -2803,19 +2818,21 @@ class importGBIFData(MarxanWebSocketHandler):
                 taxonKey = self.get_argument('taxonKey')
                 #get the occurrences
                 logging.info("Downloading GBIF data")
-                data = await self.getGBIFOccurrences(taxonKey)
+                df = await self.getGBIFOccurrences(taxonKey)
+                print (df)
                 logging.info("Finished downloading GBIF data")
-                if len(data)>0:
+                if (df.empty == False):
                     #get the feature class name
                     feature_class_name = "gbif_" + str(taxonKey)
                     #create the table if it doesnt already exists
                     postgis = PostGIS()
                     postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(feature_class_name)))
-                    postgis.execute(sql.SQL("CREATE TABLE marxan.{} (gbifid bigint, geometry geometry, eventdate date)").format(sql.Identifier(feature_class_name))) 
+                    postgis.execute(sql.SQL("CREATE TABLE marxan.{} (eventdate date, gbifid bigint, lng double precision, lat double precision, geometry geometry)").format(sql.Identifier(feature_class_name))) 
                     #iterate through the data and insert the records
                     logging.info("Starting INSERT statements to import GBIF data into PostGIS")
-                    for d in data:
-                        postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, marxan.ST_SplitAtDateline(ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point( %s, %s),4326),3410),%s),4326)), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], GBIF_POINT_BUFFER_RADIUS, d['eventDate']))
+                    # for d in data:
+                    #     postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, marxan.ST_SplitAtDateline(ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point( %s, %s),4326),3410),%s),4326)), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], GBIF_POINT_BUFFER_RADIUS, d['eventDate']))
+                    _importDataFrame(df, feature_class_name)
                     logging.info("Finished INSERT statements")
                     #get the gbif vernacular name
                     feature_name = self.get_argument('scientificName')
@@ -2864,7 +2881,7 @@ class importGBIFData(MarxanWebSocketHandler):
             #get the response as a json object
             _json = json.loads(response)
             #get the lat longs
-            data = [{'lng':item['decimalLongitude'], 'lat': item['decimalLatitude'], 'eventDate': item['eventDate'] if 'eventDate' in item.keys() else None, 'gbifID': item['gbifID']} for item in _json['results']]
+            data = [OrderedDict({ 'eventDate': item['eventDate'] if 'eventDate' in item.keys() else None,'gbifID': item['gbifID'], 'lng':item['decimalLongitude'], 'lat': item['decimalLatitude'], 'geometry': ''}) for item in _json['results']]
             #append them to the list
             latLongs.extend(data)
             fetched.add(current_url)
@@ -2915,7 +2932,7 @@ class importGBIFData(MarxanWebSocketHandler):
         for _ in range(GBIF_CONCURRENCY):
             await q.put(None)
         await workers
-        return latLongs
+        return pandas.DataFrame(latLongs) 
         
     def getVernacularNames(self, taxonKey):
         try:

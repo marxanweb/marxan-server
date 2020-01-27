@@ -2811,7 +2811,7 @@ class importGBIFData(MarxanWebSocketHandler):
                     postgis.execute(sql.SQL("CREATE TABLE marxan.{} (gbifid bigint, geometry geometry, eventdate date)").format(sql.Identifier(feature_class_name))) 
                     #iterate through the data and insert the records
                     for d in data:
-                        postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point( %s, %s),4326),3410),%s),4326), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], GBIF_POINT_BUFFER_RADIUS, d['eventDate']))
+                        postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, marxan.ST_SplitAtDateline(ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point( %s, %s),4326),3410),%s),4326)), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], GBIF_POINT_BUFFER_RADIUS, d['eventDate']))
                     #get the gbif vernacular name
                     feature_name = self.get_argument('scientificName')
                     vernacularNames = self.getVernacularNames(taxonKey)

@@ -2816,11 +2816,8 @@ class importGBIFData(MarxanWebSocketHandler):
             try:
                 self.send_response({'info': "Importing features from GBIF..", 'status':'Started'})
                 taxonKey = self.get_argument('taxonKey')
-                #get the occurrences
-                logging.info("Downloading GBIF data")
+                #get the occurrences using asynchronous parallel requests
                 df = await self.getGBIFOccurrences(taxonKey)
-                print (df)
-                logging.info("Finished downloading GBIF data")
                 if (df.empty == False):
                     #get the feature class name
                     feature_class_name = "gbif_" + str(taxonKey)
@@ -2828,25 +2825,19 @@ class importGBIFData(MarxanWebSocketHandler):
                     postgis = PostGIS()
                     postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(feature_class_name)))
                     postgis.execute(sql.SQL("CREATE TABLE marxan.{} (eventdate date, gbifid bigint, lng double precision, lat double precision, geometry geometry)").format(sql.Identifier(feature_class_name))) 
-                    #iterate through the data and insert the records
-                    logging.info("Starting INSERT statements to import GBIF data into PostGIS")
-                    # for d in data:
-                    #     postgis.execute(sql.SQL("INSERT INTO marxan.{} VALUES (%s, marxan.ST_SplitAtDateline(ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point( %s, %s),4326),3410),%s),4326)), %s)").format(sql.Identifier(feature_class_name)), (d['gbifID'], d['lng'], d['lat'], GBIF_POINT_BUFFER_RADIUS, d['eventDate']))
+                    #insert the records
                     _importDataFrame(df, feature_class_name)
-                    logging.info("Finished INSERT statements")
+                    #update the geometry field
+                    postgis.execute(sql.SQL("UPDATE marxan.{} SET geometry=marxan.ST_SplitAtDateline(ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point(lng, lat),4326),3410),%s),4326))").format(sql.Identifier(feature_class_name)), [GBIF_POINT_BUFFER_RADIUS])
                     #get the gbif vernacular name
                     feature_name = self.get_argument('scientificName')
                     vernacularNames = self.getVernacularNames(taxonKey)
                     description = self.getCommonName(vernacularNames)
                     #finish the import by adding a record in the metadata table
-                    logging.info("Finishing import of GBIF data")
                     id = _finishImportingFeature(feature_class_name, feature_name, description, "Imported from GBIF", self.get_current_user())
-                    logging.info("Finished import of GBIF data")
                     #upload the feature class to Mapbox
-                    logging.info("Uploading GBIF data to Mapbox")
                     uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
                     self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
-                    logging.info("Finished uploading GBIF data to Mapbox")
                     #complete
                     self.send_response({'info': "Features imported", 'status':'Finished', 'uploadId':uploadId})
                 else:
@@ -2869,6 +2860,7 @@ class importGBIFData(MarxanWebSocketHandler):
         
         #makes a call to gbif
         async def makeRequest(url):
+            logging.info(url)
             response = await httpclient.AsyncHTTPClient().fetch(url)
             return response.body.decode(errors="ignore")
             

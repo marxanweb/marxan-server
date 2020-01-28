@@ -1399,7 +1399,7 @@ def _getMBAT():
                     raise MarxanServicesError("MBAT not found in Marxan Registry")
                 return mbat_line[startPos:-1]
 
-#imports a dataframe into a table - this is not part of the PostGIS class as it uses a different connection string
+#imports a dataframe into a table - this is not part of the PostGIS class as it uses a different connection string - and it is not asynchronous at the moment
 def _importDataFrame(df, table_name):
     engine_text = 'postgresql://' + DATABASE_USER + ':' + DATABASE_PASSWORD + '@' + DATABASE_HOST + '/' + DATABASE_NAME
     engine = create_engine(engine_text)
@@ -1410,7 +1410,8 @@ def _importDataFrame(df, table_name):
     output.seek(0)
     contents = output.getvalue()
     cur.copy_from(output, 'marxan.' + table_name , null="") # null values become ''
-    conn.commit()        
+    conn.commit()    
+    conn.close()
 
 ####################################################################################################################################################################################################################################################################
 ## generic classes
@@ -2860,11 +2861,11 @@ class importGBIFData(MarxanWebSocketHandler):
         
         #makes a call to gbif
         async def makeRequest(url):
-            logging.info(url)
+            logging.debug(url)
             response = await httpclient.AsyncHTTPClient().fetch(url)
             return response.body.decode(errors="ignore")
             
-        #fetches the url
+        #fetches the url and tracks the progress
         async def fetch_url(current_url):
             if current_url in fetching:
                 return

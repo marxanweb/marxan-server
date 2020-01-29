@@ -2497,11 +2497,11 @@ class runMarxan(MarxanWebSocketHandler):
         try:
             await super().open({'info': "Running Marxan.."})
         except (HTTPError) as e:
-            self.send_response({'error': e.reason, 'status': 'Finished'})
+            self.send_response({'status': 'Finished', 'error': e.reason})
         else:
             #see if the project is already running - if it is then return an error
             if _isProjectRunning(self.get_argument("user"), self.get_argument("project")):
-                self.send_response({'error': "The project is already running. See <a href='" + ERRORS_PAGE + "#the-project-is-already-running' target='blank'>here</a>", 'status': 'Finished','info':''})            
+                self.send_response({'status': 'Finished', 'error': "The project is already running. See <a href='" + ERRORS_PAGE + "#the-project-is-already-running' target='blank'>here</a>", 'info':''})            
             else:
                 #set the current folder to the project folder so files can be found in the input.dat file
                 if (os.path.exists(self.folder_project)):

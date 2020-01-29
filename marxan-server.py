@@ -2444,9 +2444,12 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             raise HTTPError(403, "The origin '" + origin + "' does not have permission to access the service (CORS error)")
 
     #called when the websocket is opened - does authentication/authorisation then gets the folder paths for the user and optionally the project
-    async def open(self):
+    async def open(self, startMessage):
         #set the start time of the websocket
         self.startTime = datetime.datetime.now()
+        #set the start message
+        startMessage.update({'status': 'Started'})
+        self.send_response(startMessage)
         #set the folder paths for the user and optionally project
         if "user" in self.request.arguments.keys():
             _setFolderPaths(self, self.request.arguments)
@@ -2470,15 +2473,12 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
 
     #sends the message with a timestamp
     def send_response(self, message):
-        #add in the start time
-        if hasattr(self, 'startTime'):
-            elapsedtime = str((datetime.datetime.now() - self.startTime).seconds) + "s"
-            message.update({'elapsedtime': elapsedtime})
+        #add in the start time and the class name of the descendent class
+        elapsedtime = str((datetime.datetime.now() - self.startTime).seconds) + "s"
+        message.update({'elapsedtime': elapsedtime, 'className': self.__class__.__name__})
         #add in messages from descendent classes
         if hasattr(self, 'pid'):
             message.update({'pid': self.pid})
-        #add in the class name of the descendent class
-        message.update({'className': self.__class__.__name__})
         self.write_message(message)
     
     def close(self):
@@ -2495,18 +2495,14 @@ class runMarxan(MarxanWebSocketHandler):
     #authenticate and get the user folder and project folders
     async def open(self):
         try:
-            await super(runMarxan, self).open()
+            await super().open({'info': "Running Marxan.."})
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished'})
-            self.close()
         else:
             #see if the project is already running - if it is then return an error
             if _isProjectRunning(self.get_argument("user"), self.get_argument("project")):
                 self.send_response({'error': "The project is already running. See <a href='" + ERRORS_PAGE + "#the-project-is-already-running' target='blank'>here</a>", 'status': 'Finished','info':''})            
-                #close the websocket
-                self.close()
             else:
-                self.send_response({'info': "Running Marxan..", 'status':'Started'})
                 #set the current folder to the project folder so files can be found in the input.dat file
                 if (os.path.exists(self.folder_project)):
                     os.chdir(self.folder_project)
@@ -2532,8 +2528,6 @@ class runMarxan(MarxanWebSocketHandler):
                     except (WindowsError) as e: # pylint:disable=undefined-variable
                         if (e.winerror == 1260):
                             self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
-                            #close the websocket
-                            self.close()
                     else: #no errors
                         #get the number of runs that were in the input.dat file
                         self.numRunsRequired = _getNumberOfRunsRequired(self)
@@ -2548,8 +2542,9 @@ class runMarxan(MarxanWebSocketHandler):
                         IOLoop.current().spawn_callback(self.stream_marxan_output)
                 else: #project does not exist
                     self.send_response({'error': "Project '" + self.get_argument("project") + "' does not exist", 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
-                    #close the websocket
-                    self.close()
+        finally:
+            #close the websocket
+            self.close()
 
     #called on the first IOLoop callback and then streams the marxan output back to the client
     async def stream_marxan_output(self):
@@ -2628,11 +2623,10 @@ class updateWDPA(MarxanWebSocketHandler):
     #authenticate and get the user folder and project folders
     async def open(self):
         try:
-            await super(updateWDPA, self).open()
+            await super().open({'info': "Updating WDPA.."})
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'WDPA not updated'})
         else:
-            self.send_response({'info': "Updating WDPA..", 'status':'Started'})
             try:
                 #download the new wdpa zip
                 self.downloadFile(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
@@ -2728,7 +2722,7 @@ class updateWDPA(MarxanWebSocketHandler):
 class importFeatures(MarxanWebSocketHandler):
     async def open(self):
         try:
-            await super(importFeatures, self).open()
+            await super().open({'info': "Importing features.."})
             #validate the input arguments
             _validateArguments(self.request.arguments, ['zipfile', 'shapefile'])   
         except (HTTPError) as e:
@@ -2738,7 +2732,6 @@ class importFeatures(MarxanWebSocketHandler):
         else:
             #initiate the upload ids array
             uploadIds = []
-            self.send_response({'info': "Importing features..", 'status':'Started'})
             shapefile = self.get_argument('shapefile')
             #if a name is passed then this is a single feature class
             if "name" in list(self.request.arguments.keys()):
@@ -2797,7 +2790,7 @@ class importFeatures(MarxanWebSocketHandler):
 class importGBIFData(MarxanWebSocketHandler):
     async def open(self):
         try:
-            super(importGBIFData, self).open()
+            super().open({'info': "Importing features from GBIF.."})
             #validate the input arguments
             _validateArguments(self.request.arguments, ['taxonKey','scientificName'])   
         except (HTTPError) as e:
@@ -2806,7 +2799,6 @@ class importGBIFData(MarxanWebSocketHandler):
             self.send_response({'error': e.args[0], 'status': 'Finished', 'info': 'Failed to import features'})
         else:
             try:
-                self.send_response({'info': "Importing features from GBIF..", 'status':'Started'})
                 taxonKey = self.get_argument('taxonKey')
                 #get the occurrences using asynchronous parallel requests
                 df = await self.getGBIFOccurrences(taxonKey)
@@ -2840,9 +2832,9 @@ class importGBIFData(MarxanWebSocketHandler):
                     self.send_response({'error':"The feature '" + feature_name + "' already exists", 'status':'Finished', 'info': 'Failed to import features'})
                 else:
                     self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import features'})
-            finally:
-                #close the websocket
-                self.close()
+        finally:
+            #close the websocket
+            self.close()
 
     #parallel asynchronous loading og gbif data
     async def getGBIFOccurrences(self, taxonKey):
@@ -2944,10 +2936,9 @@ class importGBIFData(MarxanWebSocketHandler):
 ####################################################################################################################################################################################################################################################################
 
 class QueryWebSocketHandler(MarxanWebSocketHandler):
-
     #authenticate and get the user folder and project folders
-    async def open(self):
-        await super(QueryWebSocketHandler, self).open()
+    async def open(self, startMessage):
+        await super().open(startMessage)
     
     #runs a PostGIS query asynchronously, i.e. non-blocking
     async def executeQuery(self, sql, data = None):
@@ -2994,12 +2985,9 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
 #preprocesses the features by intersecting them with the planning units
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessFeature?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30&feature_class_name=volcano&alias=volcano&id=63408475
 class preprocessFeature(QueryWebSocketHandler):
-
-    #run the preprocessing
     async def open(self):
         try:
-            self.send_response({'status':'Started', 'info': "Preprocessing '" + self.get_argument('alias') + "'.."})
-            await super(preprocessFeature, self).open()
+            await super().open({'info': "Preprocessing '" + self.get_argument('alias') + "'.."})
         except (HTTPError) as e:
             self.send_response({'status': 'Finished', 'error': e.reason})
         else:
@@ -3046,14 +3034,11 @@ class preprocessFeature(QueryWebSocketHandler):
 #preprocesses the protected areas by intersecting them with the planning units
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30
 class preprocessProtectedAreas(QueryWebSocketHandler):
-
-    #run the preprocessing
     async def open(self):
         try:
-            self.send_response({'status':'Started', 'info': "Preprocessing protected areas"})
-            await super(preprocessProtectedAreas, self).open()
+            await super().open({'info': "Preprocessing protected areas"})
         except (HTTPError) as e:
-            self.send_response({'error': e.reason, 'status': 'Finished'})
+            self.send_response({'status': 'Finished', 'error': e.reason})
         else:
             _validateArguments(self.request.arguments, ['user','project','planning_grid_name'])    
             #do the intersection with the protected areas
@@ -3073,14 +3058,11 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
 #preprocesses the planning units to get the boundary lengths where they intersect - produces the bounds.dat file
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessPlanningUnits?user=admin&project=Start%20project
 class preprocessPlanningUnits(QueryWebSocketHandler):
-
-    #run the preprocessing
     async def open(self):
         try:
-            self.send_response({'status':'Started', 'info': "Calculating boundary lengths"})
-            await super(preprocessPlanningUnits, self).open()
+            await super().open({'info': "Calculating boundary lengths"})
         except (HTTPError) as e:
-            self.send_response({'error': e.reason, 'status': 'Finished'})
+            self.send_response({'status': 'Finished', 'error': e.reason})
         else:
             _validateArguments(self.request.arguments, ['user','project'])    
             #get the project data
@@ -3109,49 +3091,42 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
 #creates a new planning grid
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon   
 class createPlanningUnitGrid(QueryWebSocketHandler):
-    
-    #run the preprocessing
-    def open(self):
+    async def open(self):
         try:
-            super(createPlanningUnitGrid, self).open()
+            await super().open({'info': "Creating planning grid.."})
         except (HTTPError) as e:
-            self.send_response({'error': e.reason, 'status': 'Finished'})
+            self.send_response({'status': 'Finished', 'error': e.reason})
         else:
             _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
             #estimate how many planning units are in the grid that will be created
             unitCount = _estimatePlanningUnitCount(self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'))
             #see if the unit count is above the PLANNING_GRID_UNITS_LIMIT
             if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
-                self.send_response({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + ". See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>", 'status': 'Finished'})
+                self.send_response({'status': 'Finished', 'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + ". See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
             else:
-                future = self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], "Creating planning grid..", "  Processing ..")
-                future.add_done_callback(self.createPlanningUnitGridComplete) # pylint:disable=no-member
-                
-    #callback which is called when the planning grid has been created
-    def createPlanningUnitGridComplete(self, future):
-        try:
-            #get the planning grid alias
-            alias = self.queryResults["records"][0][0]
-            #get the feature class name
-            fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
-            #create a primary key so the feature class can be used in ArcGIS
-            PostGIS().createPrimaryKey(fc, "puid")    
-            #start the upload to Mapbox
-            uploadId = _uploadTilesetToMapbox(fc, fc)
-            #set the response
-            self.send_response({'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId, 'status':'Finished'})
-        except (MarxanServicesError) as e:
-            self.send_response({'error': e.args[0], 'status': 'Finished'})
+                results = await self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()])
+                #get the planning grid alias
+                alias = results["records"][0][0]
+                #get the feature class name
+                fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
+                #create a primary key so the feature class can be used in ArcGIS
+                PostGIS().createPrimaryKey(fc, "puid")    
+                #start the upload to Mapbox
+                uploadId = _uploadTilesetToMapbox(fc, fc)
+                #set the response
+                self.send_response({'status':'Finished', 'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId})
+        finally:
+            #close the websocket
+            self.close()
 
 #runs a gap analysis
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/runGapAnalysis?user=admin&project=British%20Columbia%20Marine%20Case%20Study
 class runGapAnalysis(QueryWebSocketHandler):
-    
-    def open(self):
+    async def open(self):
         try:
-            super(runGapAnalysis, self).open()
+            await super().open({'info': "Running gap analysis.."})
         except (HTTPError) as e:
-            self.send_response({'error': e.reason, 'status': 'Finished'})
+            self.send_response({'status': 'Finished', 'error': e.reason})
         else:
             _validateArguments(self.request.arguments, ['user','project'])    
             #get the identifiers of the features for the project
@@ -3159,18 +3134,13 @@ class runGapAnalysis(QueryWebSocketHandler):
             featureIds = df['id'].to_numpy().tolist()
             #get the planning grid name
             _getProjectData(self)
-            future = self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s)", [self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds], "Running gap analysis..", "  Processing ..")
-            future.add_done_callback(self.runGapAnalysisComplete) # pylint:disable=no-member
-                
-    #callback which is called when the gap analysis has been done
-    def runGapAnalysisComplete(self, future):
-        try:
+            results = await self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s)", [self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds])
             #get the results as a data frame
-            df = pandas.DataFrame.from_records(self.queryResults["records"], columns = self.queryResults["columns"])
-            self.send_response({'info':"Gap analysis complete", 'status':'Finished', 'data': df.to_dict(orient="records")})
-        except (MarxanServicesError) as e:
-            self.send_response({'error': e.args[0], 'status': 'Finished'})
-
+            df = pandas.DataFrame.from_records(results["records"], columns = results["columns"])
+            self.send_response({'status':'Finished', 'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
+        finally:
+            #close the websocket
+            self.close()
 
 ####################################################################################################################################################################################################################################################################
 ## tornado functions
@@ -3271,7 +3241,7 @@ async def main():
         else:
             app.listen(PORT)
             navigateTo = "http://"
-        navigateTo = navigateTo + "<host>:" + PORT + "/index.html"
+        navigateTo = navigateTo + "<host>:8080/index.html"
         #open the web browser if the call includes a url, e.g. python marxan-server.py http://localhost/index.html
         if len(sys.argv)>1:
             if MARXAN_CLIENT_VERSION == "Not installed":

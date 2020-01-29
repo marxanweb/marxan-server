@@ -1,11 +1,12 @@
 #!/home/ubuntu/miniconda2/envs/python36/bin/python3.6 
+import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, platform, colorama, io, requests, platform, ctypes, aiopg
 from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
 from tornado.process import Subprocess
 from tornado.log import LogFormatter
 from tornado.web import HTTPError 
 from tornado.web import StaticFileHandler 
-from tornado.ioloop import IOLoop 
+from tornado.ioloop import IOLoop, PeriodicCallback 
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent
 from sqlalchemy import create_engine
@@ -18,35 +19,6 @@ from psycopg2 import sql
 from mapbox import Uploader 
 from mapbox import errors 
 from osgeo import ogr 
-import psutil
-import urllib
-import tornado.options 
-import webbrowser 
-import logging 
-import fnmatch 
-import json 
-import psycopg2 
-import pandas 
-import os 
-import re 
-import time
-import traceback 
-import glob 
-import time
-import datetime
-import select
-import subprocess
-import sys 
-import zipfile 
-import shutil 
-import uuid
-import signal 
-import platform  
-import colorama
-import io 
-import requests 
-import platform
-import ctypes
 
 ####################################################################################################################################################################################################################################################################
 ## constant declarations
@@ -95,6 +67,8 @@ GBIF_OCCURRENCE_LIMIT = 200000 # from the GBIF docs here: https://www.gbif.org/d
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
 LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+SHUTDOWN_EVENT = tornado.locks.Event() #to allow Tornado to exit gracefully
+WEBSOCKET_PING_INTERVAL = 29
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -2470,7 +2444,7 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             raise HTTPError(403, "The origin '" + origin + "' does not have permission to access the service (CORS error)")
 
     #called when the websocket is opened - does authentication/authorisation then gets the folder paths for the user and optionally the project
-    def open(self):
+    async def open(self):
         #set the start time of the websocket
         self.startTime = datetime.datetime.now()
         #set the folder paths for the user and optionally project
@@ -2486,13 +2460,30 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         _authoriseRole(self, method)
         #check the user has access to the specific resource, i.e. the 'User' role cannot access projects from other users
         _authoriseUser(self)
+        def sendPing():
+            self.send_response({"status":"WebSocketOpen"})
+        #send an initial ping
+        sendPing()
+        #start the web socket ping messages to keep the connection alive
+        self.pc = PeriodicCallback(sendPing, (WEBSOCKET_PING_INTERVAL*1000))
+        self.pc.start()
 
     #sends the message with a timestamp
     def send_response(self, message):
-        if self.startTime: 
+        #add in the start time
+        if hasattr(self, 'startTime'):
             elapsedtime = str((datetime.datetime.now() - self.startTime).seconds) + "s"
             message.update({'elapsedtime': elapsedtime})
+        #add in messages from descendent classes
+        if hasattr(self, 'pid'):
+            message.update({'pid': self.pid})
+        #add in the class name of the descendent class
+        message.update({'className': self.__class__.__name__})
         self.write_message(message)
+    
+    def close(self):
+        #stop the ping messages
+        self.pc.stop()
 
 ####################################################################################################################################################################################################################################################################
 ## MarxanWebSocketHandler subclasses
@@ -2502,9 +2493,9 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
 #starts a Marxan run on the server and streams back the output as websockets
 class runMarxan(MarxanWebSocketHandler):
     #authenticate and get the user folder and project folders
-    def open(self):
+    async def open(self):
         try:
-            super(runMarxan, self).open()
+            await super(runMarxan, self).open()
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished'})
             self.close()
@@ -2635,9 +2626,9 @@ class runMarxan(MarxanWebSocketHandler):
 #updates the WDPA table in PostGIS using the publically available downloadUrl
 class updateWDPA(MarxanWebSocketHandler):
     #authenticate and get the user folder and project folders
-    def open(self):
+    async def open(self):
         try:
-            super(updateWDPA, self).open()
+            await super(updateWDPA, self).open()
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'WDPA not updated'})
         else:
@@ -2735,9 +2726,9 @@ class updateWDPA(MarxanWebSocketHandler):
 
 #imports a set of features from a zipped shapefile
 class importFeatures(MarxanWebSocketHandler):
-    def open(self):
+    async def open(self):
         try:
-            super(importFeatures, self).open()
+            await super(importFeatures, self).open()
             #validate the input arguments
             _validateArguments(self.request.arguments, ['zipfile', 'shapefile'])   
         except (HTTPError) as e:
@@ -2953,62 +2944,36 @@ class importGBIFData(MarxanWebSocketHandler):
 ####################################################################################################################################################################################################################################################################
 
 class QueryWebSocketHandler(MarxanWebSocketHandler):
-    
-    #authenticate and get the user folder and project folders
-    def open(self):
-        super(QueryWebSocketHandler, self).open()
 
-    #required for asyncronous queries
-    def wait(self):
-        while 1:
-            state = self.conn.poll()
-            if state == psycopg2.extensions.POLL_OK:      #0
-                break
-            elif state == psycopg2.extensions.POLL_WRITE: #2
-                select.select([], [self.conn.fileno()], [])
-            elif state == psycopg2.extensions.POLL_READ:  #1
-                select.select([self.conn.fileno()], [], [])
-            else:
-                raise psycopg2.OperationalError("poll() returned %s" % state)
-                
-    @gen.coroutine
+    #authenticate and get the user folder and project folders
+    async def open(self):
+        await super(QueryWebSocketHandler, self).open()
+    
     #runs a PostGIS query asynchronously, i.e. non-blocking
-    def executeQueryAsynchronously(self, sql, data = None, startedMessage = "", processingMessage = ""):
+    async def executeQuery(self, sql, data = None):
         try:
-            self.send_response({'info': startedMessage, 'status':'Started'})
-            #connect to postgis asyncronously
-            self.conn = psycopg2.connect(CONNECTION_STRING, async_ = True) #async was renamed 
-            #wait for the connection to be ready
-            self.wait()
             #get a cursor
-            cur = self.conn.cursor()
-            #parameter bind if necessary
-            if data is not None:
-                sql = cur.mogrify(sql, data)
-            _debugSQLStatement(sql, self.conn)                
-            #execute the query
-            cur.execute(sql)
-            #get the pid of the query so that it can be stopped - and prefix it with a 'q'
-            self.pid = 'q' + str(self.conn.get_backend_pid())
-            self.send_response({'status':'pid'})
-            #poll to get the state of the query
-            state = self.conn.poll()
-            #poll at regular intervals to see if the query has finished
-            while (state != psycopg2.extensions.POLL_OK):
-                yield gen.sleep(1)
-                state = self.conn.poll()
-                self.send_response({'info': processingMessage, 'status':'RunningQuery'})
-            #if the query returns data, then return the data
-            if cur.description is not None:
-                #get the column names for the query
-                columns = [desc[0] for desc in cur.description]
-                #get the query results
-                records = cur.fetchall()
-                #set the values on the current object
-                self.queryResults = {}
-                self.queryResults.update({'columns': columns, 'records': records})
-            else: #an error
-                self.queryResults = {}
+            with (await self.application.pool.cursor()) as cur:
+                #parameter bind if necessary
+                if data is not None:
+                    sql = cur.mogrify(sql, data)
+                _debugSQLStatement(sql, cur.connection.raw)                
+                #get the pid of the query so that it can be stopped - and prefix it with a 'q'
+                self.pid = 'q' + str(await cur.connection.get_backend_pid())
+                self.send_response({'status':'pid', 'pid': self.pid})
+                #execute the query
+                await cur.execute(sql)
+                #if the query returns data, then return the data
+                if cur.description is not None:
+                    #get the column names for the query
+                    columns = [desc[0] for desc in cur.description]
+                    #get the query results
+                    records = await cur.fetchall()
+                    #return the results
+                    return {'columns': columns, 'records': records}
+                else: #an error
+                    return None
+                    
         except (psycopg2.extensions.QueryCanceledError, psycopg2.InternalError): #stopped by user
             self.send_response({'error': 'Preprocessing stopped by ' + self.get_current_user(), 'status':'Finished'})
         except (psycopg2.OperationalError) as e: #killed by operating system
@@ -3021,17 +2986,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                 self.send_response({'error': "That item already exists", 'status':'Finished'})
             else:
                 self.send_response({'error': e.pgerror, 'status':'Finished'})
-        #clean up code
-        finally:
-            cur.close()
-            self.conn.close()
     
-    def send_response(self, message):
-        #all websocket messages will contain the pid of the query
-        if hasattr(self, 'pid'):
-            message.update({'pid': self.pid})
-        super(QueryWebSocketHandler, self).send_response(message)
-
 ####################################################################################################################################################################################################################################################################
 ## WebSocket subclasses
 ####################################################################################################################################################################################################################################################################
@@ -3041,108 +2996,89 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
 class preprocessFeature(QueryWebSocketHandler):
 
     #run the preprocessing
-    def open(self):
+    async def open(self):
         try:
-            super(preprocessFeature, self).open()
+            self.send_response({'status':'Started', 'info': "Preprocessing '" + self.get_argument('alias') + "'.."})
+            await super(preprocessFeature, self).open()
         except (HTTPError) as e:
-            self.send_response({'error': e.reason, 'status': 'Finished'})
+            self.send_response({'status': 'Finished', 'error': e.reason})
         else:
             _validateArguments(self.request.arguments, ['user','project','id','feature_class_name','alias','planning_grid_name'])    
-            #get the project data
-            _getProjectData(self)
-            if (not self.projectData["metadata"]["OLDVERSION"]):
-                #now as an inline SQL statement to make updates easier
-                future = self.executeQueryAsynchronously(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))),[self.get_argument('feature_class_name')],"Preprocessing '" + self.get_argument('alias') + "'..", "Preprocessing..")
-                future.add_done_callback(self.intersectionComplete) # pylint:disable=no-member
-            else:
-                #pass None as the Future object to the callback for the old version of marxan
-                self.intersectionComplete(None) 
-
-    #callback which is called when the intersection has been done
-    def intersectionComplete(self, future):
-        #get an empty dataframe 
-        d = {'amount':pandas.Series([], dtype='float64'), 'species':pandas.Series([], dtype='int64'), 'pu':pandas.Series([], dtype='int64')}
-        emptyDataFrame = pandas.DataFrame(data=d)[['species', 'pu', 'amount']] #reorder the columns
-        #get the intersection data
-        if (future): #i.e. new version of marxan
+            #run the query asynchronously and wait for the results
+            results = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))),[self.get_argument('feature_class_name')])
+            #get an empty dataframe 
+            d = {'amount':pandas.Series([], dtype='float64'), 'species':pandas.Series([], dtype='int64'), 'pu':pandas.Series([], dtype='int64')}
+            emptyDataFrame = pandas.DataFrame(data=d)[['species', 'pu', 'amount']] #reorder the columns
             #get the intersection data as a dataframe from the queryresults - TODO - this needs to be rewritten to be scalable - getting the records in this way fails when you have > 1000 records and you need to use a method that creates a tmp table - see preprocessPlanningUnits
-            if hasattr(self, "queryResults"):
-                intersectionData = pandas.DataFrame.from_records(self.queryResults["records"], columns = self.queryResults["columns"])
+            intersectionData = pandas.DataFrame.from_records(results["records"], columns = results["columns"])
+            #get the existing data
+            try:
+                #load the existing preprocessing data
+                df = _getProjectInputData(self, "PUVSPRNAME", True)
+            except:
+                #no existing preprocessing data so use the empty data frame
+                df = emptyDataFrame
+            #get the species id from the arguments
+            speciesId = int(self.get_argument('id'))
+            #make sure there are not existing records for this feature - otherwise we will get duplicates
+            df = df[~df.species.isin([speciesId])]
+            #append the intersection data to the existing data
+            df = df.append(intersectionData)
+            #sort the values by the pu column then the species column 
+            df = df.sort_values(by=['pu','species'])
+            try: 
+                #write the data to the PUVSPR.dat file
+                _writeCSV(self, "PUVSPRNAME", df)
+                #get the summary information and write it to the feature preprocessing file
+                record = _getPuvsprStats(df, speciesId)
+                _writeToDatFile(self.folder_input + FEATURE_PREPROCESSING_FILENAME, record)
+            except (MarxanServicesError) as e:
+                self.send_response({'status':'Finished', 'error': e.args[1] })
             else:
-                #close the websocket
-                self.close()
-                return
-        else:
-            #old version of marxan so an empty dataframe
-            intersectionData = emptyDataFrame
-        #get the existing data
-        try:
-            #load the existing preprocessing data
-            df = _getProjectInputData(self, "PUVSPRNAME", True)
-        except:
-            #no existing preprocessing data so use the empty data frame
-            df = emptyDataFrame
-        #get the species id from the arguments
-        speciesId = int(self.get_argument('id'))
-        #make sure there are not existing records for this feature - otherwise we will get duplicates
-        df = df[~df.species.isin([speciesId])]
-        #append the intersection data to the existing data
-        df = df.append(intersectionData)
-        #sort the values by the pu column then the species column 
-        df = df.sort_values(by=['pu','species'])
-        try: 
-            #write the data to the PUVSPR.dat file
-            _writeCSV(self, "PUVSPRNAME", df)
-            #get the summary information and write it to the feature preprocessing file
-            record = _getPuvsprStats(df, speciesId)
-            _writeToDatFile(self.folder_input + FEATURE_PREPROCESSING_FILENAME, record)
-        except (MarxanServicesError) as e:
-            self.send_response({'error': e.args[1], 'status':'Finished'})
-        #update the input.dat file
-        _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'PUVSPRNAME': PUVSPR_FILENAME})
-        #set the response
-        self.send_response({'info': "Feature '" + self.get_argument('alias') + "' preprocessed", "feature_class_name": self.get_argument('feature_class_name'), "pu_area" : str(record.iloc[0]['pu_area']),"pu_count" : str(record.iloc[0]['pu_count']), "id":str(speciesId), 'status':'Finished'})
-        #close the websocket
-        self.close()
+                #update the input.dat file
+                _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'PUVSPRNAME': PUVSPR_FILENAME})
+                #set the response
+                self.send_response({'status':'Finished', 'info': "Feature '" + self.get_argument('alias') + "' preprocessed", "feature_class_name": self.get_argument('feature_class_name'), "pu_area" : str(record.iloc[0]['pu_area']),"pu_count" : str(record.iloc[0]['pu_count']), "id":str(speciesId)})
+        finally:
+            #close the websocket
+            self.close()
 
 #preprocesses the protected areas by intersecting them with the planning units
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30
 class preprocessProtectedAreas(QueryWebSocketHandler):
 
     #run the preprocessing
-    def open(self):
+    async def open(self):
         try:
-            super(preprocessProtectedAreas, self).open()
+            self.send_response({'status':'Started', 'info': "Preprocessing protected areas"})
+            await super(preprocessProtectedAreas, self).open()
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished'})
         else:
             _validateArguments(self.request.arguments, ['user','project','planning_grid_name'])    
-            #get the project data
-            _getProjectData(self)
             #do the intersection with the protected areas
-            future = self.executeQueryAsynchronously(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))),[self.get_argument('planning_grid_name')], "Preprocessing protected areas", "  Preprocessing protected areas..")
-            future.add_done_callback(self.preprocessProtectedAreasComplete) # pylint:disable=no-member
-    
-    #callback which is called when the intersection has been done
-    def preprocessProtectedAreasComplete(self, future):
-        if hasattr(self, "queryResults"):
+            results = await self.executeQuery(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))),[self.get_argument('planning_grid_name')])
             #get the intersection data as a dataframe from the queryresults
-            df = pandas.DataFrame.from_records(self.queryResults["records"], columns = self.queryResults["columns"])
+            intersectionData = pandas.DataFrame.from_records(results["records"], columns = results["columns"])
             #write the intersections to file
-            df.to_csv(self.folder_input + PROTECTED_AREA_INTERSECTIONS_FILENAME, index =False)
-        #get the data
-        _getProtectedAreaIntersectionsData(self)
-        #set the response
-        self.send_response({'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData, 'status':'Finished'})
+            intersectionData.to_csv(self.folder_input + PROTECTED_AREA_INTERSECTIONS_FILENAME, index=False)
+            #get the data
+            _getProtectedAreaIntersectionsData(self)
+            #set the response
+            self.send_response({'status':'Finished', 'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData })
+        finally:
+            #close the websocket
+            self.close()
     
 #preprocesses the planning units to get the boundary lengths where they intersect - produces the bounds.dat file
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessPlanningUnits?user=admin&project=Start%20project
 class preprocessPlanningUnits(QueryWebSocketHandler):
 
     #run the preprocessing
-    def open(self):
+    async def open(self):
         try:
-            super(preprocessPlanningUnits, self).open()
+            self.send_response({'status':'Started', 'info': "Calculating boundary lengths"})
+            await super(preprocessPlanningUnits, self).open()
         except (HTTPError) as e:
             self.send_response({'error': e.reason, 'status': 'Finished'})
         else:
@@ -3151,33 +3087,25 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
             _getProjectData(self)
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #new version of marxan - get the boundary lengths
-                self.feature_class_name = _getUniqueFeatureclassName("tmp_")
-                PostGIS().execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(self.feature_class_name))) 
-                future = self.executeQueryAsynchronously(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(a.geometry, b.geometry), 2))/1000 boundary  FROM marxan.{planning_unit_name} a, marxan.{planning_unit_name} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(feature_class_name=sql.Identifier(self.feature_class_name), planning_unit_name=sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])), None, "Calculating boundary lengths", "  Processing ..")
-                future.add_done_callback(self.preprocessPlanningUnitsComplete) # pylint:disable=no-member
-            else:
-                #pass None as the Future object to the callback for the old version of marxan
-                self.preprocessPlanningUnitsComplete(None) 
-    
-    #callback which is called when the boundary lengths have been calculated
-    def preprocessPlanningUnitsComplete(self, future):
-        try:
-            if (future): #i.e. new version of marxan
+                feature_class_name = _getUniqueFeatureclassName("tmp_")
+                PostGIS().execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
+                results = await self.executeQuery(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(ST_Transform(a.geometry, 3410), ST_Transform(b.geometry, 3410)), 2))/1000 boundary  FROM marxan.{planning_unit_name} a, marxan.{planning_unit_name} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(feature_class_name=sql.Identifier(feature_class_name), planning_unit_name=sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])))
                 #delete the file if it already exists
                 if (os.path.exists(self.folder_input + BOUNDARY_LENGTH_FILENAME)):
                     os.remove(self.folder_input + BOUNDARY_LENGTH_FILENAME)
                 #write the boundary lengths to file
                 postgis = PostGIS()
-                postgis.executeToText("COPY (SELECT * FROM marxan." + self.feature_class_name + ") TO STDOUT WITH CSV HEADER;", self.folder_input + BOUNDARY_LENGTH_FILENAME)
+                postgis.executeToText("COPY (SELECT * FROM marxan." + feature_class_name + ") TO STDOUT WITH CSV HEADER;", self.folder_input + BOUNDARY_LENGTH_FILENAME)
                 #delete the tmp table
-                postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(self.feature_class_name))) 
+                postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
                 #update the input.dat file
                 _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'BOUNDNAME': 'bounds.dat'})
-                #set the response
-                self.send_response({'info': 'Boundary lengths calculated', 'status':'Finished'})
-        except (MarxanServicesError) as e:
-            self.send_response({'error': e.args[0], 'status': 'Finished'})
-
+            #set the response
+            self.send_response({'status':'Finished', 'info': 'Boundary lengths calculated'})
+        finally:
+            #close the websocket
+            self.close()
+    
 #creates a new planning grid
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon   
 class createPlanningUnitGrid(QueryWebSocketHandler):
@@ -3196,7 +3124,7 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
             if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
                 self.send_response({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + ". See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>", 'status': 'Finished'})
             else:
-                future = self.executeQueryAsynchronously("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], "Creating planning grid..", "  Processing ..")
+                future = self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], "Creating planning grid..", "  Processing ..")
                 future.add_done_callback(self.createPlanningUnitGridComplete) # pylint:disable=no-member
                 
     #callback which is called when the planning grid has been created
@@ -3231,7 +3159,7 @@ class runGapAnalysis(QueryWebSocketHandler):
             featureIds = df['id'].to_numpy().tolist()
             #get the planning grid name
             _getProjectData(self)
-            future = self.executeQueryAsynchronously("SELECT * FROM marxan.gap_analysis(%s,%s)", [self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds], "Running gap analysis..", "  Processing ..")
+            future = self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s)", [self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds], "Running gap analysis..", "  Processing ..")
             future.add_done_callback(self.runGapAnalysisComplete) # pylint:disable=no-member
                 
     #callback which is called when the gap analysis has been done
@@ -3248,100 +3176,95 @@ class runGapAnalysis(QueryWebSocketHandler):
 ## tornado functions
 ####################################################################################################################################################################################################################################################################
 
-def make_app():
-    return tornado.web.Application([
-        ("/marxan-server/getServerData", getServerData),
-        ("/marxan-server/getProjects", getProjects),
-        ("/marxan-server/getProjectsWithGrids", getProjectsWithGrids), 
-        ("/marxan-server/getProject", getProject),
-        ("/marxan-server/createProject", createProject),
-        ("/marxan-server/createImportProject", createImportProject),
-        ("/marxan-server/upgradeProject", upgradeProject),
-        ("/marxan-server/deleteProject", deleteProject),
-        ("/marxan-server/cloneProject", cloneProject),
-        ("/marxan-server/createProjectGroup", createProjectGroup),
-        ("/marxan-server/deleteProjects", deleteProjects),
-        ("/marxan-server/renameProject", renameProject),
-        ("/marxan-server/updateProjectParameters", updateProjectParameters),
-        ("/marxan-server/listProjectsForFeature", listProjectsForFeature),
-        ("/marxan-server/listProjectsForPlanningGrid", listProjectsForPlanningGrid),
-        ("/marxan-server/getCountries", getCountries),
-        ("/marxan-server/getPlanningUnitGrids", getPlanningUnitGrids),
-        ("/marxan-server/createPlanningUnitGrid", createPlanningUnitGrid),
-        ("/marxan-server/deletePlanningUnitGrid", deletePlanningUnitGrid),
-        ("/marxan-server/uploadTilesetToMapBox", uploadTilesetToMapBox),
-        ("/marxan-server/uploadShapefile", uploadShapefile),
-        ("/marxan-server/unzipShapefile", unzipShapefile),
-        ("/marxan-server/deleteShapefile", deleteShapefile),
-        ("/marxan-server/getShapefileFieldnames", getShapefileFieldnames),
-        ("/marxan-server/uploadFile", uploadFile),
-        ("/marxan-server/importPlanningUnitGrid", importPlanningUnitGrid),
-        ("/marxan-server/createFeaturePreprocessingFileFromImport", createFeaturePreprocessingFileFromImport),
-        ("/marxan-server/toggleEnableGuestUser", toggleEnableGuestUser),
-        ("/marxan-server/createUser", createUser), 
-        ("/marxan-server/validateUser", validateUser),
-        ("/marxan-server/logout", logout),
-        ("/marxan-server/resendPassword", resendPassword),
-        ("/marxan-server/getUser", getUser),
-        ("/marxan-server/getUsers", getUsers),
-        ("/marxan-server/deleteUser", deleteUser),
-        ("/marxan-server/updateUserParameters", updateUserParameters),
-        ("/marxan-server/getFeature", getFeature),
-        ("/marxan-server/importFeatures", importFeatures),
-        ("/marxan-server/deleteFeature", deleteFeature),
-        ("/marxan-server/createFeatureFromLinestring", createFeatureFromLinestring),
-        ("/marxan-server/getFeaturePlanningUnits", getFeaturePlanningUnits),
-        ("/marxan-server/getPlanningUnitsData", getPlanningUnitsData), #currently not used
-        ("/marxan-server/getPlanningUnitsCostData", getPlanningUnitsCostData), 
-        ("/marxan-server/updatePUFile", updatePUFile),
-        ("/marxan-server/getPUSpeciesList", getPUSpeciesList),
-        ("/marxan-server/getSpeciesData", getSpeciesData), #currently not used
-        ("/marxan-server/getAllSpeciesData", getAllSpeciesData), 
-        ("/marxan-server/getSpeciesPreProcessingData", getSpeciesPreProcessingData), #currently not used
-        ("/marxan-server/updateSpecFile", updateSpecFile),
-        ("/marxan-server/getProtectedAreaIntersectionsData", getProtectedAreaIntersectionsData), #currently not used
-        ("/marxan-server/getMarxanLog", getMarxanLog), #currently not used - bugs in the Marxan output log
-        ("/marxan-server/getBestSolution", getBestSolution), #currently not used
-        ("/marxan-server/getOutputSummary", getOutputSummary), #currently not used
-        ("/marxan-server/getSummedSolution", getSummedSolution), #currently not used
-        ("/marxan-server/getResults", getResults),
-        ("/marxan-server/getSolution", getSolution),
-        ("/marxan-server/getMissingValues", getMissingValues), #currently not used
-        ("/marxan-server/preprocessFeature", preprocessFeature),
-        ("/marxan-server/preprocessPlanningUnits", preprocessPlanningUnits),
-        ("/marxan-server/preprocessProtectedAreas", preprocessProtectedAreas),
-        ("/marxan-server/runMarxan", runMarxan),
-        ("/marxan-server/stopProcess", stopProcess),
-        ("/marxan-server/getRunLogs", getRunLogs),
-        ("/marxan-server/clearRunLogs", clearRunLogs),
-        ("/marxan-server/updateWDPA", updateWDPA),
-        ("/marxan-server/runGapAnalysis", runGapAnalysis),
-        ("/marxan-server/importGBIFData", importGBIFData),
-        ("/marxan-server/dismissNotification", dismissNotification),
-        ("/marxan-server/resetNotifications", resetNotifications),
-        ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
-        ("/marxan-server/testTornado", testTornado),
-        ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
-        (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
-    ], cookie_secret=COOKIE_RANDOM_VALUE, websocket_ping_timeout=30, websocket_ping_interval=29)
+class Application(tornado.web.Application):
+    def __init__(self, pool):
+        self.pool = pool
+        handlers = [
+            ("/marxan-server/getServerData", getServerData),
+            ("/marxan-server/getProjects", getProjects),
+            ("/marxan-server/getProjectsWithGrids", getProjectsWithGrids), 
+            ("/marxan-server/getProject", getProject),
+            ("/marxan-server/createProject", createProject),
+            ("/marxan-server/createImportProject", createImportProject),
+            ("/marxan-server/upgradeProject", upgradeProject),
+            ("/marxan-server/deleteProject", deleteProject),
+            ("/marxan-server/cloneProject", cloneProject),
+            ("/marxan-server/createProjectGroup", createProjectGroup),
+            ("/marxan-server/deleteProjects", deleteProjects),
+            ("/marxan-server/renameProject", renameProject),
+            ("/marxan-server/updateProjectParameters", updateProjectParameters),
+            ("/marxan-server/listProjectsForFeature", listProjectsForFeature),
+            ("/marxan-server/listProjectsForPlanningGrid", listProjectsForPlanningGrid),
+            ("/marxan-server/getCountries", getCountries),
+            ("/marxan-server/getPlanningUnitGrids", getPlanningUnitGrids),
+            ("/marxan-server/createPlanningUnitGrid", createPlanningUnitGrid),
+            ("/marxan-server/deletePlanningUnitGrid", deletePlanningUnitGrid),
+            ("/marxan-server/uploadTilesetToMapBox", uploadTilesetToMapBox),
+            ("/marxan-server/uploadShapefile", uploadShapefile),
+            ("/marxan-server/unzipShapefile", unzipShapefile),
+            ("/marxan-server/deleteShapefile", deleteShapefile),
+            ("/marxan-server/getShapefileFieldnames", getShapefileFieldnames),
+            ("/marxan-server/uploadFile", uploadFile),
+            ("/marxan-server/importPlanningUnitGrid", importPlanningUnitGrid),
+            ("/marxan-server/createFeaturePreprocessingFileFromImport", createFeaturePreprocessingFileFromImport),
+            ("/marxan-server/toggleEnableGuestUser", toggleEnableGuestUser),
+            ("/marxan-server/createUser", createUser), 
+            ("/marxan-server/validateUser", validateUser),
+            ("/marxan-server/logout", logout),
+            ("/marxan-server/resendPassword", resendPassword),
+            ("/marxan-server/getUser", getUser),
+            ("/marxan-server/getUsers", getUsers),
+            ("/marxan-server/deleteUser", deleteUser),
+            ("/marxan-server/updateUserParameters", updateUserParameters),
+            ("/marxan-server/getFeature", getFeature),
+            ("/marxan-server/importFeatures", importFeatures),
+            ("/marxan-server/deleteFeature", deleteFeature),
+            ("/marxan-server/createFeatureFromLinestring", createFeatureFromLinestring),
+            ("/marxan-server/getFeaturePlanningUnits", getFeaturePlanningUnits),
+            ("/marxan-server/getPlanningUnitsData", getPlanningUnitsData), #currently not used
+            ("/marxan-server/getPlanningUnitsCostData", getPlanningUnitsCostData), 
+            ("/marxan-server/updatePUFile", updatePUFile),
+            ("/marxan-server/getPUSpeciesList", getPUSpeciesList),
+            ("/marxan-server/getSpeciesData", getSpeciesData), #currently not used
+            ("/marxan-server/getAllSpeciesData", getAllSpeciesData), 
+            ("/marxan-server/getSpeciesPreProcessingData", getSpeciesPreProcessingData), #currently not used
+            ("/marxan-server/updateSpecFile", updateSpecFile),
+            ("/marxan-server/getProtectedAreaIntersectionsData", getProtectedAreaIntersectionsData), #currently not used
+            ("/marxan-server/getMarxanLog", getMarxanLog), #currently not used - bugs in the Marxan output log
+            ("/marxan-server/getBestSolution", getBestSolution), #currently not used
+            ("/marxan-server/getOutputSummary", getOutputSummary), #currently not used
+            ("/marxan-server/getSummedSolution", getSummedSolution), #currently not used
+            ("/marxan-server/getResults", getResults),
+            ("/marxan-server/getSolution", getSolution),
+            ("/marxan-server/getMissingValues", getMissingValues), #currently not used
+            ("/marxan-server/preprocessFeature", preprocessFeature),
+            ("/marxan-server/preprocessPlanningUnits", preprocessPlanningUnits),
+            ("/marxan-server/preprocessProtectedAreas", preprocessProtectedAreas),
+            ("/marxan-server/runMarxan", runMarxan),
+            ("/marxan-server/stopProcess", stopProcess),
+            ("/marxan-server/getRunLogs", getRunLogs),
+            ("/marxan-server/clearRunLogs", clearRunLogs),
+            ("/marxan-server/updateWDPA", updateWDPA),
+            ("/marxan-server/runGapAnalysis", runGapAnalysis),
+            ("/marxan-server/importGBIFData", importGBIFData),
+            ("/marxan-server/dismissNotification", dismissNotification),
+            ("/marxan-server/resetNotifications", resetNotifications),
+            ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
+            ("/marxan-server/testTornado", testTornado),
+            ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
+            (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
+        ]
+        settings = dict(
+            cookie_secret=COOKIE_RANDOM_VALUE,
+            websocket_ping_timeout=30,
+            websocket_ping_interval=WEBSOCKET_PING_INTERVAL
+        )
+        super(Application, self).__init__(handlers, **settings)
 
-if __name__ == "__main__":
-    try:
-        #turn on tornado logging 
-        tornado.options.parse_command_line() 
-        # create an instance of tornado formatter
-        my_log_formatter = LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True)
-        # get the parent logger of all tornado loggers 
-        root_logger = logging.getLogger()
-        root_logger.setLevel(LOGGING_LEVEL)
-        # set your format to root_logger
-        root_streamhandler = root_logger.handlers[0]
-        root_streamhandler.setFormatter(my_log_formatter)
-        # logging.disable(logging.ERROR)
-        #set the global variables
-        _setGlobalVariables()
-        app = make_app()
-        #start listening on port whatever, and if there is an https certificate then use the certificate information from the server.dat file to return data securely
+async def main():
+    async with aiopg.create_pool(CONNECTION_STRING) as pool:
+        app = Application(pool)
+        #start listening on whichever port, and if there is an https certificate then use the certificate information from the server.dat file to return data securely
         if CERTFILE != "None":
             app.listen(PORT, ssl_options={"certfile": CERTFILE,"keyfile": KEYFILE})
             navigateTo = "https://"
@@ -3361,7 +3284,33 @@ if __name__ == "__main__":
             if MARXAN_CLIENT_VERSION != "Not installed":
                 print("\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m")
                 print("\x1b[1;32;48mOr run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
-        tornado.ioloop.IOLoop.current().start()
+        await SHUTDOWN_EVENT.wait()
+        #close the database connection
+        app.db.close()
+        
+if __name__ == "__main__":
+    try:
+        #turn on tornado logging 
+        tornado.options.parse_command_line() 
+        # create an instance of tornado formatter
+        my_log_formatter = LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True)
+        # get the parent logger of all tornado loggers 
+        root_logger = logging.getLogger()
+        root_logger.setLevel(LOGGING_LEVEL)
+        # set your format to root_logger
+        root_streamhandler = root_logger.handlers[0]
+        root_streamhandler.setFormatter(my_log_formatter)
+        # logging.disable(logging.ERROR)
+        #set the global variables
+        _setGlobalVariables()
+        #initialise the app 
+        try:
+            tornado.ioloop.IOLoop.current().run_sync(main)
+        except KeyboardInterrupt:
+            pass    
+        finally:
+            SHUTDOWN_EVENT.set()   
+            
     except Exception as e:
         if (e.args[0] == 98):
             print ("The port " + str(PORT) + " is already in use")

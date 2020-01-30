@@ -1,5 +1,5 @@
 #!/home/ubuntu/miniconda2/envs/python36/bin/python3.6 
-import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, platform, colorama, io, requests, platform, ctypes, aiopg
+import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, platform, colorama, io, requests, platform, ctypes, aiopg, asyncio
 from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
 from tornado.process import Subprocess
@@ -2360,7 +2360,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
 #kills a running process
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/stopProcess?pid=m12345&callback=__jp5
 class stopProcess(MarxanRESTHandler):
-    def get(self):
+    async def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['pid'])
         #get the pid from the pid request parameter - this will be an identifier (m=marxan run, q=query) followed by the pid, e.g. m1234 is a marxan run process with a pid of 1234
@@ -2374,12 +2374,17 @@ class stopProcess(MarxanRESTHandler):
                 os.kill(int(pid), signal.SIGTERM)
             else:
                 #cancel the query
+                # connections = list(self.application.pool._used)
+                # #see if the pid is among them
+                # for connection in connections:
+                #     _pid = await connection.get_backend_pid()
+                #     if (_pid == int(pid)):
+                #         await connection.cancel()
                 PostGIS().execute("SELECT pg_cancel_backend(%s);",[pid])
         except OSError:
             raise MarxanServicesError("The pid does not exist")
         else:
             self.send_response({'info': "pid '" + pid + "' terminated"})
-            
             
 #gets the run log
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getRunLogs?
@@ -2485,7 +2490,7 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         #send a message
         closeMessage.update({'status': 'Finished'})
         self.send_response(closeMessage)
-        #close the websocket
+        #close the websocket cleanly
         super().close(1000)
 
 ####################################################################################################################################################################################################################################################################
@@ -2776,17 +2781,12 @@ class importFeatures(MarxanWebSocketHandler):
                     self.close({'error':"The feature '" + feature_name + "' already exists", 'info': 'Failed to import features'})
                 else:
                     self.close({'error': e.args[0], 'info': 'Failed to import features'})
-            finally:
-                #delete the scratch feature class
-                _deleteFeatureClass(scratch_name)
-                #close the websocket
-                self.close()
 
 #imports an item from GBIF
 class importGBIFData(MarxanWebSocketHandler):
     async def open(self):
         try:
-            super().open({'info': "Importing features from GBIF.."})
+            await super().open({'info': "Importing features from GBIF.."})
             #validate the input arguments
             _validateArguments(self.request.arguments, ['taxonKey','scientificName'])   
         except (HTTPError) as e:
@@ -2828,9 +2828,6 @@ class importGBIFData(MarxanWebSocketHandler):
                     self.close({'error':"The feature '" + feature_name + "' already exists", 'info': 'Failed to import features'})
                 else:
                     self.close({'error': e.args[0], 'info': 'Failed to import features'})
-        finally:
-            #close the websocket
-            self.close()
 
     #parallel asynchronous loading og gbif data
     async def getGBIFOccurrences(self, taxonKey):
@@ -2960,8 +2957,8 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                     return {'columns': columns, 'records': records}
                 else: #an error
                     return None
-                    
-        except (psycopg2.extensions.QueryCanceledError, psycopg2.InternalError): #stopped by user
+        
+        except (psycopg2.extensions.QueryCanceledError, psycopg2.InternalError, asyncio.CancelledError): #stopped by user
             self.close({'error': 'Preprocessing stopped by ' + self.get_current_user()})
         except (psycopg2.OperationalError) as e: #killed by operating system
             if ("SSL SYSCALL error: EOF detected" in e.args[0]):

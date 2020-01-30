@@ -68,7 +68,7 @@ DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
 LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 SHUTDOWN_EVENT = tornado.locks.Event() #to allow Tornado to exit gracefully
-PING_INTERVAL = 30 #interval between regular pings when using websockets
+PING_INTERVAL = 30000 #interval between regular pings when using websockets
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -2471,9 +2471,9 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
 
     #sends the message with a timestamp
     def send_response(self, message):
-        #add in the start time and the class name of the descendent class
+        #add in the start time 
         elapsedtime = str((datetime.datetime.now() - self.startTime).seconds) + "s"
-        message.update({'elapsedtime': elapsedtime, 'className': self.__class__.__name__})
+        message.update({'elapsedtime': elapsedtime})
         #add in messages from descendent classes
         if hasattr(self, 'pid'):
             message.update({'pid': self.pid})
@@ -2500,11 +2500,11 @@ class runMarxan(MarxanWebSocketHandler):
         try:
             await super().open({'info': "Running Marxan.."})
         except (HTTPError) as e:
-            self.send_response({'status': 'Finished', 'error': e.reason})
+            self.close({'error': e.reason})
         else:
             #see if the project is already running - if it is then return an error
             if _isProjectRunning(self.get_argument("user"), self.get_argument("project")):
-                self.send_response({'status': 'Finished', 'error': "The project is already running. See <a href='" + ERRORS_PAGE + "#the-project-is-already-running' target='blank'>here</a>", 'info':''})            
+                self.close({'error': "The project is already running. See <a href='" + ERRORS_PAGE + "#the-project-is-already-running' target='blank'>here</a>", 'info':''})            
             else:
                 #set the current folder to the project folder so files can be found in the input.dat file
                 if (os.path.exists(self.folder_project)):
@@ -2530,7 +2530,7 @@ class runMarxan(MarxanWebSocketHandler):
                         self.marxanProcess.stdin.close()
                     except (WindowsError) as e: # pylint:disable=undefined-variable
                         if (e.winerror == 1260):
-                            self.send_response({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator.", 'status': 'Finished','info':''})
+                            self.close({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator."})
                     else: #no errors
                         #get the number of runs that were in the input.dat file
                         self.numRunsRequired = _getNumberOfRunsRequired(self)
@@ -2544,10 +2544,7 @@ class runMarxan(MarxanWebSocketHandler):
                         #callback on the next I/O loop
                         IOLoop.current().spawn_callback(self.stream_marxan_output)
                 else: #project does not exist
-                    self.send_response({'error': "Project '" + self.get_argument("project") + "' does not exist", 'status': 'Finished', 'project': self.get_argument("project"), 'user': self.get_argument("user")})
-        finally:
-            #close the websocket
-            self.close()
+                    self.close({'error': "Project '" + self.get_argument("project") + "' does not exist", 'project': self.get_argument("project"), 'user': self.get_argument("user")})
 
     #called on the first IOLoop callback and then streams the marxan output back to the client
     async def stream_marxan_output(self):
@@ -2606,17 +2603,15 @@ class runMarxan(MarxanWebSocketHandler):
                 #write the response depending on if the run completed or not
                 if (numRunsCompleted == self.numRunsRequired):
                     _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Completed')
-                    self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.project, 'user': self.user})
+                    self.close({'info': 'Run completed', 'project': self.project, 'user': self.user})
                 else: #if the user stopped it then the run log should already have a status of Stopped
                     actualStatus = _updateRunLog(self.marxanProcess.pid, self.startTime, numRunsCompleted, self.numRunsRequired, 'Killed')
                     if (actualStatus == 'Stopped'):
-                        self.send_response({'error': 'Run stopped by ' + self.user, 'status': 'Finished', 'project': self.project, 'user': self.user})
+                        self.close({'error': 'Run stopped by ' + self.user, 'project': self.project, 'user': self.user})
                     else:
-                        self.send_response({'error': 'Run stopped by operating system', 'status': 'Finished', 'project': self.project, 'user': self.user})
+                        self.close({'error': 'Run stopped by operating system', 'project': self.project, 'user': self.user})
             else:
-                self.send_response({'info': 'Run completed', 'status': 'Finished', 'project': self.project, 'user': self.user})
-            #close the websocket
-            self.close()
+                self.close({'info': 'Run completed', 'project': self.project, 'user': self.user})
 
         except (WebSocketClosedError): #the websocket may already have been closed
             print("The WebSocket was closed in finishOutput - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
@@ -2628,13 +2623,13 @@ class updateWDPA(MarxanWebSocketHandler):
         try:
             await super().open({'info': "Updating WDPA.."})
         except (HTTPError) as e:
-            self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'WDPA not updated'})
+            self.close({'error': e.reason, 'info': 'WDPA not updated'})
         else:
             try:
                 #download the new wdpa zip
                 self.downloadFile(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
             except (MarxanServicesError) as e: #download failed
-                self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'WDPA not updated'})
+                self.close({'error': e.args[0], 'info': 'WDPA not updated'})
             else:
                 self.send_response({'info': "Downloaded", 'status':'Downloaded'})
                 try:
@@ -2644,7 +2639,7 @@ class updateWDPA(MarxanWebSocketHandler):
                 except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
                     #delete the zip file
                     os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
-                    self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'WDPA not updated'})
+                    self.close({'error': e.args[0], 'info': 'WDPA not updated'})
                 else:
                     self.send_response({'info': "Unzipped shapefile", 'status':'Updating WDPA'})
                     #delete the zip file
@@ -2674,7 +2669,7 @@ class updateWDPA(MarxanWebSocketHandler):
                         postgis.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
                         self.send_response({'info': "Deleted dissolved country WDPAP feature classes", 'status': "Updating WDPA"})
                     except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
-                        self.send_response({'error': 'No space left on device importing the WDPA into PostGIS', 'status':'Finished', 'info': 'WDPA not updated'})
+                        self.close({'error': 'No space left on device importing the WDPA into PostGIS', 'info': 'WDPA not updated'})
                     else: 
                         #update the WDPA_VERSION variable in the server.dat file
                         _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
@@ -2682,12 +2677,10 @@ class updateWDPA(MarxanWebSocketHandler):
                         self.send_response({'info': 'Invalidating existing WDPA intersections', 'status': 'Updating WDPA'})
                         _invalidateProtectedAreaIntersections()
                         #send the response
-                        self.send_response({'info': 'WDPA update completed succesfully', 'status': 'Finished'})
+                        self.close({'info': 'WDPA update completed succesfully'})
                     finally:
                         #delete the shapefile
                         _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
-                        #close the websocket
-                        self.close()
 
     # downloads a file from the url with the default block size of 100Mb
     def downloadFile(self, url, file, block_sz=100000000):
@@ -2729,9 +2722,9 @@ class importFeatures(MarxanWebSocketHandler):
             #validate the input arguments
             _validateArguments(self.request.arguments, ['zipfile', 'shapefile'])   
         except (HTTPError) as e:
-            self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'Failed to import features'})
+            self.close({'error': e.reason, 'info': 'Failed to import features'})
         except (MarxanServicesError) as e:
-            self.send_response({'error': e.args[0], 'status': 'Finished', 'info': 'Failed to import features'})
+            self.close({'error': e.args[0], 'info': 'Failed to import features'})
         else:
             #initiate the upload ids array
             uploadIds = []
@@ -2777,12 +2770,12 @@ class importFeatures(MarxanWebSocketHandler):
                     uploadIds.append(uploadId)
                     self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
                 #complete
-                self.send_response({'info': "Features imported", 'status':'Finished','uploadIds':uploadIds})
+                self.close({'info': "Features imported",'uploadIds':uploadIds})
             except (MarxanServicesError) as e:
                 if "already exists" in e.args[0]:
-                    self.send_response({'error':"The feature '" + feature_name + "' already exists", 'status':'Finished', 'info': 'Failed to import features'})
+                    self.close({'error':"The feature '" + feature_name + "' already exists", 'info': 'Failed to import features'})
                 else:
-                    self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import features'})
+                    self.close({'error': e.args[0], 'info': 'Failed to import features'})
             finally:
                 #delete the scratch feature class
                 _deleteFeatureClass(scratch_name)
@@ -2797,9 +2790,9 @@ class importGBIFData(MarxanWebSocketHandler):
             #validate the input arguments
             _validateArguments(self.request.arguments, ['taxonKey','scientificName'])   
         except (HTTPError) as e:
-            self.send_response({'error': e.reason, 'status': 'Finished', 'info': 'Failed to import features'})
+            self.close({'error': e.reason, 'info': 'Failed to import features'})
         except (MarxanServicesError) as e:
-            self.send_response({'error': e.args[0], 'status': 'Finished', 'info': 'Failed to import features'})
+            self.close({'error': e.args[0], 'info': 'Failed to import features'})
         else:
             try:
                 taxonKey = self.get_argument('taxonKey')
@@ -2826,15 +2819,15 @@ class importGBIFData(MarxanWebSocketHandler):
                     uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
                     self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
                     #complete
-                    self.send_response({'info': "Features imported", 'status':'Finished', 'uploadId':uploadId})
+                    self.close({'info': "Features imported", 'uploadId':uploadId})
                 else:
                     raise MarxanServicesError("No records were returned for " + str(taxonKey))
                 
             except (MarxanServicesError) as e:
                 if "already exists" in e.args[0]:
-                    self.send_response({'error':"The feature '" + feature_name + "' already exists", 'status':'Finished', 'info': 'Failed to import features'})
+                    self.close({'error':"The feature '" + feature_name + "' already exists", 'info': 'Failed to import features'})
                 else:
-                    self.send_response({'error': e.args[0], 'status':'Finished', 'info': 'Failed to import features'})
+                    self.close({'error': e.args[0], 'info': 'Failed to import features'})
         finally:
             #close the websocket
             self.close()
@@ -2969,17 +2962,17 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                     return None
                     
         except (psycopg2.extensions.QueryCanceledError, psycopg2.InternalError): #stopped by user
-            self.send_response({'error': 'Preprocessing stopped by ' + self.get_current_user(), 'status':'Finished'})
+            self.close({'error': 'Preprocessing stopped by ' + self.get_current_user()})
         except (psycopg2.OperationalError) as e: #killed by operating system
             if ("SSL SYSCALL error: EOF detected" in e.args[0]):
-                self.send_response({'error': "Preprocessing stopped by operating system", 'status':'Finished'})
+                self.close({'error': "Preprocessing stopped by operating system"})
         except (psycopg2.Error) as e: #other exception
             if ("SSL connection has been closed unexpectedly" in e.pgerror):
-                self.send_response({'error': "The database server shutdown unexpectedly", 'status':'Finished'})
+                self.close({'error': "The database server shutdown unexpectedly"})
             elif ("duplicate key value" in e.pgerror):
-                self.send_response({'error': "That item already exists", 'status':'Finished'})
+                self.close({'error': "That item already exists"})
             else:
-                self.send_response({'error': e.pgerror, 'status':'Finished'})
+                self.close({'error': e.pgerror})
     
 ####################################################################################################################################################################################################################################################################
 ## WebSocket subclasses
@@ -2992,7 +2985,7 @@ class preprocessFeature(QueryWebSocketHandler):
         try:
             await super().open({'info': "Preprocessing '" + self.get_argument('alias') + "'.."})
         except (HTTPError) as e:
-            self.close({'status': 'Finished', 'error': e.reason})
+            self.close({'error': e.reason})
         else:
             _validateArguments(self.request.arguments, ['user','project','id','feature_class_name','alias','planning_grid_name'])    
             #run the query asynchronously and wait for the results
@@ -3024,12 +3017,12 @@ class preprocessFeature(QueryWebSocketHandler):
                 record = _getPuvsprStats(df, speciesId)
                 _writeToDatFile(self.folder_input + FEATURE_PREPROCESSING_FILENAME, record)
             except (MarxanServicesError) as e:
-                self.close({'status':'Finished', 'error': e.args[1] })
+                self.close({'error': e.args[1] })
             else:
                 #update the input.dat file
                 _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'PUVSPRNAME': PUVSPR_FILENAME})
                 #set the response
-                self.close({'status':'Finished', 'info': "Feature '" + self.get_argument('alias') + "' preprocessed", "feature_class_name": self.get_argument('feature_class_name'), "pu_area" : str(record.iloc[0]['pu_area']),"pu_count" : str(record.iloc[0]['pu_count']), "id":str(speciesId)})
+                self.close({'info': "Feature '" + self.get_argument('alias') + "' preprocessed", "feature_class_name": self.get_argument('feature_class_name'), "pu_area" : str(record.iloc[0]['pu_area']),"pu_count" : str(record.iloc[0]['pu_count']), "id":str(speciesId)})
 
 #preprocesses the protected areas by intersecting them with the planning units
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30
@@ -3038,7 +3031,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
         try:
             await super().open({'info': "Preprocessing protected areas"})
         except (HTTPError) as e:
-            self.close({'status': 'Finished', 'error': e.reason})
+            self.close({'error': e.reason})
         else:
             _validateArguments(self.request.arguments, ['user','project','planning_grid_name'])    
             #do the intersection with the protected areas
@@ -3050,7 +3043,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
             #get the data
             _getProtectedAreaIntersectionsData(self)
             #set the response
-            self.close({'status':'Finished', 'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData })
+            self.close({'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData })
     
 #preprocesses the planning units to get the boundary lengths where they intersect - produces the bounds.dat file
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessPlanningUnits?user=admin&project=Start%20project
@@ -3059,7 +3052,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
         try:
             await super().open({'info': "Calculating boundary lengths"})
         except (HTTPError) as e:
-            self.close({'status': 'Finished', 'error': e.reason})
+            self.close({'error': e.reason})
         else:
             _validateArguments(self.request.arguments, ['user','project'])    
             #get the project data
@@ -3080,7 +3073,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
                 #update the input.dat file
                 _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'BOUNDNAME': 'bounds.dat'})
             #set the response
-            self.close({'status':'Finished', 'info': 'Boundary lengths calculated'})
+            self.close({'info': 'Boundary lengths calculated'})
     
 #creates a new planning grid
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon   
@@ -3089,14 +3082,14 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
         try:
             await super().open({'info': "Creating planning grid.."})
         except (HTTPError) as e:
-            self.close({'status': 'Finished', 'error': e.reason})
+            self.close({'error': e.reason})
         else:
             _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
             #estimate how many planning units are in the grid that will be created
             unitCount = _estimatePlanningUnitCount(self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'))
             #see if the unit count is above the PLANNING_GRID_UNITS_LIMIT
             if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
-                self.close({'status': 'Finished', 'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + ". See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
+                self.close({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + ". See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
             else:
                 results = await self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()])
                 #get the planning grid alias
@@ -3108,7 +3101,7 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
                 #start the upload to Mapbox
                 uploadId = _uploadTilesetToMapbox(fc, fc)
                 #set the response
-                self.close({'status':'Finished', 'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId})
+                self.close({'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId})
 
 #runs a gap analysis
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/runGapAnalysis?user=admin&project=British%20Columbia%20Marine%20Case%20Study
@@ -3117,7 +3110,7 @@ class runGapAnalysis(QueryWebSocketHandler):
         try:
             await super().open({'info': "Running gap analysis.."})
         except (HTTPError) as e:
-            self.close({'status': 'Finished', 'error': e.reason})
+            self.close({'error': e.reason})
         else:
             _validateArguments(self.request.arguments, ['user','project'])    
             #get the identifiers of the features for the project
@@ -3128,7 +3121,7 @@ class runGapAnalysis(QueryWebSocketHandler):
             results = await self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s)", [self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds])
             #get the results as a data frame
             df = pandas.DataFrame.from_records(results["records"], columns = results["columns"])
-            self.close({'status':'Finished', 'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
+            self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
 
 ####################################################################################################################################################################################################################################################################
 ## tornado functions

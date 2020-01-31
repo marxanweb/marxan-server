@@ -123,7 +123,12 @@ def _setGlobalVariables():
     CERTFILE = _getDictValue(serverData,'CERTFILE')
     KEYFILE = _getDictValue(serverData,'KEYFILE')
     CONNECTION_STRING = "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
-    DATABASE_VERSION_POSTGRESQL, DATABASE_VERSION_POSTGIS = (PostGIS().syncQuery("SELECT version(), PostGIS_Version();"))[0]
+    conn = psycopg2.connect(CONNECTION_STRING)
+    cur = conn.cursor()
+    cur.execute("SELECT version(), PostGIS_Version();")
+    DATABASE_VERSION_POSTGRESQL, DATABASE_VERSION_POSTGIS = cur.fetchall()[0]
+    cur.close()
+    conn.close()
     COOKIE_RANDOM_VALUE = _getDictValue(serverData,'COOKIE_RANDOM_VALUE')
     PERMITTED_DOMAINS = _getDictValue(serverData,'PERMITTED_DOMAINS').split(",")
     PLANNING_GRID_UNITS_LIMIT = int(_getDictValue(serverData,'PLANNING_GRID_UNITS_LIMIT'))
@@ -379,7 +384,7 @@ async def _getProjectData(obj):
             key, value = _getKeyValue(s, k)
             metadataDict.update({key: value})
             if k=='PLANNING_UNIT_NAME':
-                df2 = await PostGIS().query("select * from marxan.get_planning_units_metadata(%s)", [value], "DataFrame")
+                df2 = await pg.query("select * from marxan.get_planning_units_metadata(%s)", [value], "DataFrame")
                 if (df2.shape[0] == 0):
                     metadataDict.update({'pu_alias': value,'pu_description': 'No description','pu_domain': 'Unknown domain','pu_area': 'Unknown area','pu_creation_date': 'Unknown date','pu_created_by':'Unknown','pu_country':'Unknown'})
                 else:
@@ -483,7 +488,7 @@ async def _getSpeciesData(obj):
             raise MarxanServicesError("Unable to load spec.dat data. " + e.args[1] + ". Column names: " + ",".join(df.columns.to_list()).encode('unicode_escape')) #.encode('unicode_escape') in case there are tab characters which will be escaped to \\t
     else:
         #get the postgis feature data - this doesnt use _getAllSpeciesData because we have to join on the oid column
-        df2 = await PostGIS().query("select * from marxan.get_features()", None, "DataFrame")
+        df2 = await pg.query("select * from marxan.get_features()", None, "DataFrame")
         #join the species data to the PostGIS data
         output_df = output_df.join(df2.set_index("oid"))
     #rename the columns that are sent back to the client as the names of various properties are different in Marxan compared to the web client
@@ -494,11 +499,11 @@ async def _getSpeciesData(obj):
         
 #gets data for a single feature
 async def _getFeature(obj, oid):
-    obj.data = await PostGIS().query("SELECT oid::integer id,feature_class_name,alias,description,_area area,extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features WHERE oid=%s;",[oid], "DataFrame")
+    obj.data = await pg.query("SELECT oid::integer id,feature_class_name,alias,description,_area area,extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features WHERE oid=%s;",[oid], "DataFrame")
 
 #get all species information from the PostGIS database
 async def _getAllSpeciesData(obj):
-    obj.allSpeciesData = await PostGIS().query("SELECT oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features ORDER BY alias;", None, "DataFrame")
+    obj.allSpeciesData = await pg.query("SELECT oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features ORDER BY alias;", None, "DataFrame")
 
 #get the information about which species have already been preprocessed
 def _getSpeciesPreProcessingData(obj):
@@ -518,16 +523,15 @@ async def _getPlanningUnitsCostData(obj):
 
 #gets the data for the planning grids
 async def _getPlanningUnitGrids():
-    return await PostGIS().query("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by,tilesetid, planning_unit_count FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;", None, "Dict")
+    return await pg.query("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by,tilesetid, planning_unit_count FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;", None, "Dict")
 
 #estimates the number of planning grid units in the passed country, area and domain
 async def _estimatePlanningUnitCount(areakm2, iso3, domain):
-    postgis = PostGIS()
     #see if we are using terrestrial or marine
     if (domain == 'Terrestrial'):
-        unitCount = await postgis.query("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.gaul_2015_simplified_1km WHERE iso3 = %s;", [areakm2,iso3])
+        unitCount = await pg.query("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.gaul_2015_simplified_1km WHERE iso3 = %s;", [areakm2,iso3])
     else:
-        unitCount = await postgis.query("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.eez_simplified_1km WHERE iso3 = %s;", [areakm2,iso3])
+        unitCount = await pg.query("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.eez_simplified_1km WHERE iso3 = %s;", [areakm2,iso3])
     return unitCount[0][0]
 
 #get the protected area intersections information
@@ -663,7 +667,7 @@ async def _createPuFile(obj, planning_grid_name):
     #get the path to the pu.dat file
     filename = obj.folder_input + PLANNING_UNITS_FILENAME
     #create the pu.dat file using a postgis query
-    await PostGIS().query(sql.SQL("SELECT puid as id,1::double precision as cost,0::integer as status FROM marxan.{};").format(sql.Identifier(planning_grid_name)), None, "File" , filename)
+    await pg.query(sql.SQL("SELECT puid as id,1::double precision as cost,0::integer as status FROM marxan.{};").format(sql.Identifier(planning_grid_name)), None, "File" , filename)
     #update the input.dat file
     _updateParameters(obj.folder_project + PROJECT_DATA_FILENAME, {'PUNAME': PLANNING_UNITS_FILENAME})
 
@@ -998,8 +1002,7 @@ def _deleteTileset(tilesetid):
 #deletes a feature
 async def _deleteFeature(feature_class_name):
     #get the data for the feature
-    postgis = PostGIS()
-    data = await postgis.query("SELECT oid, created_by FROM marxan.metadata_interest_features WHERE feature_class_name = %s;", [feature_class_name], "Dict")
+    data = await pg.query("SELECT oid, created_by FROM marxan.metadata_interest_features WHERE feature_class_name = %s;", [feature_class_name], "Dict")
     #return if it is not found
     if len(data)==0:
         return
@@ -1015,13 +1018,13 @@ async def _deleteFeature(feature_class_name):
     #delete the feature
     await _deleteFeatureClass(feature_class_name)
     #delete the metadata record
-    await postgis.execute("DELETE FROM marxan.metadata_interest_features WHERE feature_class_name =%s;", [feature_class_name])
+    await pg.execute("DELETE FROM marxan.metadata_interest_features WHERE feature_class_name =%s;", [feature_class_name])
     #delete the Mapbox tileset
     _deleteTileset(feature_class_name)
     
 async def _deleteFeatureClass(feature_class_name):
     #delete the feature class
-    await PostGIS().execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
+    await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
 
 def _getUniqueFeatureclassName(prefix):
     return prefix + uuid.uuid4().hex[:(32 - len(prefix))] #mapbox tileset ids are limited to 32 characters
@@ -1031,13 +1034,12 @@ async def _finishImportingFeature(feature_class_name, name, description, source,
     #get the Mapbox tilesetId 
     tilesetId = MAPBOX_USER + "." + feature_class_name
     #create an index on the geometry column
-    postgis = PostGIS()
-    await postgis.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
+    await pg.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
     #create a primary key
-    await postgis.execute(sql.SQL("ALTER TABLE marxan.{} ADD COLUMN id SERIAL PRIMARY KEY;").format(sql.Identifier(feature_class_name)))
+    await pg.execute(sql.SQL("ALTER TABLE marxan.{} ADD COLUMN id SERIAL PRIMARY KEY;").format(sql.Identifier(feature_class_name)))
     try:    
         #create a record for this new feature in the metadata_interest_features table
-        id = await postgis.query(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT ST_Area(ST_Transform(geom, 3410)) _area, box2d(geom) extent FROM (SELECT ST_Union(geometry) geom FROM marxan.{}) AS sub2) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user])
+        id = await pg.query(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT ST_Area(ST_Transform(geom, 3410)) _area, box2d(geom) extent FROM (SELECT ST_Union(geometry) geom FROM marxan.{}) AS sub2) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user])
     except (MarxanServicesError) as e:
         await _deleteFeatureClass(feature_class_name)
         if "Database integrity error" in e.args[0]:
@@ -1057,17 +1059,16 @@ async def _importPlanningUnitGrid(filename, name, description, user):
         if _shapefileHasField(MARXAN_FOLDER + rootfilename + ".shp", "PUID"):
             raise MarxanServicesError("The field 'puid' in the zipped shapefile is uppercase and it must be lowercase")
         #import the shapefile into PostGIS
-        postgis = PostGIS()
         #create a record for this new feature in the metadata_planning_units table
-        await postgis.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by,tilesetid) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s,%s);", [feature_class_name, name, description,user,MAPBOX_USER + "." + feature_class_name])
+        await pg.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by,tilesetid) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s,%s);", [feature_class_name, name, description,user,MAPBOX_USER + "." + feature_class_name])
         #import the shapefile
-        await postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
+        await pg.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
         #make sure the puid column is an integer
-        await postgis.execute(sql.SQL("ALTER TABLE marxan.{} ALTER COLUMN puid TYPE integer;").format(sql.Identifier(feature_class_name)))
+        await pg.execute(sql.SQL("ALTER TABLE marxan.{} ALTER COLUMN puid TYPE integer;").format(sql.Identifier(feature_class_name)))
         #create the envelope for the new planning grid
-        await postgis.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(geometry) AS geometry FROM marxan.{}) AS f) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
+        await pg.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET envelope = (SELECT ST_Transform(ST_Envelope(ST_Collect(f.geometry)), 4326) FROM (SELECT ST_Envelope(geometry) AS geometry FROM marxan.{}) AS f) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
         #set the number of planning units for the new planning grid
-        await postgis.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET planning_unit_count = (SELECT count(puid) FROM marxan.{}) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
+        await pg.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET planning_unit_count = (SELECT count(puid) FROM marxan.{}) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
         #start the upload to mapbox
         uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
     except (MarxanServicesError) as e:
@@ -1086,8 +1087,7 @@ async def _importPlanningUnitGrid(filename, name, description, user):
 #deletes a planning grid
 async def _deletePlanningUnitGrid(planning_grid):
     #get the data for the planning grid
-    postgis = PostGIS()
-    data = await postgis.query("SELECT created_by, source FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [planning_grid], "Dict")
+    data = await pg.query("SELECT created_by, source FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [planning_grid], "Dict")
     #return if it is not found
     if len(data)==0:
         return
@@ -1104,9 +1104,9 @@ async def _deletePlanningUnitGrid(planning_grid):
     if (data[0]['source'] != 'planning_grid function'):
         _deleteTileset(planning_grid)
     #delete the new planning unit record from the metadata_planning_units table
-    await postgis.execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [planning_grid])
+    await pg.execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [planning_grid])
     #delete the feature class
-    await postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(planning_grid)))
+    await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(planning_grid)))
     
 #searches the folder recursively for the filename and returns an array of full filenames, e.g. ['/home/ubuntu/environment/marxan-server/users/admin/British Columbia Marine Case Study/input/spec.dat', etc]
 def _getFilesInFolderRecursive(folder, filename):
@@ -1401,16 +1401,9 @@ class ExtendableObject(object):
 ####################################################################################################################################################################################################################################################################
 
 class PostGIS():
-    #synchronous query, i.e. blocking
-    def syncQuery(self, sql):
-        conn = psycopg2.connect(CONNECTION_STRING)
-        cur = conn.cursor()
-        cur.execute(sql)
-        results = cur.fetchall()
-        cur.close()
-        conn.close()
-        return results
-    
+    def __init__(self, pool):
+        self.pool = pool
+
     #does argument binding to prevent sql injection attacks
     def _mogrify(self, cur, sql, data):
         if data is not None:
@@ -1421,7 +1414,7 @@ class PostGIS():
     #executes a query and returns the records or writes them to file
     async def query(self, sql, data = None, format = "Array", filename = None):
         try:
-            with (await pool.cursor()) as cur:
+            with (await self.pool.cursor()) as cur:
                 records = []
                 #do any argument binding 
                 sql = self._mogrify(cur, sql, data)
@@ -1457,7 +1450,7 @@ class PostGIS():
 
     #executes a query 
     async def execute(self, sql, data = None, format = "Array", filename = None):
-        with (await pool.cursor()) as cur:
+        with (await self.pool.cursor()) as cur:
             #do any argument binding 
             sql = self._mogrify(cur, sql, data)
             #debug the SQL if in DEBUG mode
@@ -1775,7 +1768,7 @@ class renameProject(MarxanRESTHandler):
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getCountries?callback=__jp0
 class getCountries(MarxanRESTHandler):
     async def get(self):
-        content = await PostGIS().query("SELECT iso3, name_iso31 FROM marxan.gaul_2015_simplified_1km where iso3 not like '%|%' order by 2;", None, "Dict")
+        content = await pg.query("SELECT iso3, name_iso31 FROM marxan.gaul_2015_simplified_1km where iso3 not like '%|%' order by 2;", None, "Dict")
         self.send_response({'records': content})        
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitGrids?callback=__jp0
@@ -2343,7 +2336,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #get a unique feature class name for the import
         feature_class_name = _getUniqueFeatureclassName("f_")
         #create the table and split the feature at the dateline
-        await PostGIS().execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT marxan.ST_SplitAtDateLine(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326)) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
+        await pg.execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT marxan.ST_SplitAtDateLine(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326)) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
         #add an index and a record in the metadata_interest_features table
         id = await _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Drawn on screen", self.get_current_user())
         #start the upload to mapbox
@@ -2368,7 +2361,7 @@ class stopProcess(MarxanRESTHandler):
                 os.kill(int(pid), signal.SIGTERM)
             else:
                 #cancel the query
-                await PostGIS().execute("SELECT pg_cancel_backend(%s);",[pid])
+                await pg.execute("SELECT pg_cancel_backend(%s);",[pid])
         except OSError:
             raise MarxanServicesError("The pid does not exist")
         else:
@@ -2639,27 +2632,26 @@ class updateWDPA(MarxanWebSocketHandler):
                     os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
                     try:
                         #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
-                        postgis = PostGIS()
                         #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
                         feature_class_name = _getUniqueFeatureclassName("wdpa_")
                         self.send_response({'info': "Importing '" + rootfilename + "' into PostGIS..", 'status': "Updating WDPA"})
                         #import the wdpa to a tmp feature class
-                        await postgis.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326", False, False)
+                        await pg.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326", False, False)
                         self.send_response({'info': "Imported into '" + feature_class_name + "'", 'status': "Updating WDPA"})
                         #rename the existing wdpa feature class
-                        await postgis.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
+                        await pg.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
                         self.send_response({'info': "Renamed 'wdpa' to 'wdpa_old'", 'status': "Updating WDPA"})
                         #rename the tmp feature class
-                        await postgis.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
+                        await pg.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
                         self.send_response({'info': "Renamed '" + feature_class_name + "' to 'wdpa'", 'status': "Updating WDPA"})
                         #drop the columns that are not needed
-                        await postgis.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso;")
+                        await pg.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso;")
                         self.send_response({'info': "Removed unneccesary columns", 'status': "Updating WDPA"})
                         #delete the old wdpa feature class
-                        await postgis.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
+                        await pg.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
                         self.send_response({'info': "Deleted 'wdpa_old' table", 'status': "Updating WDPA"})
                         #delete all of the existing dissolved country wdpa feature classes
-                        await postgis.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
+                        await pg.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
                         self.send_response({'info': "Deleted dissolved country WDPAP feature classes", 'status': "Updating WDPA"})
                     except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
                         self.close({'error': 'No space left on device importing the WDPA into PostGIS', 'info': 'WDPA not updated'})
@@ -2731,15 +2723,14 @@ class importFeatures(MarxanWebSocketHandler):
                 #get a scratch name for the import
                 scratch_name = _getUniqueFeatureclassName("scratch_")
                 #import the shapefile into a PostGIS feature class in EPSG:4326
-                postgis = PostGIS()
                 # self.send_response({'info': "Importing to '" + scratch_name + "'..", 'status':'CreatingFeature'})
-                await postgis.importShapefile(shapefile, scratch_name, "EPSG:4326")
+                await pg.importShapefile(shapefile, scratch_name, "EPSG:4326")
                 #get the feature names 
                 if name: #single feature name
                     feature_names = [name]
                 else: #get the feature names from a field in the shapefile
                     splitfield = self.get_argument('splitfield')
-                    features = await postgis.query(sql.SQL("SELECT {splitfield} FROM marxan.{scratchTable}").format(splitfield=sql.Identifier(splitfield),scratchTable=sql.Identifier(scratch_name)), None, "DataFrame")
+                    features = await pg.query(sql.SQL("SELECT {splitfield} FROM marxan.{scratchTable}").format(splitfield=sql.Identifier(splitfield),scratchTable=sql.Identifier(scratch_name)), None, "DataFrame")
                     feature_names = features[splitfield].tolist()
                     #if they are not unique then return an error
                     if (len(feature_names) != len(set(feature_names))):
@@ -2749,11 +2740,11 @@ class importFeatures(MarxanWebSocketHandler):
                     #create the new feature class
                     if name: #single feature name
                         feature_class_name = _getUniqueFeatureclassName("f_")
-                        await postgis.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable};").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
+                        await pg.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable};").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
                         description = self.get_argument('description')
                     else: #multiple feature names
                         feature_class_name = _getUniqueFeatureclassName("fs_")
-                        await postgis.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable} WHERE species = %s;").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
+                        await pg.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable} WHERE species = %s;").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
                         description = "Imported from shapefile '" + shapefile + "' and split by the '" + splitfield + "' field"
                     #finish the import by adding a record in the metadata table
                     id = await _finishImportingFeature(feature_class_name, feature_name, description, "Imported shapefile", self.get_current_user())
@@ -2790,13 +2781,12 @@ class importGBIFData(MarxanWebSocketHandler):
                     #get the feature class name
                     feature_class_name = "gbif_" + str(taxonKey)
                     #create the table if it doesnt already exists
-                    postgis = PostGIS()
-                    await postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(feature_class_name)))
-                    await postgis.execute(sql.SQL("CREATE TABLE marxan.{} (eventdate date, gbifid bigint, lng double precision, lat double precision, geometry geometry)").format(sql.Identifier(feature_class_name))) 
+                    await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(feature_class_name)))
+                    await pg.execute(sql.SQL("CREATE TABLE marxan.{} (eventdate date, gbifid bigint, lng double precision, lat double precision, geometry geometry)").format(sql.Identifier(feature_class_name))) 
                     #insert the records
                     _importDataFrame(df, feature_class_name)
                     #update the geometry field
-                    await postgis.execute(sql.SQL("UPDATE marxan.{} SET geometry=marxan.ST_SplitAtDateline(ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point(lng, lat),4326),3410),%s),4326))").format(sql.Identifier(feature_class_name)), [GBIF_POINT_BUFFER_RADIUS])
+                    await pg.execute(sql.SQL("UPDATE marxan.{} SET geometry=marxan.ST_SplitAtDateline(ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point(lng, lat),4326),3410),%s),4326))").format(sql.Identifier(feature_class_name)), [GBIF_POINT_BUFFER_RADIUS])
                     #get the gbif vernacular name
                     feature_name = self.get_argument('scientificName')
                     vernacularNames = self.getVernacularNames(taxonKey)
@@ -2925,7 +2915,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
     async def executeQuery(self, sql, data = None):
         try:
             #get a cursor
-            with (await pool.cursor()) as cur:
+            with (await self.application.pool.cursor()) as cur:
                 #parameter bind if necessary
                 if data is not None:
                     sql = cur.mogrify(sql, data)
@@ -3045,16 +3035,15 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
             if (not self.projectData["metadata"]["OLDVERSION"]):
                 #new version of marxan - get the boundary lengths
                 feature_class_name = _getUniqueFeatureclassName("tmp_")
-                postgis = PostGIS()
-                await postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
+                await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
                 results = await self.executeQuery(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(ST_Transform(a.geometry, 3410), ST_Transform(b.geometry, 3410)), 2))/1000 boundary  FROM marxan.{planning_unit_name} a, marxan.{planning_unit_name} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(feature_class_name=sql.Identifier(feature_class_name), planning_unit_name=sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])))
                 #delete the file if it already exists
                 if (os.path.exists(self.folder_input + BOUNDARY_LENGTH_FILENAME)):
                     os.remove(self.folder_input + BOUNDARY_LENGTH_FILENAME)
                 #write the boundary lengths to file
-                await postgis.execute(sql.SQL("SELECT * FROM marxan.{};").format(sql.Identifier(feature_class_name)), None, "File", self.folder_input + BOUNDARY_LENGTH_FILENAME)
+                await pg.query(sql.SQL("SELECT * FROM marxan.{};").format(sql.Identifier(feature_class_name)), None, "File", self.folder_input + BOUNDARY_LENGTH_FILENAME)
                 #delete the tmp table
-                await postgis.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
+                await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
                 #update the input.dat file
                 _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'BOUNDNAME': 'bounds.dat'})
             #set the response
@@ -3082,7 +3071,7 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
                 #get the feature class name
                 fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
                 #create a primary key so the feature class can be used in ArcGIS
-                await PostGIS().createPrimaryKey(fc, "puid")    
+                await pg.createPrimaryKey(fc, "puid")    
                 #start the upload to Mapbox
                 uploadId = _uploadTilesetToMapbox(fc, fc)
                 #set the response
@@ -3114,8 +3103,11 @@ class runGapAnalysis(QueryWebSocketHandler):
 
 class Application(tornado.web.Application):
     def __init__(self, _pool):
-        global pool
-        pool = _pool
+        #this attribute is used by QueryWebSocketHandler descendent classes to get a pointer to the connection pool and a PID of the query
+        self.pool = _pool
+        #global variable to hold the postgis connection pool
+        global pg
+        pg = PostGIS(_pool)
         handlers = [
             ("/marxan-server/getServerData", getServerData),
             ("/marxan-server/getProjects", getProjects),
@@ -3221,7 +3213,7 @@ async def main():
                 print("\x1b[1;32;48mOr run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
         await SHUTDOWN_EVENT.wait()
         #close the database connection
-        app.pool.close()
+        pg.pool.close()
         
 if __name__ == "__main__":
     try:

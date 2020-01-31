@@ -1605,12 +1605,6 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
             self.send_response({"error": lastLine, "trace" : trace})
             self.finish()
     
-    #runs an asynchronous query against the database
-    async def query(self, stmt, *args):
-        with (await self.application.pool.cursor()) as cur:
-            await cur.execute(stmt, args)
-            return await cur.fetchall()
-
 ####################################################################################################################################################################################################################################################################
 ## RequestHandler subclasses
 ####################################################################################################################################################################################################################################################################
@@ -2626,7 +2620,7 @@ class updateWDPA(MarxanWebSocketHandler):
         else:
             try:
                 #download the new wdpa zip
-                self.downloadFile(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                self.asyncDownload(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
             except (MarxanServicesError) as e: #download failed
                 self.close({'error': e.args[0], 'info': 'WDPA not updated'})
             else:
@@ -2681,37 +2675,40 @@ class updateWDPA(MarxanWebSocketHandler):
                         #delete the shapefile
                         _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
 
-    # downloads a file from the url with the default block size of 100Mb
-    def downloadFile(self, url, file, block_sz=100000000):
+    async def asyncDownload(self,url, file):
+        http_client = AsyncHTTPClient()
+        #initialise a variable to hold the size downloaded
+        file_size_dl = 0
         try:
-            req = request.Request(url, headers={'User-Agent': 'Mozilla/5.0'}) 
-            resp = request.urlopen(req)
-            #get the file size
-            file_size = resp.info()["Content-Length"]
-            #initialise a variable to hold the size downloaded
-            file_size_dl = 0
-        except (urllib.error.HTTPError) as e: # file not found
-            if (e.msg == "Not Found"):
-                raise MarxanServicesError("The url '" + self.get_argument("downloadUrl") + "' cannot be opened")
-            else:
-                raise MarxanServicesError(e.msg)
-        else:
-            try:
-                f = open(file, 'wb')
-                while True:
-                    buffer = resp.read(block_sz)
-                    if not buffer:
-                        break
-                    file_size_dl += len(buffer)
-                    f.write(buffer)
-                    self.send_response({'info': "Downloading " + url, 'status':'Downloading', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
-                #downloaded succesfully
-                f.close()
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.get(url) as resp:
+                        #get the file size
+                        file_size = resp.headers["Content-Length"]
+                        try:
+                            with open(file, 'wb') as f:
+                                while True:
+                                    chunk = await resp.content.read(100000000)
+                                    if not chunk:
+                                        break
+                                    f.write(chunk)   
+                                    file_size_dl += len(chunk)
+                                    self.send_response({'info': "Downloading " + url, 'status':'Downloading', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
+                        except Exception as e:
+                            print("Error getting a file: %s" % e)
+                        finally:
+                            f.close()
+                except Exception as e:
+                    print("Error getting the url: %s" % e)
+        except (OSError) as e: # out of disk space probably
+            f.close()
+            os.remove(file)
+            raise MarxanServicesError("Out of disk space on device")
+        except Exception as e:
+            print("Error getting a session: %s" % e)
+        finally:
+            await session.close()
                 
-            except (OSError) as e: # out of disk space probably
-                f.close()
-                os.remove(file)
-                raise MarxanServicesError("Out of disk space on device")
 
 #imports a set of features from a zipped shapefile
 class importFeatures(MarxanWebSocketHandler):
@@ -2953,7 +2950,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                     return None
         
         except (psycopg2.extensions.QueryCanceledError, psycopg2.InternalError, asyncio.CancelledError): #stopped by user
-            self.close({'error': 'Preprocessing stopped by ' + self.get_current_user()})
+            self.close({'error': 'Processing stopped by ' + self.get_current_user()})
         except (psycopg2.OperationalError) as e: #killed by operating system
             if ("SSL SYSCALL error: EOF detected" in e.args[0]):
                 self.close({'error': "Preprocessing stopped by operating system"})

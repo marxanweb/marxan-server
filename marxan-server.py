@@ -1,5 +1,5 @@
 #!/home/ubuntu/miniconda2/envs/python36/bin/python3.6 
-import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, platform, colorama, io, requests, platform, ctypes, aiopg, asyncio
+import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, platform, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp
 from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
 from tornado.process import Subprocess
@@ -2620,7 +2620,7 @@ class updateWDPA(MarxanWebSocketHandler):
         else:
             try:
                 #download the new wdpa zip
-                self.asyncDownload(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                await self.asyncDownload(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
             except (MarxanServicesError) as e: #download failed
                 self.close({'error': e.args[0], 'info': 'WDPA not updated'})
             else:
@@ -2676,7 +2676,6 @@ class updateWDPA(MarxanWebSocketHandler):
                         _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
 
     async def asyncDownload(self,url, file):
-        http_client = AsyncHTTPClient()
         #initialise a variable to hold the size downloaded
         file_size_dl = 0
         try:
@@ -2695,17 +2694,15 @@ class updateWDPA(MarxanWebSocketHandler):
                                     file_size_dl += len(chunk)
                                     self.send_response({'info': "Downloading " + url, 'status':'Downloading', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
                         except Exception as e:
-                            print("Error getting a file: %s" % e)
+                            raise MarxanServicesError("Error getting a file: %s" % e)
                         finally:
                             f.close()
                 except Exception as e:
-                    print("Error getting the url: %s" % e)
+                    raise MarxanServicesError("Error getting the url: %s" % url)
         except (OSError) as e: # out of disk space probably
             f.close()
             os.remove(file)
             raise MarxanServicesError("Out of disk space on device")
-        except Exception as e:
-            print("Error getting a session: %s" % e)
         finally:
             await session.close()
                 

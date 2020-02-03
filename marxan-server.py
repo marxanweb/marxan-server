@@ -35,7 +35,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.27"
+MARXAN_SERVER_VERSION = "v0.9.29"
 MARXAN_REGISTRY = "https://andrewcottam.github.io/marxan-web/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -1475,9 +1475,13 @@ class PostGIS():
             await self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
             cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=localhost user=jrc dbname=marxanserver password=thargal88" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode + ' -lco precision=NO'
-            #run the import as an asyncronous subprocess
-            process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT)
-            result = await process.wait()
+            if platform.system() != "Windows":
+                #run the import as an asyncronous subprocess
+                process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT)
+                result = await process.wait()
+            else:
+                #run the import
+                result = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
             if result == 0:
                 #split the feature class at the dateline
                 if (splitAtDateline):
@@ -1489,6 +1493,8 @@ class PostGIS():
                 raise MarxanServicesError("Import failed with returncode " + str(result))
         except (MarxanServicesError) as e:
             raise 
+        except CalledProcessError as e: # ogr2ogr error
+            raise MarxanServicesError(e.args[0])
 
     #tests to see if a feature class is valid - raises an error if not
     async def isValid(self, feature_class_name):

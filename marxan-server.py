@@ -1,5 +1,5 @@
 #!/home/ubuntu/miniconda2/envs/python36/bin/python3.6 
-import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, platform, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp
+import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp
 from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
 from tornado.process import Subprocess
@@ -7,6 +7,7 @@ from tornado.log import LogFormatter
 from tornado.web import HTTPError 
 from tornado.web import StaticFileHandler 
 from tornado.ioloop import IOLoop, PeriodicCallback 
+from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent 
 from sqlalchemy import create_engine
@@ -3218,6 +3219,7 @@ async def main():
             if MARXAN_CLIENT_VERSION != "Not installed":
                 print("\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m")
                 print("\x1b[1;32;48mOr run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
+        asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
         await SHUTDOWN_EVENT.wait()
         #close the database connection
         pg.pool.close()

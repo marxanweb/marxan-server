@@ -1481,7 +1481,8 @@ class PostGIS():
                 result = await process.wait()
             else:
                 #run the import
-                result = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+                resultBytes = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+                result = 0 if (resultBytes.decode("utf-8") == '') else -1
             if result == 0:
                 #split the feature class at the dateline
                 if (splitAtDateline):

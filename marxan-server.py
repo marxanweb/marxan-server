@@ -8,7 +8,7 @@ from tornado.web import HTTPError
 from tornado.web import StaticFileHandler 
 from tornado.ioloop import IOLoop, PeriodicCallback 
 from tornado import concurrent
-from tornado import gen, queues, httpclient, concurrent
+from tornado import gen, queues, httpclient, concurrent 
 from sqlalchemy import create_engine
 from collections import OrderedDict
 from subprocess import Popen, PIPE, CalledProcessError

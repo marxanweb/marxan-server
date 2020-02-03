@@ -1481,7 +1481,7 @@ class PostGIS():
                 process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT)
                 result = await process.wait()
             else:
-                #run the import
+                #run the import using the python subprocess module 
                 resultBytes = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
                 result = 0 if (resultBytes.decode("utf-8") == '') else -1
             if result == 0:

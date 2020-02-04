@@ -41,7 +41,7 @@ sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"
 ### Create database  
 Download the database:  
 ```
-wget https://github.com/andrewcottam/marxan-server/releases/download/beta/dump.sql
+wget https://github.com/andrewcottam/marxan-server/releases/download/Beta2/dump.sql
 ```
 
 Import the data:

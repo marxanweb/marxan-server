@@ -149,7 +149,7 @@ def _setGlobalVariables():
     testUrl = testUrl + "<host>:" + PORT + "/marxan-server/testTornado"
     if KEYFILE != "None":
         print(" Private key file:\t" + KEYFILE)
-    print(" Database:\t\t" + "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='****************'")
+    print(" Database:\t\t" + CONNECTION_STRING)
     print(" PostgreSQL:\t\t" + DATABASE_VERSION_POSTGRESQL)
     print(" PostGIS:\t\t" + DATABASE_VERSION_POSTGIS)
     print(" WDPA Version:\t\t" + _getDictValue(serverData,'WDPA_VERSION'))
@@ -1475,7 +1475,7 @@ class PostGIS():
             #drop the feature class if it already exists
             await self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
-            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=localhost user=jrc dbname=marxanserver password=thargal88" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode + ' -lco precision=NO'
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode + ' -lco precision=NO'
             if platform.system() != "Windows":
                 #run the import as an asyncronous subprocess
                 process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT)
@@ -2461,6 +2461,8 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             self.send_response({"status":"WebSocketOpen"})
         #start the web socket ping messages to keep the connection alive
         self.pc = PeriodicCallback(sendPing, (PING_INTERVAL))
+        #send a preprocessing message
+        self.send_response({"status": "Preprocessing"})
         self.pc.start()
 
     #sends the message with a timestamp

@@ -3221,7 +3221,9 @@ async def main():
             if MARXAN_CLIENT_VERSION != "Not installed":
                 print("\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m")
                 print("\x1b[1;32;48mOr run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
-        asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
+        #otherwise subprocesses fail on windows
+        if platform.system() == "Windows":
+            asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
         await SHUTDOWN_EVENT.wait()
         #close the database connection
         pg.pool.close()

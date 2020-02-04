@@ -504,7 +504,7 @@ async def _getFeature(obj, oid):
 
 #get all species information from the PostGIS database
 async def _getAllSpeciesData(obj):
-    obj.allSpeciesData = await pg.query("SELECT oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features ORDER BY alias;", None, "DataFrame")
+    obj.allSpeciesData = await pg.query("SELECT oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features ORDER BY lower(alias);", None, "DataFrame")
 
 #get the information about which species have already been preprocessed
 def _getSpeciesPreProcessingData(obj):
@@ -524,7 +524,7 @@ async def _getPlanningUnitsCostData(obj):
 
 #gets the data for the planning grids
 async def _getPlanningUnitGrids():
-    return await pg.query("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by,tilesetid, planning_unit_count FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by 2;", None, "Dict")
+    return await pg.query("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by,tilesetid, planning_unit_count FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by lower(alias);", None, "Dict")
 
 #estimates the number of planning grid units in the passed country, area and domain
 async def _estimatePlanningUnitCount(areakm2, iso3, domain):
@@ -1776,7 +1776,7 @@ class renameProject(MarxanRESTHandler):
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getCountries?callback=__jp0
 class getCountries(MarxanRESTHandler):
     async def get(self):
-        content = await pg.query("SELECT iso3, name_iso31 FROM marxan.gaul_2015_simplified_1km where iso3 not like '%|%' order by 2;", None, "Dict")
+        content = await pg.query("SELECT iso3, name_iso31 FROM marxan.gaul_2015_simplified_1km where iso3 not like '%|%' order by lower(2);", None, "Dict")
         self.send_response({'records': content})        
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitGrids?callback=__jp0

@@ -11,7 +11,6 @@ The following installation was testing on Ubuntu 18.04.
 In the folder where you want to install marxan-server, type the following:
 ```
 git clone https://github.com/andrewcottam/marxan-server.git
-cd marxan-server
 ```
 
 ### Install Python and dependencies
@@ -22,7 +21,7 @@ bash Miniconda3-latest-Linux-x86_64.sh
 ```  
 Enter yes at the prompt Do you wish the installer to initialize Miniconda3 by running conda init?  
 
-Install dependencies:  
+Install dependencies (from a new shell):  
 ```  
 conda install tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
 pip install mapbox aiopg aiohttp     

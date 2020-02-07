@@ -1776,7 +1776,7 @@ class renameProject(MarxanRESTHandler):
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getCountries?callback=__jp0
 class getCountries(MarxanRESTHandler):
     async def get(self):
-        content = await pg.query("SELECT iso3, name_iso31 FROM marxan.gaul_2015_simplified_1km where iso3 not like '%|%' order by lower(2);", None, "Dict")
+        content = await pg.query("SELECT t.iso3, t.name_iso31, CASE WHEN m.iso3 IS NULL THEN False ELSE True END has_marine FROM marxan.gaul_2015_simplified_1km t LEFT JOIN marxan.eez_simplified_1km m on t.iso3 = m.iso3 WHERE t.iso3 NOT LIKE '%|%' ORDER BY lower(t.name_iso31);", None, "Dict")
         self.send_response({'records': content})        
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitGrids?callback=__jp0
@@ -2809,7 +2809,7 @@ class importGBIFData(MarxanWebSocketHandler):
                     #complete
                     self.close({'info': "Features imported", 'uploadId':uploadId})
                 else:
-                    raise MarxanServicesError("No records were returned for " + str(taxonKey))
+                    raise MarxanServicesError("No records for " + self.get_argument('scientificName'))
                 
             except (MarxanServicesError) as e:
                 if "already exists" in e.args[0]:

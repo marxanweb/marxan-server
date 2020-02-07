@@ -31,7 +31,7 @@ pip install mapbox aiopg aiohttp
 marxan-server requires Postgresql version 10+ and PostGIS version 2.4+  
 ```
 sudo apt-get update  
-sudo apt-get install postgresql postgis 
+sudo apt-get install postgresql-10 postgis 
 sudo apt-get update  
 sudo -u postgres psql -c "CREATE EXTENSION postgis;"
 sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"

@@ -92,3 +92,7 @@ gcloud compute instances add-metadata <instance> --metadata-from-file startup-sc
 
 ### Configuration  
 marxan-server can be configured to change various settings including linking to an existing database, configuring security etc. For more information see the [Administrator Guide - Configuration](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html#configuration).  
+
+### Troubleshooting
+#### Cannot connect to marxan-server
+If you see a connection refused error on attempting to connect, then it is likely that a Firewall is blocking the connections. Add the following rules: Allow TCP:80, TCP:8080, TCP:8081 for the IP ranges 0.0.0.0/0. 

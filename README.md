@@ -66,7 +66,7 @@ rm Miniconda3-latest-Linux-x86_64.sh
 ### Start marxan-server:
 
 ```
-python marxan-server.py  
+python marxan-server/marxan-server.py  
 ```
 
 ## Test the installation

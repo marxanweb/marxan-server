@@ -96,7 +96,7 @@ gcloud compute instances add-metadata <instance> --metadata-from-file startup-sc
 #### Cannot connect to marxan-server
 If you see a connection refused error on attempting to connect, then it is likely that a Firewall is blocking the connections. Add the following rules: Allow TCP:80, TCP:8080, TCP:8081 for the IP ranges 0.0.0.0/0. 
 
-### Server stops running after a while
+#### Server stops running after a while
 On some Cloud hosts like Google Cloud Platform, when the SSH connection is closed then the instances may be shut down, thus terminating the marxan-server. To avoid this, use Virtual Terminal software like screen. For more information see [here](https://www.tecmint.com/keep-remote-ssh-sessions-running-after-disconnection/).  For example:  
 
 ```

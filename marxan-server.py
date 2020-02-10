@@ -1990,11 +1990,11 @@ class getPlanningUnitsData(MarxanRESTHandler):
 #gets the planning units cost information from the pu.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitsCostData?user=admin&project=Start%20project&callback=__jp2
 class getPlanningUnitsCostData(MarxanRESTHandler):
-    def get(self):
+    async def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project'])    
         #get the planning units cost information
-        _getPlanningUnitsCostData(self)
+        await _getPlanningUnitsCostData(self)
         #set the response
         self.send_response({"data": self.planningUnitsData})
 

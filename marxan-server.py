@@ -67,7 +67,7 @@ GBIF_POINT_BUFFER_RADIUS = 1000
 GBIF_OCCURRENCE_LIMIT = 200000 # from the GBIF docs here: https://www.gbif.org/developer/occurrence#search
 DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
-LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
+LOGGING_LEVEL = logging.DEBUG # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 SHUTDOWN_EVENT = tornado.locks.Event() #to allow Tornado to exit gracefully
 PING_INTERVAL = 30000 #interval between regular pings when using websockets
 
@@ -519,8 +519,8 @@ async def _getPlanningUnitsData(obj):
 #get the planning units cost information
 async def _getPlanningUnitsCostData(obj):
     df = await _getProjectInputData(obj, "PUNAME")
-    #normalise the planning unit cost data to make the payload smaller        
-    obj.planningUnitsData = _normaliseDataFrame(df, "cost", "id")
+    #normalise the planning unit cost data to make the payload smaller    
+    obj.planningUnitsData = _normaliseDataFrame(df, "cost", "id", 9)
 
 #gets the data for the planning grids
 async def _getPlanningUnitGrids():
@@ -841,13 +841,32 @@ def _getKeyValue(text, parameterName):
     return parameterName, value
 
 #converts a data frame with duplicate values into a normalised array
-def _normaliseDataFrame(df, columnToNormaliseBy, puidColumnName):
+def _normaliseDataFrame(df, columnToNormaliseBy, puidColumnName, classes = None):
     if df.empty:
         return []
-    #get the groups from the data
-    groups = df.groupby(by = columnToNormaliseBy).groups
-    #build the response, e.g. a normal data frame with repeated values in the columnToNormaliseBy -> [["VI", [7, 8, 9]], ["IV", [0, 1, 2, 3, 4]], ["V", [5, 6]]]
-    response = [[g, df[puidColumnName][groups[g]].values.tolist()] for g in groups if g not in [0]]
+    response = []
+    #if we are constraining the response to a fixed number of classes, then classify the data into that number of classes
+    if (classes):
+        #get the min value
+        minValue = df.min()[columnToNormaliseBy]
+        #get the max value (add 1 so that the maxValue will be in the n-1 bin)
+        maxValue = df.max()[columnToNormaliseBy] + 1
+        #get the bin size 
+        binSize = (maxValue - minValue) / classes
+        #initialise the array of puids
+        bins = [[(binSize * (i + 1)) + minValue,[]] for i in range(classes)]
+        #iterate through the dataframe
+        for index, row in df.iterrows():
+            #get the bin
+            bin = int((row[columnToNormaliseBy] - minValue) / binSize)
+            #append the puid
+            bins[bin][1].append(int(row[puidColumnName]))
+        response = bins
+    else:
+        #get the groups from the data (i.e. the unique values for columnToNormaliseBy in ascending order)
+        groups = df.groupby(by = columnToNormaliseBy).groups
+        #build the response, e.g. a normal data frame with repeated values in the columnToNormaliseBy -> [["VI", [7, 8, 9]], ["IV", [0, 1, 2, 3, 4]], ["V", [5, 6]]]
+        response = [[g, df[puidColumnName][groups[g]].values.tolist()] for g in groups if g not in [0]]
     return response
 
 #gets the statistics for a species from the puvspr.dat file, i.e. count and area, as a dataframe record

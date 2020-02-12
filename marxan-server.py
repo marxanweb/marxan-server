@@ -849,10 +849,12 @@ def _normaliseDataFrame(df, columnToNormaliseBy, puidColumnName, classes = None)
     if (classes):
         #get the min value
         minValue = df.min()[columnToNormaliseBy]
-        #get the max value (add 1 so that the maxValue will be in the n-1 bin)
-        maxValue = df.max()[columnToNormaliseBy] + 1
-        #get the bin size 
-        binSize = (maxValue - minValue) / classes
+        #get the max value 
+        maxValue = df.max()[columnToNormaliseBy] 
+        #if all the columnToNormaliseBy data is the same value then there is only one class
+        classes = 1 if (minValue == maxValue) else classes
+        #get the bin size - add 1 so that the maxValue will be in the n-1 bin
+        binSize = ((maxValue + 1) - minValue) / classes
         #initialise the array of puids
         bins = [[(binSize * (i + 1)) + minValue,[]] for i in range(classes)]
         #iterate through the dataframe

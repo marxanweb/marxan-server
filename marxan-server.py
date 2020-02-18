@@ -36,7 +36,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.31"
+MARXAN_SERVER_VERSION = "v0.9.32"
 MARXAN_REGISTRY = "https://andrewcottam.github.io/marxan-web/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -146,7 +146,7 @@ def _setGlobalVariables():
     else:
         print(" SSL certificate file:\tNone")
         testUrl = "http://"
-    testUrl = testUrl + "<host>:" + PORT + "/marxan-server/testTornado"
+    testUrl = testUrl + "<host>:" + PORT + "/marxan-server/testTornado" if (PORT != '80') else testUrl + "<host>/marxan-server/testTornado"
     if KEYFILE != "None":
         print(" Private key file:\t" + KEYFILE)
     print(" Database:\t\t" + CONNECTION_STRING)
@@ -3229,7 +3229,7 @@ async def main():
         else:
             app.listen(PORT)
             navigateTo = "http://"
-        navigateTo = navigateTo + "<host>:8080/index.html"
+        navigateTo = navigateTo + "<host>:" + PORT + "/index.html" if (PORT != '80') else navigateTo + "<host>/index.html"
         #open the web browser if the call includes a url, e.g. python marxan-server.py http://localhost/index.html
         if len(sys.argv)>1:
             if MARXAN_CLIENT_VERSION == "Not installed":

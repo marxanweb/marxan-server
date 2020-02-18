@@ -1226,8 +1226,10 @@ def _setCORS(obj):
         #get the origin
         parsed = urlparse(referer) 
         origin = parsed.scheme + "://" + parsed.netloc
-        #check the origin is permitted either by being in the list of permitted domains or if the referer and host are on the same machine, i.e. not cross domain
-        if (origin in PERMITTED_DOMAINS) or (referer.find(obj.request.host_name)!=-1):
+        #get the method
+        method = _getRESTMethod(self.request.path)
+        #check the origin is permitted either by being in the list of permitted domains or if the referer and host are on the same machine, i.e. not cross domain - OR if a permitted method is being called
+        if (origin in PERMITTED_DOMAINS) or (referer.find(obj.request.host_name)!=-1) or (method in PERMITTED_METHODS):
             obj.set_header("Access-Control-Allow-Origin", origin)
             obj.set_header("Access-Control-Allow-Credentials", "true")
         else:

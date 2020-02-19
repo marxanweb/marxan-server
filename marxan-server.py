@@ -2496,15 +2496,20 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         #add in messages from descendent classes
         if hasattr(self, 'pid'):
             message.update({'pid': self.pid})
-        self.write_message(message)
+        return self.write_message(message)
     
     def close(self, closeMessage = {}):
         #stop the ping messages
         self.pc.stop()
-        #send a message
+        #update the close message
         closeMessage.update({'status': 'Finished'})
-        self.send_response(closeMessage)
-        #close the websocket cleanly
+        #get a promise for when the send has finished
+        future = self.send_response(closeMessage)
+        #add a callback for when the send has finished
+        future.add_done_callback(self.sendCloseMessage)
+
+    def sendCloseMessage(self, a):
+        #close the websocket cleanly - i.e. the task
         super().close(1000)
 
 ####################################################################################################################################################################################################################################################################

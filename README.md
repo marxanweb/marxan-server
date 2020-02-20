@@ -6,7 +6,7 @@ The following image shows the high level architecture of marxan-server.
 ![marxan-server architecture](https://raw.githubusercontent.com/andrewcottam/marxan-web/master/documentation/images/architecture.png)  
 
 ## Installation
-The following installation was testing on Ubuntu 18.04. You must be logged in as the root user to install marxan-server if you want to run it either on port 80 or 443, otherwise you can install it as any user.    
+The following installation was testing on Ubuntu 18.04. You must be logged in as the root user (sudo -i) to install marxan-server if you want to run it either on port 80 or 443, otherwise you can install it as any user.    
 
 ### Clone the repo  
 In the folder where you want to install marxan-server, type the following:

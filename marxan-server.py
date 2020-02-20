@@ -992,6 +992,7 @@ def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
         return "0"
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
     cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -t_srs EPSG:3857'
+    logging.debug(cmd)
     try:
         subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
     #catch any unforeseen circumstances
@@ -1499,6 +1500,7 @@ class PostGIS():
             await self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
             cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode + ' -lco precision=NO'
+            logging.debug(cmd)
             if platform.system() != "Windows":
                 #run the import as an asyncronous subprocess
                 process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT)
@@ -2481,7 +2483,10 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         #check the user has access to the specific resource, i.e. the 'User' role cannot access projects from other users
         _authoriseUser(self)
         def sendPing():
-            self.send_response({"status":"WebSocketOpen"})
+            try:
+                self.send_response({"status":"WebSocketOpen"})
+            except WebSocketClosedError:
+                pass
         #start the web socket ping messages to keep the connection alive
         self.pc = PeriodicCallback(sendPing, (PING_INTERVAL))
         #send a preprocessing message

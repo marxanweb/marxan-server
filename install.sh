@@ -1,5 +1,5 @@
 #installs miniconda silently
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./miniconda.sh
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh 
 chmod +x ./miniconda.sh
 ./miniconda.sh -b -p ./miniconda
 #add conda to current shell
@@ -14,14 +14,14 @@ apt-get update
 apt-get install postgresql-10 postgis -y
 apt-get update  
 #create the postgis extensions
-sudo -i -u postgres psql -c "CREATE EXTENSION postgis;"
-sudo -i -u postgres psql -c "CREATE EXTENSION postgis_topology;"
+sudo -u postgres psql -c "CREATE EXTENSION postgis;"
+sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"
 #create the jrc user
-sudo -i -u postgres psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPERUSER IN GROUP postgres;"
+sudo -u postgres psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPERUSER IN GROUP postgres;"
 #create the marxanserver database
-sudo -i -u postgres psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0 ENCODING='UTF8';"
-#get the database dump - THE FOLLOWING IS NOT WORKING YET
-wget https://github.com/andrewcottam/marxan-server/releases/download/Beta2/dump.sql
+sudo -u postgres psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0 ENCODING='UTF8';"
+#get the database dump 
+https://github.com/andrewcottam/marxan-server/releases/download/Beta2/dump.sql 
 #restore the database
 sudo -u postgres pg_restore ./dump.sql -d marxanserver
 #create the default server.dat file for the server configuration

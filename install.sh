@@ -1,7 +1,7 @@
 #installs miniconda silently
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./miniconda.sh
-chmod +x ./miniconda.sh
-./miniconda.sh -b -p ./miniconda
+sudo wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./miniconda.sh
+sudo chmod +x ./miniconda.sh
+sudo ./miniconda.sh -b -p ./miniconda
 #add conda to current shell
 eval "$(./miniconda/bin/conda shell.bash hook)"
 #initialise so we can use conda from bash - this will set environment variables for the current user and by default activate the base environment when they log in

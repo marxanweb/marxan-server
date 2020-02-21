@@ -1,5 +1,5 @@
 #installs miniconda silently
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh 
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./miniconda.sh
 chmod +x ./miniconda.sh
 ./miniconda.sh -b -p ./miniconda
 #add conda to current shell
@@ -10,9 +10,9 @@ conda init
 conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
 pip install mapbox aiopg aiohttp -q
 #install postgresql/postgis
-apt-get update  
-apt-get install postgresql-10 postgis -y
-apt-get update  
+sudo apt-get update  
+sudo apt-get install postgresql-10 postgis -y
+sudo apt-get update  
 #create the postgis extensions
 sudo -u postgres psql -c "CREATE EXTENSION postgis;"
 sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"

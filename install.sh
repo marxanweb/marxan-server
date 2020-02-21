@@ -1,3 +1,5 @@
+#currently not working
+### MINICONDA
 #download the miniconda installer
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./miniconda.sh
 #set execute permissions
@@ -8,11 +10,15 @@ chmod +x ./miniconda.sh
 eval "$($PWD/miniconda/bin/conda shell.bash hook)"
 #initialise so we can use conda from bash - this will set environment variables for the current user and by default activate the base environment when they log in
 conda init
+#set the environment
+conda activate base
 #initialise conda for all users - this allows all users to use conda, but it doesnt by default activate the base environment when they log in
 sudo ln -s $PWD/miniconda/etc/profile.d/conda.sh /etc/profile.d/conda.sh
+### PYTHON PREREQUISITES
 #install the python prerequisites silently
 conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
 pip install mapbox aiopg aiohttp -q
+### POSTGRESQL/POSTGIS
 #install postgresql/postgis
 sudo -i apt-get update  
 sudo -i apt-get install postgresql-10 postgis -y
@@ -20,6 +26,7 @@ sudo -i apt-get update
 #create the postgis extensions
 sudo -u postgres psql -c "CREATE EXTENSION postgis;"
 sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"
+### MARXAN DATABASE
 #create the jrc user
 sudo -u postgres psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPERUSER IN GROUP postgres;"
 #create the marxanserver database

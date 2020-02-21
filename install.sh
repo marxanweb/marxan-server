@@ -10,9 +10,9 @@ conda init
 conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
 pip install mapbox aiopg aiohttp -q
 #install postgresql/postgis
-sudo apt-get update  
-sudo apt-get install postgresql-10 postgis -y
-sudo apt-get update  
+sudo -i apt-get update  
+sudo -i apt-get install postgresql-10 postgis -y
+sudo -i apt-get update  
 #create the postgis extensions
 sudo -u postgres psql -c "CREATE EXTENSION postgis;"
 sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"

@@ -4,8 +4,10 @@ chmod +x ./miniconda.sh
 ./miniconda.sh -b -p ./miniconda
 #add conda to current shell
 eval "$(./miniconda/bin/conda shell.bash hook)"
-#initialise so we can use conda from bash
+#initialise so we can use conda from bash - this will set environment variables for the current user and by default activate the base environment when they log in
 conda init
+#initialise conda for all users - this allows all users to use conda, but it doesnt by default activate the base environment when they log in
+sudo ln -s ./miniconda/etc/profile.d/conda.sh /etc/profile.d/conda.sh
 #install the python prerequisites silently
 conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
 pip install mapbox aiopg aiohttp -q
@@ -21,7 +23,7 @@ sudo -u postgres psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPE
 #create the marxanserver database
 sudo -u postgres psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0 ENCODING='UTF8';"
 #get the database dump 
-https://github.com/andrewcottam/marxan-server/releases/download/Beta2/dump.sql 
+wget https://github.com/andrewcottam/marxan-server/releases/download/Beta2/dump.sql 
 #restore the database
 sudo -u postgres pg_restore ./dump.sql -d marxanserver
 #create the default server.dat file for the server configuration

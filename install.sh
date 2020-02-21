@@ -1,13 +1,15 @@
-#installs miniconda silently
+#download the miniconda installer
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./miniconda.sh
+#set execute permissions
 chmod +x ./miniconda.sh
+#installs miniconda silently
 ./miniconda.sh -b -p ./miniconda
 #add conda to current shell
 eval "$($PWD/miniconda/bin/conda shell.bash hook)"
 #initialise so we can use conda from bash - this will set environment variables for the current user and by default activate the base environment when they log in
 conda init
 #initialise conda for all users - this allows all users to use conda, but it doesnt by default activate the base environment when they log in
-sudo ln -s ./miniconda/etc/profile.d/conda.sh /etc/profile.d/conda.sh
+sudo ln -s $PWD/miniconda/etc/profile.d/conda.sh /etc/profile.d/conda.sh
 #install the python prerequisites silently
 conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
 pip install mapbox aiopg aiohttp -q

@@ -2577,7 +2577,7 @@ class runMarxan(MarxanWebSocketHandler):
                 while True:
                     #read from the stdout stream
                     line = await self.marxanProcess.stdout.read_bytes(1024, partial=True)
-                    self.send_response({'info':line.decode("utf-8"), 'status': 'RunningMarxan'})
+                    self.send_response({'info':line.decode("utf-8"), 'status': 'RunningMarxan','pid': 'm' + str(self.marxanProcess.pid)})
             except (WebSocketClosedError):
                 print("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):                

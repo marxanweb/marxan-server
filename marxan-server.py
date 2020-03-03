@@ -2650,54 +2650,54 @@ class updateWDPA(MarxanWebSocketHandler):
         else:
             try:
                 #download the new wdpa zip
-                self.send_response({'info': "Downloading " + url, 'status':'Preprocessing'})
+                self.send_response({'status':'Preprocessing','info': "Downloading " + self.get_argument("downloadUrl")})
                 await self.asyncDownload(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
             except (MarxanServicesError) as e: #download failed
                 self.close({'error': e.args[0], 'info': 'WDPA not updated'})
             else:
-                self.send_response({'info': "Downloaded", 'status':'Preprocessing'})
+                self.send_response({'status':'Preprocessing', 'info': "Downloaded"})
                 try:
                     #download finished - upzip the polygons shapefile
-                    self.send_response({'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'", 'status':'Preprocessing'})
+                    self.send_response({'status':'Preprocessing', 'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'"})
                     rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE, False, "polygons") 
                 except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
                     #delete the zip file
                     os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
                     self.close({'error': e.args[0], 'info': 'WDPA not updated'})
                 else:
-                    self.send_response({'info': "Unzipped shapefile", 'status':'Preprocessing'})
+                    self.send_response({'status':'Preprocessing', 'info': "Unzipped shapefile"})
                     #delete the zip file
                     os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
                     try:
                         #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
                         #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
                         feature_class_name = _getUniqueFeatureclassName("wdpa_")
-                        self.send_response({'info': "Importing '" + rootfilename + "' into PostGIS..", 'status': "Preprocessing"})
+                        self.send_response({'status': "Preprocessing", 'info': "Importing '" + rootfilename + "' into PostGIS.."})
                         #import the wdpa to a tmp feature class
                         await pg.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326", False)
-                        self.send_response({'info': "Imported into '" + feature_class_name + "'", 'status': "Preprocessing"})
+                        self.send_response({'status': "Preprocessing", 'info': "Imported into '" + feature_class_name + "'"})
                         #rename the existing wdpa feature class
                         await pg.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
-                        self.send_response({'info': "Renamed 'wdpa' to 'wdpa_old'", 'status': "Preprocessing"})
+                        self.send_response({'status': "Preprocessing", 'info': "Renamed 'wdpa' to 'wdpa_old'"})
                         #rename the tmp feature class
                         await pg.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
-                        self.send_response({'info': "Renamed '" + feature_class_name + "' to 'wdpa'", 'status': "Preprocessing"})
+                        self.send_response({'status': "Preprocessing", 'info': "Renamed '" + feature_class_name + "' to 'wdpa'"})
                         #drop the columns that are not needed
                         await pg.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso;")
-                        self.send_response({'info': "Removed unneccesary columns", 'status': "Preprocessing"})
+                        self.send_response({'status': "Preprocessing", 'info': "Removed unneccesary columns"})
                         #delete the old wdpa feature class
                         await pg.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
-                        self.send_response({'info': "Deleted 'wdpa_old' table", 'status': "Preprocessing"})
+                        self.send_response({'status': "Preprocessing", 'info': "Deleted 'wdpa_old' table"})
                         #delete all of the existing dissolved country wdpa feature classes
                         await pg.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
-                        self.send_response({'info': "Deleted dissolved country WDPAP feature classes", 'status': "Preprocessing"})
+                        self.send_response({'status': "Preprocessing", 'info': "Deleted dissolved country WDPAP feature classes"})
                     except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
                         self.close({'error': 'No space left on device importing the WDPA into PostGIS', 'info': 'WDPA not updated'})
                     else: 
                         #update the WDPA_VERSION variable in the server.dat file
                         _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
                         #delete all of the existing intersections between planning units and the old version of the WDPA
-                        self.send_response({'info': 'Invalidating existing WDPA intersections', 'status': 'Preprocessing'})
+                        self.send_response({'status': "Preprocessing", 'info': 'Invalidating existing WDPA intersections'})
                         _invalidateProtectedAreaIntersections()
                         #send the response
                         self.close({'info': 'WDPA update completed succesfully'})

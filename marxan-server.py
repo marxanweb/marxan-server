@@ -1086,6 +1086,8 @@ async def _importPlanningUnitGrid(filename, name, description, user):
         await pg.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by,tilesetid) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s,%s);", [feature_class_name, name, description,user,MAPBOX_USER + "." + feature_class_name])
         #import the shapefile
         await pg.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
+        #check the geometry
+        await pg.isValid(feature_class_name)
         #make sure the puid column is an integer
         await pg.execute(sql.SQL("ALTER TABLE marxan.{} ALTER COLUMN puid TYPE integer;").format(sql.Identifier(feature_class_name)))
         #create the envelope for the new planning grid
@@ -1492,7 +1494,7 @@ class PostGIS():
                 raise MarxanServicesError(e.args[0])
 
     #imports a shapefile into PostGIS
-    async def importShapefile(self, shapefile, feature_class_name, epsgCode, checkGeometry = True, splitAtDateline = True):
+    async def importShapefile(self, shapefile, feature_class_name, epsgCode, splitAtDateline = True):
         try:
             #check that all the required files are present for the shapefile
             _checkZippedShapefile(MARXAN_FOLDER + shapefile)
@@ -1513,9 +1515,6 @@ class PostGIS():
                 #split the feature class at the dateline
                 if (splitAtDateline):
                     await self.execute(sql.SQL("UPDATE marxan.{} SET geometry = marxan.ST_SplitAtDateLine(geometry);").format(sql.Identifier(feature_class_name)))
-                #shapefile imported - check that the geometries are valid and if not raise an error
-                if checkGeometry:
-                    await self.isValid(feature_class_name)
             else:
                 raise MarxanServicesError("Import failed with returncode " + str(result))
         except (MarxanServicesError) as e:
@@ -1813,11 +1812,11 @@ class getPlanningUnitGrids(MarxanRESTHandler):
 #imports a zipped planning unit shapefile which has been uploaded to the marxan root folder into PostGIS as a planning unit grid feature class
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5
 class importPlanningUnitGrid(MarxanRESTHandler):
-    def get(self):
+    async def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['filename','name','description'])   
         #import the shapefile
-        data = _importPlanningUnitGrid(self.get_argument('filename'), self.get_argument('name'), self.get_argument('description'), self.get_current_user())
+        data = await _importPlanningUnitGrid(self.get_argument('filename'), self.get_argument('name'), self.get_argument('description'), self.get_current_user())
         #set the response
         self.send_response({'info': "Planning grid '" + self.get_argument('name') + "' imported", 'feature_class_name': data['feature_class_name'], 'uploadId': data['uploadId'], 'alias': data['alias']})
 
@@ -2490,7 +2489,7 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         #start the web socket ping messages to keep the connection alive
         self.pc = PeriodicCallback(sendPing, (PING_INTERVAL))
         #send a preprocessing message
-        self.send_response({"status": "Preprocessing"})
+        self.send_response({"status": "Preprocessing", "info": "Preprocessing.."})
         self.pc.start()
 
     #sends the message with a timestamp
@@ -2658,46 +2657,46 @@ class updateWDPA(MarxanWebSocketHandler):
                 self.send_response({'info': "Downloaded", 'status':'Downloaded'})
                 try:
                     #download finished - upzip the polygons shapefile
-                    self.send_response({'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'", 'status':'Updating WDPA'})
+                    self.send_response({'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'", 'status':'Preprocessing'})
                     rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE, False, "polygons") 
                 except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
                     #delete the zip file
                     os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
                     self.close({'error': e.args[0], 'info': 'WDPA not updated'})
                 else:
-                    self.send_response({'info': "Unzipped shapefile", 'status':'Updating WDPA'})
+                    self.send_response({'info': "Unzipped shapefile", 'status':'Preprocessing'})
                     #delete the zip file
                     os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
                     try:
                         #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
                         #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
                         feature_class_name = _getUniqueFeatureclassName("wdpa_")
-                        self.send_response({'info': "Importing '" + rootfilename + "' into PostGIS..", 'status': "Updating WDPA"})
+                        self.send_response({'info': "Importing '" + rootfilename + "' into PostGIS..", 'status': "Preprocessing"})
                         #import the wdpa to a tmp feature class
-                        await pg.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326", False, False)
-                        self.send_response({'info': "Imported into '" + feature_class_name + "'", 'status': "Updating WDPA"})
+                        await pg.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326", False)
+                        self.send_response({'info': "Imported into '" + feature_class_name + "'", 'status': "Preprocessing"})
                         #rename the existing wdpa feature class
                         await pg.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
-                        self.send_response({'info': "Renamed 'wdpa' to 'wdpa_old'", 'status': "Updating WDPA"})
+                        self.send_response({'info': "Renamed 'wdpa' to 'wdpa_old'", 'status': "Preprocessing"})
                         #rename the tmp feature class
                         await pg.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
-                        self.send_response({'info': "Renamed '" + feature_class_name + "' to 'wdpa'", 'status': "Updating WDPA"})
+                        self.send_response({'info': "Renamed '" + feature_class_name + "' to 'wdpa'", 'status': "Preprocessing"})
                         #drop the columns that are not needed
                         await pg.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso;")
-                        self.send_response({'info': "Removed unneccesary columns", 'status': "Updating WDPA"})
+                        self.send_response({'info': "Removed unneccesary columns", 'status': "Preprocessing"})
                         #delete the old wdpa feature class
                         await pg.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
-                        self.send_response({'info': "Deleted 'wdpa_old' table", 'status': "Updating WDPA"})
+                        self.send_response({'info': "Deleted 'wdpa_old' table", 'status': "Preprocessing"})
                         #delete all of the existing dissolved country wdpa feature classes
                         await pg.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
-                        self.send_response({'info': "Deleted dissolved country WDPAP feature classes", 'status': "Updating WDPA"})
+                        self.send_response({'info': "Deleted dissolved country WDPAP feature classes", 'status': "Preprocessing"})
                     except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
                         self.close({'error': 'No space left on device importing the WDPA into PostGIS', 'info': 'WDPA not updated'})
                     else: 
                         #update the WDPA_VERSION variable in the server.dat file
                         _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
                         #delete all of the existing intersections between planning units and the old version of the WDPA
-                        self.send_response({'info': 'Invalidating existing WDPA intersections', 'status': 'Updating WDPA'})
+                        self.send_response({'info': 'Invalidating existing WDPA intersections', 'status': 'Preprocessing'})
                         _invalidateProtectedAreaIntersections()
                         #send the response
                         self.close({'info': 'WDPA update completed succesfully'})
@@ -2761,8 +2760,10 @@ class importFeatures(MarxanWebSocketHandler):
                 #get a scratch name for the import
                 scratch_name = _getUniqueFeatureclassName("scratch_")
                 #import the shapefile into a PostGIS feature class in EPSG:4326
-                # self.send_response({'info': "Importing to '" + scratch_name + "'..", 'status':'CreatingFeature'})
                 await pg.importShapefile(shapefile, scratch_name, "EPSG:4326")
+                #check the geometry
+                self.send_response({'status':'Preprocessing', 'info': "Checking the geometry.."})
+                await pg.isValid(scratch_name)
                 #get the feature names 
                 if name: #single feature name
                     feature_names = [name]

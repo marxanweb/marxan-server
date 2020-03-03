@@ -2650,6 +2650,7 @@ class updateWDPA(MarxanWebSocketHandler):
         else:
             try:
                 #download the new wdpa zip
+                self.send_response({'info': "Downloading " + url, 'status':'Preprocessing'})
                 await self.asyncDownload(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
             except (MarxanServicesError) as e: #download failed
                 self.close({'error': e.args[0], 'info': 'WDPA not updated'})
@@ -2721,7 +2722,6 @@ class updateWDPA(MarxanWebSocketHandler):
                                         break
                                     f.write(chunk)   
                                     file_size_dl += len(chunk)
-                                    self.send_response({'info': "Downloading " + url, 'status':'Preprocessing', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
                         except Exception as e:
                             raise MarxanServicesError("Error getting a file: %s" % e)
                         finally:

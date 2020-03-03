@@ -2654,7 +2654,7 @@ class updateWDPA(MarxanWebSocketHandler):
             except (MarxanServicesError) as e: #download failed
                 self.close({'error': e.args[0], 'info': 'WDPA not updated'})
             else:
-                self.send_response({'info': "Downloaded", 'status':'Downloaded'})
+                self.send_response({'info': "Downloaded", 'status':'Preprocessing'})
                 try:
                     #download finished - upzip the polygons shapefile
                     self.send_response({'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'", 'status':'Preprocessing'})
@@ -2721,7 +2721,7 @@ class updateWDPA(MarxanWebSocketHandler):
                                         break
                                     f.write(chunk)   
                                     file_size_dl += len(chunk)
-                                    self.send_response({'info': "Downloading " + url, 'status':'Downloading', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
+                                    self.send_response({'info': "Downloading " + url, 'status':'Preprocessing', 'fileSize': file_size, 'fileSizeDownloaded': file_size_dl})
                         except Exception as e:
                             raise MarxanServicesError("Error getting a file: %s" % e)
                         finally:

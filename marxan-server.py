@@ -27,7 +27,7 @@ from osgeo import ogr
 
 ##SECURITY SETTINGS
 # Set to True to turn off all security, i.e. authentication and authorisation
-DISABLE_SECURITY = False
+DISABLE_SECURITY = True
 # REST services that have do not need authentication/authorisation/CORS, e.g. can be accessed straight from the url
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
@@ -2208,7 +2208,7 @@ class updatePUFile(MarxanRESTHandler):
         self.send_response({'info': "pu.dat file updated"})
 
 #returns a set of features for the planning unit id
-#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPUSpeciesList?user=admin&project=PNG&puid=36500&callback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPUSpeciesList?user=admin&project=Start%20project&puid=10561&callback=__jp2
 class getPUSpeciesList(MarxanRESTHandler):
     async def get(self):
         #validate the input arguments
@@ -2216,11 +2216,13 @@ class getPUSpeciesList(MarxanRESTHandler):
         #get the list as a set of IDs from the puvspr file
         df = await _getProjectInputData(self, "PUVSPRNAME")
         if not df.empty:
-            ids = df.loc[df['pu']==int(self.get_argument('puid'))]['species'].tolist()
+            rows = df.loc[df['pu']==int(self.get_argument('puid'))]
             #get the species data from the spec.dat file and the PostGIS database
             await _getSpeciesData(self)
-            #filter the species data by the ids
-            features = self.speciesData[self.speciesData.id.isin(ids)]
+            #rename the id field to species so we can join it to the puvspr data
+            self.speciesData = self.speciesData.rename(columns={"id": "species"})
+            #join the two dataframes 
+            features = rows.merge(self.speciesData)
             #set the response
             self.send_response({"info": 'Feature list returned', 'data': features.to_dict(orient="records")})
         else:
@@ -2770,10 +2772,10 @@ class importFeatures(MarxanWebSocketHandler):
                 else: #get the feature names from a field in the shapefile
                     splitfield = self.get_argument('splitfield')
                     features = await pg.query(sql.SQL("SELECT {splitfield} FROM marxan.{scratchTable}").format(splitfield=sql.Identifier(splitfield),scratchTable=sql.Identifier(scratch_name)), None, "DataFrame")
-                    feature_names = features[splitfield].tolist()
+                    feature_names = list(set(features[splitfield].tolist()))
                     #if they are not unique then return an error
-                    if (len(feature_names) != len(set(feature_names))):
-                        raise MarxanServicesError("Feature names are not unique for the field '" + splitfield + "'")
+                    # if (len(feature_names) != len(set(feature_names))):
+                    #     raise MarxanServicesError("Feature names are not unique for the field '" + splitfield + "'")
                 #split the imported feature class into separate feature classes
                 for feature_name in feature_names:
                     #create the new feature class
@@ -2783,7 +2785,7 @@ class importFeatures(MarxanWebSocketHandler):
                         description = self.get_argument('description')
                     else: #multiple feature names
                         feature_class_name = _getUniqueFeatureclassName("fs_")
-                        await pg.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable} WHERE species = %s;").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name)),[feature_name])
+                        await pg.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable} WHERE {splitField} = %s;").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name),splitField=sql.Identifier(splitfield)),[feature_name])
                         description = "Imported from shapefile '" + shapefile + "' and split by the '" + splitfield + "' field"
                     #finish the import by adding a record in the metadata table
                     id = await _finishImportingFeature(feature_class_name, feature_name, description, "Imported shapefile", self.get_current_user())

@@ -27,7 +27,7 @@ from osgeo import ogr
 
 ##SECURITY SETTINGS
 # Set to True to turn off all security, i.e. authentication and authorisation
-DISABLE_SECURITY = True
+DISABLE_SECURITY = False
 # REST services that have do not need authentication/authorisation/CORS, e.g. can be accessed straight from the url
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role

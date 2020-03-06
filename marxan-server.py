@@ -2207,7 +2207,7 @@ class updatePUFile(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "pu.dat file updated"})
 
-#returns a set of features for the planning unit id
+#returns data for a planning unit including a set of features if there are some
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPUData?user=admin&project=Start%20project&puid=10561&callback=__jp2
 class getPUData(MarxanRESTHandler):
     async def get(self):
@@ -2216,16 +2216,10 @@ class getPUData(MarxanRESTHandler):
         #get the planning unit data
         pu_df = await _getProjectInputData(self, "PUNAME")
         pu_data = pu_df.loc[pu_df['id']==int(self.get_argument('puid'))].iloc[0]
-        #get the list as a set of IDs from the puvspr file
+        #get a set of feature IDs from the puvspr file
         df = await _getProjectInputData(self, "PUVSPRNAME")
         if not df.empty:
-            rows = df.loc[df['pu']==int(self.get_argument('puid'))]
-            #get the species data from the spec.dat file and the PostGIS database
-            await _getSpeciesData(self)
-            #rename the id field to species so we can join it to the puvspr data
-            self.speciesData = self.speciesData.rename(columns={"id": "species"})
-            #join the two dataframes 
-            features = rows.merge(self.speciesData)
+            features = df.loc[df['pu']==int(self.get_argument('puid'))]
         else:
             features = []
         #set the response

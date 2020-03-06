@@ -2208,11 +2208,14 @@ class updatePUFile(MarxanRESTHandler):
         self.send_response({'info': "pu.dat file updated"})
 
 #returns a set of features for the planning unit id
-#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPUSpeciesList?user=admin&project=Start%20project&puid=10561&callback=__jp2
-class getPUSpeciesList(MarxanRESTHandler):
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPUData?user=admin&project=Start%20project&puid=10561&callback=__jp2
+class getPUData(MarxanRESTHandler):
     async def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project','puid'])   
+        #get the planning unit data
+        pu_df = await _getProjectInputData(self, "PUNAME")
+        pu_data = pu_df.loc[pu_df['id']==int(self.get_argument('puid'))].iloc[0]
         #get the list as a set of IDs from the puvspr file
         df = await _getProjectInputData(self, "PUVSPRNAME")
         if not df.empty:
@@ -2223,10 +2226,10 @@ class getPUSpeciesList(MarxanRESTHandler):
             self.speciesData = self.speciesData.rename(columns={"id": "species"})
             #join the two dataframes 
             features = rows.merge(self.speciesData)
-            #set the response
-            self.send_response({"info": 'Feature list returned', 'data': features.to_dict(orient="records")})
         else:
-            self.send_response({"info": 'No features returned', 'data': []})
+            features = []
+        #set the response
+        self.send_response({"info": 'Planning unit data returned', 'data': {'features':features.to_dict(orient="records"), 'pu_data': pu_data.to_dict()}})
 
 #used to populate the feature_preprocessing.dat file from an imported puvspr.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createFeaturePreprocessingFileFromImport?user=andrew&project=test&callback=__jp2
@@ -3194,7 +3197,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/getPlanningUnitsData", getPlanningUnitsData), #currently not used
             ("/marxan-server/getPlanningUnitsCostData", getPlanningUnitsCostData), 
             ("/marxan-server/updatePUFile", updatePUFile),
-            ("/marxan-server/getPUSpeciesList", getPUSpeciesList),
+            ("/marxan-server/getPUData", getPUData),
             ("/marxan-server/getSpeciesData", getSpeciesData), #currently not used
             ("/marxan-server/getAllSpeciesData", getAllSpeciesData), 
             ("/marxan-server/getSpeciesPreProcessingData", getSpeciesPreProcessingData), #currently not used

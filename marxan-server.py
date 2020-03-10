@@ -3101,7 +3101,7 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
             unitCount = await _estimatePlanningUnitCount(self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'))
             #see if the unit count is above the PLANNING_GRID_UNITS_LIMIT
             if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
-                self.close({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + ". See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
+                self.close({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + " (=" + str(int(unitCount)) + "). See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
             else:
                 results = await self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()])
                 #get the planning grid alias

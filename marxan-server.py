@@ -275,6 +275,10 @@ def _dismissNotification(obj, notificationid):
 def _resetNotifications(obj):
     _writeFileUnicode(obj.folder_user + NOTIFICATIONS_FILENAME, "")    
     
+#returns the project name without spaces or other invalid characters
+def _getSafeProjectName(project_name):
+    return project_name.replace(" ", "_")
+    
 #gets the projects for the specified user
 async def _getProjectsForUser(user):
     #get a list of folders underneath the users home folder
@@ -1873,7 +1877,7 @@ class resendPassword(MarxanRESTHandler):
         
 
 #gets a users information from the user folder
-#curl 'https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getUser?user=andrew&callback=__jp1' -H 'If-None-Match: "0798406453417c47c0b5ab5bd11d56a60fb4df7d"' -H 'Accept-Encoding: gzip, deflate, br' -H 'Accept-Language: en-US,en;q=0.9,fr;q=0.8' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36' -H 'Accept: */*' -H 'Referer: https://marxan-client-blishten.c9users.io/' -H 'Cookie: c9.live.user.jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJjb2RlIjoiOWNBUzdEQldsdWYwU2oyU01ZaEYiLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.yJ9mPz4bM7L3htL8vXVFMCcQpTO0pkRvhNHJP9WnJo8; c9.live.user.sso=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.ifW5qlkpC19iyMNBgZLtGZzxuMRyHKWldGg3He-__gI; role="2|1:0|10:1548151226|4:role|8:QWRtaW4=|d703b0f18c81cf22c85f41c536f99589ce11492925d85833e78d3d66f4d7fd62"; user="2|1:0|10:1548151226|4:user|8:YW5kcmV3|e5ed3b87979273b1b8d1b8983310280507941fe05fb665847e7dd5dacf36348d"' -H 'Connection: keep-alive' --compressed
+#curl 'https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getUser?user=andrew&callback=__jp1' -H 'If-None-Match: "0798406453417c47c0b5ab5bd11d56a60fb4df7d"' -H 'Accept-Encoding: gzip, deflate, br' -H 'Accept-Language: en-US,en;q=0.9,fr;q=0.8' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110Safari/537.36' -H 'Accept: */*' -H 'Referer: https://marxan-client-blishten.c9users.io/' -H 'Cookie: c9.live.user.jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJjb2RlIjoiOWNBUzdEQldsdWYwU2oyU01ZaEYiLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.yJ9mPz4bM7L3htL8vXVFMCcQpTO0pkRvhNHJP9WnJo8; c9.live.user.sso=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.ifW5qlkpC19iyMNBgZLtGZzxuMRyHKWldGg3He-__gI; role="2|1:0|10:1548151226|4:role|8:QWRtaW4=|d703b0f18c81cf22c85f41c536f99589ce11492925d85833e78d3d66f4d7fd62"; user="2|1:0|10:1548151226|4:user|8:YW5kcmV3|e5ed3b87979273b1b8d1b8983310280507941fe05fb665847e7dd5dacf36348d"' -H 'Connection: keep-alive' --compressed
 class getUser(MarxanRESTHandler):
     def get(self):
         #validate the input arguments
@@ -3130,7 +3134,9 @@ class runGapAnalysis(QueryWebSocketHandler):
             featureIds = df['id'].to_numpy().tolist()
             #get the planning grid name
             await _getProjectData(self)
-            results = await self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s)", [self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds])
+            #get a safe project name to use in the name of the table that will be produced
+            project_name = _getSafeProjectName(self.get_argument("project"))
+            results = await self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s,%s,%s)", [self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds, self.get_argument("user"), project_name])
             #get the results as a data frame
             df = pandas.DataFrame.from_records(results["records"], columns = results["columns"])
             self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})

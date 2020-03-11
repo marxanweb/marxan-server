@@ -2433,6 +2433,16 @@ class resetNotifications(MarxanRESTHandler):
         _resetNotifications(self)
         self.send_response({'info': "Notifications reset"})
 
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteGapAnalysis?user=admin&project=Start%20project
+class deleteGapAnalysis(MarxanRESTHandler):
+    async def get(self):
+        _validateArguments(self.request.arguments, ['user','project'])  
+        #delete the gap analysis
+        project_name = _getSafeProjectName(self.get_argument("project"))
+        table_name = "gap_" + self.get_argument("user") + "_" + project_name;
+        await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(table_name.lower())))
+        self.send_response({'info': "Gap analysis deleted"})
+
 #for testing role access to servivces            
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/testRoleAuthorisation&callback=__jp5
 class testRoleAuthorisation(MarxanRESTHandler):
@@ -3222,6 +3232,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/importGBIFData", importGBIFData),
             ("/marxan-server/dismissNotification", dismissNotification),
             ("/marxan-server/resetNotifications", resetNotifications),
+            ("/marxan-server/deleteGapAnalysis", deleteGapAnalysis),
             ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
             ("/marxan-server/testTornado", testTornado),
             ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server

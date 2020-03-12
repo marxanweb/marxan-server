@@ -65,10 +65,14 @@ rm Miniconda3-latest-Linux-x86_64.sh
 ```  
 
 ### Start marxan-server:
-
+If you are running marxan-server on port 80 (the default) then the root user has to start it:
 ```
-python marxan-server/marxan-server.py  
+sudo /home/<user>/miniconda3/bin/python /home/<user>/marxan-server/marxan-server.py  
+```  
+If you are running marxan-server on another port, you can start as the currently logged on user:
 ```
+python marxan-server/marxan-server.py
+```  
 
 ## Test the installation
 To test the installation goto: http://\<host\>:8080/marxan-server/testTornado.  

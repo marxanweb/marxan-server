@@ -37,7 +37,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "Admin": []
 }
 MARXAN_SERVER_VERSION = "v0.9.33"
-MARXAN_REGISTRY = "https://andrewcottam.github.io/marxan-web/registry/marxan.js"
+MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."

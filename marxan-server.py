@@ -2724,7 +2724,8 @@ class updateWDPA(MarxanWebSocketHandler):
         try:
             async with aiohttp.ClientSession() as session:
                 try:
-                    async with session.get(url) as resp:
+                    timeout = aiohttp.ClientTimeout(total=None)
+                    async with aiohttp.ClientSession(timeout=timeout) as session:
                         #get the file size
                         file_size = resp.headers["Content-Length"]
                         try:

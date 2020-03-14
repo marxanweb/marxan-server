@@ -2496,7 +2496,10 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         _authoriseUser(self)
         def sendPing():
             try:
-                self.send_response({"status":"WebSocketOpen"})
+                if (hasattr(self, 'ping_message')):
+                    self.send_response({"status":"Preprocessing","info": self.ping_message})
+                else:
+                    self.send_response({"status":"WebSocketOpen"})
             except WebSocketClosedError:
                 pass
         #start the web socket ping messages to keep the connection alive
@@ -2737,6 +2740,7 @@ class updateWDPA(MarxanWebSocketHandler):
                                             break
                                         f.write(chunk)   
                                         file_size_dl += len(chunk)
+                                        self.ping_message = str(int((file_size_dl/int(file_size))*100)) + "% downloaded"
                             except Exception as e:
                                 raise MarxanServicesError("Error getting a file: %s" % e)
                             finally:

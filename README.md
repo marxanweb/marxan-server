@@ -1,5 +1,5 @@
 # marxan-server
-Back end Marxan Server installation for running Marxan Web. See also [marxan-web](https://github.com/andrewcottam/marxan-web) and [marxan-client](https://github.com/andrewcottam/marxan-client).
+Back end Marxan Server installation for running Marxan Web. See also [marxan-client](https://github.com/marxanweb/marxan-client).
 
 ## Architecture
 The following image shows the high level architecture of marxan-server. 

@@ -2726,20 +2726,21 @@ class updateWDPA(MarxanWebSocketHandler):
                 try:
                     timeout = aiohttp.ClientTimeout(total=None)
                     async with aiohttp.ClientSession(timeout=timeout) as session:
-                        #get the file size
-                        file_size = resp.headers["Content-Length"]
-                        try:
-                            with open(file, 'wb') as f:
-                                while True:
-                                    chunk = await resp.content.read(100000000)
-                                    if not chunk:
-                                        break
-                                    f.write(chunk)   
-                                    file_size_dl += len(chunk)
-                        except Exception as e:
-                            raise MarxanServicesError("Error getting a file: %s" % e)
-                        finally:
-                            f.close()
+                        async with session.get(url) as resp:
+                            #get the file size
+                            file_size = resp.headers["Content-Length"]
+                            try:
+                                with open(file, 'wb') as f:
+                                    while True:
+                                        chunk = await resp.content.read(100000000)
+                                        if not chunk:
+                                            break
+                                        f.write(chunk)   
+                                        file_size_dl += len(chunk)
+                            except Exception as e:
+                                raise MarxanServicesError("Error getting a file: %s" % e)
+                            finally:
+                                f.close()
                 except Exception as e:
                     raise MarxanServicesError("Error getting the url: %s" % url)
         except (OSError) as e: # out of disk space probably

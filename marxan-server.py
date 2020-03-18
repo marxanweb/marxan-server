@@ -27,7 +27,7 @@ from osgeo import ogr
 
 ##SECURITY SETTINGS
 # Set to True to turn off all security, i.e. authentication and authorisation
-DISABLE_SECURITY = False
+DISABLE_SECURITY = True
 # REST services that have do not need authentication/authorisation
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
@@ -2449,12 +2449,16 @@ class testRoleAuthorisation(MarxanRESTHandler):
     def get(self):
         self.send_response({'info': "Service successful"})
 
-#shuts down the marxan-server and computer
+#shuts down the marxan-server and computer - currently only on Unix
 class shutdown(MarxanRESTHandler):
-    def get(self):
-        _validateArguments(self.request.arguments, ['delay'])  
-        self.send_response({'info': "Shutting down in " + self.get_argument("delay") + " minutes"})
-        os.system('sudo shutdown now')
+    async def get(self):
+        if platform.system() != "Windows":
+            _validateArguments(self.request.arguments, ['delay'])  
+            self.send_response({'info': "Shutting down in " + self.get_argument("delay") + " minutes"})
+            #wait for so many minutes
+            # await asyncio.sleep(int(self.get_argument("delay"))*60)
+            #shutdown
+            # os.system('sudo shutdown now')
         
 #tests tornado is working properly
 class testTornado(MarxanRESTHandler):

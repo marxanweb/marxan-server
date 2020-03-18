@@ -28,12 +28,12 @@ from osgeo import ogr
 ##SECURITY SETTINGS
 # Set to True to turn off all security, i.e. authentication and authorisation
 DISABLE_SECURITY = False
-# REST services that have do not need authentication/authorisation/CORS, e.g. can be accessed straight from the url
+# REST services that have do not need authentication/authorisation
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis"],
-    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA","toggleEnableGuestUser"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown"],
+    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown"],
     "Admin": []
 }
 MARXAN_SERVER_VERSION = "v0.9.33"
@@ -2449,6 +2449,13 @@ class testRoleAuthorisation(MarxanRESTHandler):
     def get(self):
         self.send_response({'info': "Service successful"})
 
+#shuts down the marxan-server and computer
+class shutdown(MarxanRESTHandler):
+    def get(self):
+        _validateArguments(self.request.arguments, ['delay'])  
+        self.send_response({'info': "Shutting down in " + self.get_argument("delay") + " minutes"})
+        os.system('sudo shutdown now')
+        
 #tests tornado is working properly
 class testTornado(MarxanRESTHandler):
     def get(self):
@@ -3240,6 +3247,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/resetNotifications", resetNotifications),
             ("/marxan-server/deleteGapAnalysis", deleteGapAnalysis),
             ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
+            ("/marxan-server/shutdown", shutdown),
             ("/marxan-server/testTornado", testTornado),
             ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
             (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder

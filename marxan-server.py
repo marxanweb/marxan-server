@@ -71,6 +71,7 @@ DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
 ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
 LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 SHUTDOWN_EVENT = tornado.locks.Event() #to allow Tornado to exit gracefully
+SHUTDOWN_OS_ON_STOP = False #set the true to turn off the os when marxan-server is stopped
 PING_INTERVAL = 30000 #interval between regular pings when using websockets
 
 ####################################################################################################################################################################################################################################################################
@@ -2472,10 +2473,10 @@ class shutdown(MarxanRESTHandler):
             #delete the shutdown file
             if (os.path.exists(MARXAN_FOLDER + SHUTDOWN_FILENAME)):
                 os.remove(MARXAN_FOLDER + SHUTDOWN_FILENAME)
+            #set a flag to turn off the OS when marxan-server stops
+            SHUTDOWN_OS_ON_STOP = True
             #stop marxan-server
             raise KeyboardInterrupt
-            #shutdown the os
-            os.system('sudo shutdown now')
         
 #tests tornado is working properly
 class testTornado(MarxanRESTHandler):
@@ -3307,6 +3308,9 @@ async def main():
         await SHUTDOWN_EVENT.wait()
         #close the database connection
         pg.pool.close()
+        #turn off the OS if needed
+        if SHUTDOWN_OS_ON_STOP:
+            os.system('sudo shutdown now')
         
 if __name__ == "__main__":
     try:

@@ -10,7 +10,7 @@ from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent 
-from datetime import timedelta
+from datetime import timedelta, timezone
 from sqlalchemy import create_engine
 from collections import OrderedDict
 from subprocess import Popen, PIPE, CalledProcessError
@@ -2464,8 +2464,8 @@ class shutdown(MarxanRESTHandler):
             minutes = int(self.get_argument("delay"))
             #this wont be sent until the await returns
             self.send_response({'info': "Shutting down"})
-            #write the shutdown file with the time in GMT in isoformat
-            _writeFileUnicode(MARXAN_FOLDER + SHUTDOWN_FILENAME, (datetime.datetime.utcnow() + timedelta(minutes/1440)).isoformat())
+            #write the shutdown file with the time in UTC isoformat
+            _writeFileUnicode(MARXAN_FOLDER + SHUTDOWN_FILENAME, (datetime.datetime.now(timezone.utc) + timedelta(minutes/1440)).isoformat())
             #wait for so many minutes
             await asyncio.sleep(minutes * 60)
             #delete the shutdown file

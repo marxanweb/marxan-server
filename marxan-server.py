@@ -2464,8 +2464,8 @@ class shutdown(MarxanRESTHandler):
             minutes = int(self.get_argument("delay"))
             #this wont be sent until the await returns
             self.send_response({'info': "Shutting down"})
-            #write the shutdown file with the time in GMT
-            _writeFileUnicode(MARXAN_FOLDER + SHUTDOWN_FILENAME, (datetime.datetime.utcnow() + timedelta(minutes/1440)).strftime("%d/%m/%y %H:%M:%S"))
+            #write the shutdown file with the time in GMT in isoformat
+            _writeFileUnicode(MARXAN_FOLDER + SHUTDOWN_FILENAME, (datetime.datetime.utcnow() + timedelta(minutes/1440)).isoformat())
             #wait for so many minutes
             await asyncio.sleep(minutes * 60)
             #delete the shutdown file

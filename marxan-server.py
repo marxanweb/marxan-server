@@ -2138,6 +2138,8 @@ class getServerData(MarxanRESTHandler):
         _getServerData(self)
         #get any shutdown timeouts if they have been set
         shutdownTime = _readFile(MARXAN_FOLDER + SHUTDOWN_FILENAME) if (os.path.exists(MARXAN_FOLDER + SHUTDOWN_FILENAME)) else None
+        if shutdownTime:
+            self.serverData.update({'SHUTDOWNTIME': shutdownTime})
         #delete sensitive information from the server config data
         del self.serverData['COOKIE_RANDOM_VALUE']
         del self.serverData['DATABASE_HOST']
@@ -2145,10 +2147,7 @@ class getServerData(MarxanRESTHandler):
         del self.serverData['DATABASE_PASSWORD']
         del self.serverData['DATABASE_USER']
         #set the response
-        if shutdownTime:
-            self.send_response({'info':'Server data loaded', 'serverData': self.serverData, 'shutdownTime': shutdownTime})
-        else:    
-            self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
+        self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
 
 #gets a list of projects for the user
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProjects?user=andrew&callback=__jp2

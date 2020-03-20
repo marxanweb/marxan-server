@@ -2475,7 +2475,7 @@ class shutdown(MarxanRESTHandler):
             #stop marxan-server
             raise KeyboardInterrupt
             #shutdown the os
-            # os.system('sudo shutdown now')
+            os.system('sudo shutdown now')
         
 #tests tornado is working properly
 class testTornado(MarxanRESTHandler):

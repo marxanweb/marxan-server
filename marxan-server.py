@@ -3310,6 +3310,7 @@ async def main():
         pg.pool.close()
         #turn off the OS if needed
         if SHUTDOWN_OS_ON_STOP:
+            print("\x1b[1;31;48mShutting down the OS at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n")
             os.system('sudo shutdown now')
         
 if __name__ == "__main__":

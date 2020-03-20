@@ -10,6 +10,7 @@ from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent 
+from datetime import timedelta
 from sqlalchemy import create_engine
 from collections import OrderedDict
 from subprocess import Popen, PIPE, CalledProcessError
@@ -27,7 +28,7 @@ from osgeo import ogr
 
 ##SECURITY SETTINGS
 # Set to True to turn off all security, i.e. authentication and authorisation
-DISABLE_SECURITY = False
+DISABLE_SECURITY = True
 # REST services that have do not need authentication/authorisation
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
@@ -36,7 +37,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.33"
+MARXAN_SERVER_VERSION = "v0.9.34"
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -57,6 +58,7 @@ SUMMED_SOLUTION_FILENAME = "output_ssoln"
 FEATURE_PREPROCESSING_FILENAME = "feature_preprocessing.dat"
 PROTECTED_AREA_INTERSECTIONS_FILENAME = "protected_area_intersections.dat"
 NOTIFICATIONS_FILENAME = "notifications.dat"
+SHUTDOWN_FILENAME = "shutdown.dat"
 SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
@@ -1640,7 +1642,7 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
 
 class methodNotFound(MarxanRESTHandler):
     def prepare(self):
-        raise tornado.web.HTTPError(501, "The method is not supported on this Marxan Server " + MARXAN_SERVER_VERSION) # return a 501 - Not implemented
+        raise tornado.web.HTTPError(501, "The method is not supported or the parameters are wrong on this Marxan Server " + MARXAN_SERVER_VERSION) # return a 501 - Not implemented
     
 #toggles whether the guest user is enabled or not on this server
 class toggleEnableGuestUser(MarxanRESTHandler):
@@ -2134,6 +2136,8 @@ class getServerData(MarxanRESTHandler):
     def get(self):
         #get the data from the server.dat file
         _getServerData(self)
+        #get any shutdown timeouts if they have been set
+        shutdownTime = _readFile(MARXAN_FOLDER + SHUTDOWN_FILENAME) if (os.path.exists(MARXAN_FOLDER + SHUTDOWN_FILENAME)) else None
         #delete sensitive information from the server config data
         del self.serverData['COOKIE_RANDOM_VALUE']
         del self.serverData['DATABASE_HOST']
@@ -2141,7 +2145,10 @@ class getServerData(MarxanRESTHandler):
         del self.serverData['DATABASE_PASSWORD']
         del self.serverData['DATABASE_USER']
         #set the response
-        self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
+        if shutdownTime:
+            self.send_response({'info':'Server data loaded', 'serverData': self.serverData, 'shutdownTime': shutdownTime})
+        else:    
+            self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
 
 #gets a list of projects for the user
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProjects?user=andrew&callback=__jp2
@@ -2449,16 +2456,26 @@ class testRoleAuthorisation(MarxanRESTHandler):
     def get(self):
         self.send_response({'info': "Service successful"})
 
-#shuts down the marxan-server and computer - currently only on Unix
+#shuts down the marxan-server and computer after a period of time - currently only on Unix
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/shutdown&callback=_wibble
 class shutdown(MarxanRESTHandler):
     async def get(self):
         if platform.system() != "Windows":
             _validateArguments(self.request.arguments, ['delay'])  
-            self.send_response({'info': "Shutting down in " + self.get_argument("delay") + " minutes"})
+            minutes = int(self.get_argument("delay"))
+            #this wont be sent until the await returns
+            self.send_response({'info': "Shutting down"})
+            #write the shutdown file
+            _writeFileUnicode(MARXAN_FOLDER + SHUTDOWN_FILENAME, (datetime.datetime.now() + timedelta(minutes/1440)).strftime("%d/%m/%y %H:%M:%S"))
             #wait for so many minutes
-            await asyncio.sleep(int(self.get_argument("delay"))*60)
-            #shutdown
-            os.system('sudo shutdown now')
+            await asyncio.sleep(minutes * 60)
+            #delete the shutdown file
+            if (os.path.exists(MARXAN_FOLDER + SHUTDOWN_FILENAME)):
+                os.remove(MARXAN_FOLDER + SHUTDOWN_FILENAME)
+            #stop marxan-server
+            raise KeyboardInterrupt
+            #shutdown the os
+            # os.system('sudo shutdown now')
         
 #tests tornado is working properly
 class testTornado(MarxanRESTHandler):
@@ -3312,6 +3329,7 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             pass    
         finally:
+            print("\x1b[1;31;48mShutting down marxan-server\x1b[0m\n")
             SHUTDOWN_EVENT.set()   
             
     except Exception as e:

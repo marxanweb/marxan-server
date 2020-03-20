@@ -179,7 +179,10 @@ def _setGlobalVariables():
     #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
-    GDAL_DATA_ENVIRONMENT_VARIABLE = os.environ['GDAL_DATA']
+    if ('GDAL_DATA' in os.environ.keys()):
+        GDAL_DATA_ENVIRONMENT_VARIABLE = os.environ['GDAL_DATA']
+    else:
+        GDAL_DATA_ENVIRONMENT_VARIABLE = "Not set"
     MARXAN_EXECUTABLE = MARXAN_FOLDER + marxan_executable
     MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources" + os.sep
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep

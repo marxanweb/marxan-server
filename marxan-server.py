@@ -3329,7 +3329,7 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             pass    
         finally:
-            print("\x1b[1;31;48mShutting down marxan-server\x1b[0m\n")
+            print("\x1b[1;31;48mShutting down marxan-server at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n")
             SHUTDOWN_EVENT.set()   
             
     except Exception as e:

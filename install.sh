@@ -1,23 +1,20 @@
-#currently not working
-### MINICONDA
-#download the miniconda installer
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./miniconda.sh
-#set execute permissions
-chmod +x ./miniconda.sh
+## MINICONDA
+download the miniconda installer
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh 
 #installs miniconda silently
-./miniconda.sh -b -p ./miniconda
-#add conda to current shell
-eval "$($PWD/miniconda/bin/conda shell.bash hook)"
-#initialise so we can use conda from bash - this will set environment variables for the current user and by default activate the base environment when they log in
-conda init
-#set the environment
-conda activate base
-#initialise conda for all users - this allows all users to use conda, but it doesnt by default activate the base environment when they log in
-sudo ln -s $PWD/miniconda/etc/profile.d/conda.sh /etc/profile.d/conda.sh
+bash ./Miniconda3-latest-Linux-x86_64.sh -b -p ./miniconda3
+#remove the installer
+rm ./Miniconda3-latest-Linux-x86_64.sh 
+#initialise so we can use conda from bash - this is for the current user 
+./miniconda3/bin/conda init bash
+#initialise so we can use conda from bash - this is for the root user 
+sudo -u root ./miniconda3/bin/conda init bash 
+#set the base environment
+./miniconda3/bin/conda activate base
 ### PYTHON PREREQUISITES
 #install the python prerequisites silently
-conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
-pip install mapbox aiopg aiohttp -q
+./miniconda3/bin/conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
+./miniconda3/bin/pip install mapbox aiopg aiohttp -q
 ### POSTGRESQL/POSTGIS
 #install postgresql/postgis
 sudo -i apt-get update  
@@ -35,8 +32,13 @@ sudo -u postgres psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0
 wget https://github.com/andrewcottam/marxan-server/releases/download/Beta2/dump.sql 
 #restore the database
 sudo -u postgres pg_restore ./dump.sql -d marxanserver
+#remove dump file
+rm ./dump.sql   
 #create the default server.dat file for the server configuration
 cp ./marxan-server/server.dat.default ./marxan-server/server.dat
-#clean up
-rm ./dump.sql   
-rm ./miniconda.sh
+
+#NOT TRIED YET
+# sudo group add conda_users
+# sudo chgrp -R conda_users ./miniconda3
+# sudo chmod 770 -R ./miniconda3
+# sudo adduser root conda_users

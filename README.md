@@ -13,68 +13,17 @@ In the folder where you want to install marxan-server, type the following:
 ```
 git clone https://github.com/andrewcottam/marxan-server.git
 ```
-
-### Install Python and dependencies
-Install miniconda (Enter yes at: Do you wish the installer to initialize Miniconda3 by running conda init? [yes|no] ?):  
+### Install marxan-server
 ```
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh  
-bash Miniconda3-latest-Linux-x86_64.sh  
-``` 
-Install dependencies (from a new shell):  
-```  
-conda install tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
-pip install mapbox aiopg aiohttp     
-```  
-
-### Install Postgresql/PostGIS
-marxan-server requires Postgresql version 10+ and PostGIS version 2.4+  
+bash marxan-server/install.sh
 ```
-sudo apt-get update  
-sudo apt-get install postgresql-10 postgis 
-sudo apt-get update  
-sudo -u postgres psql -c "CREATE EXTENSION postgis;"
-sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"
-```  
-
-### Create database  
-Download the database:  
-```
-wget https://github.com/andrewcottam/marxan-server/releases/download/Beta2/dump.sql
-```
-
-Import the data:
-```  
-sudo -u postgres psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPERUSER IN GROUP postgres;"
-sudo -u postgres psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0 ENCODING='UTF8';"
-sudo -u postgres pg_restore dump.sql -d marxanserver
-```
-
-### Create the server.dat file
-The server.dat.default file contains the default configuration information for your installation of marxan-server and must be copied to server.dat where you can customise it with your own organisations information (this customisation is optional - see [configuration](#configuration)). This file will not be overwritten when any future updates to the marxan-server repo are pulled from GitHub. 
-```
-cp marxan-server/server.dat.default marxan-server/server.dat
-```
-
-### Cleanup
-Remove the downloaded files  
-```
-rm dump.sql   
-rm Miniconda3-latest-Linux-x86_64.sh   
-```  
 
 ### Start marxan-server:
-If you are running marxan-server on port 80 (the default) then the root user has to start it:
-```
-sudo /home/<user>/miniconda3/bin/python /home/<user>/marxan-server/marxan-server.py  
-```
-If you are running marxan-server on another port, you can start it as the currently logged on user:
-```
-python marxan-server/marxan-server.py
-```  
-If you are running marxan-server as the root user, then you must set the GDAL_DATA environment variable:
+Login as root and start PostGIS and marxan-server
 ```
 sudo -i
-export GDAL_DATA=/home/<user>/miniconda3/share/gdal
+sudo service postgresql start
+screen -d -m /home/<user>/miniconda3/bin/python /home/<user>/marxan-server/marxan-server.py
 ```
 
 ## Test the installation
@@ -85,18 +34,18 @@ marxan-server can be configured to change various settings including linking to 
 
 ## Starting automatically
 
-You can also configure marxan-server to start automatically whenever the server is started. For example, on a Google Cloud Platform VM you can use a startup script (/home/a_cottam/startup.sh) like the following:
+You can also configure marxan-server to start automatically whenever the server is started. For example, on a Google Cloud Platform VM you can use a startup script (/home/<user>/marxan-server/startup.sh) like the following:
 
 ```
 #! /bin/bash
 sudo service postgresql start
-screen -d -m /home/a_cottam/miniconda3/bin/python /home/a_cottam/marxan-server/marxan-server.py
+screen -d -m /home/<user>/miniconda3/bin/python /home/<user>/marxan-server/marxan-server.py
 ```
 
 Then this can be added to the VM so that it is run when the server starts:
 
 ```
-gcloud compute instances add-metadata <instance> --metadata-from-file startup-script=/home/a_cottam/startup.sh
+gcloud compute instances add-metadata <instance> --metadata-from-file startup-script=/home/<user>/marxan-server/startup.sh
 ```
 
 ## Troubleshooting

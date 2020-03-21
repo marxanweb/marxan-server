@@ -13,9 +13,9 @@ sudo su -c "./miniconda3/bin/conda init bash"
 ./miniconda3/bin/pip install mapbox aiopg aiohttp -q
 ### POSTGRESQL/POSTGIS
 #install postgresql/postgis
-sudo -i apt-get update  
-sudo -i apt-get install postgresql-10 postgis -y
-sudo -i apt-get update  
+sudo apt-get update  
+sudo apt-get install postgresql-10 postgis -y
+sudo apt-get update  
 #create the postgis extensions
 sudo -u postgres psql -c "CREATE EXTENSION postgis;"
 sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"
@@ -33,4 +33,4 @@ rm ./dump.sql
 #create the default server.dat file for the server configuration
 cp ./marxan-server/server.dat.default ./marxan-server/server.dat
 
-echo "Installed. Start a new shell and run 'bash marxan-server/startup.sh'"
+echo "Installed. Run: 'sudo bash marxan-server/startup.sh'"

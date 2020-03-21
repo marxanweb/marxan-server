@@ -34,7 +34,7 @@ marxan-server can be configured to change various settings including linking to 
 
 ## Starting automatically
 
-You can also configure marxan-server to start automatically whenever the server is started. For example, on a Google Cloud Platform VM you can use the startup script (/home/<user>/marxan-server/startup.sh) like the following (replace <user> with your logged in user name):
+You can also configure marxan-server to start automatically whenever the server is started. For example, on a Google Cloud Platform VM you can use the startup script (/home/\<user\>/marxan-server/startup.sh) like the following (replace <user> with your logged in user name):
 
 ```
 #! /bin/bash

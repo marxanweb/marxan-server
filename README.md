@@ -8,12 +8,12 @@ The following image shows the high level architecture of marxan-server.
 ## Installation
 The following installation was testing on Ubuntu 18.04.     
 
-### Clone the repo  
+### Clone the repo:  
 In the folder where you want to install marxan-server, type the following:
 ```
 git clone https://github.com/andrewcottam/marxan-server.git
 ```
-### Install marxan-server
+### Install marxan-server:
 ```
 bash marxan-server/install.sh
 ```

@@ -19,9 +19,7 @@ Install miniconda (Enter yes at: Do you wish the installer to initialize Minicon
 ```
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh  
 bash Miniconda3-latest-Linux-x86_64.sh  
-```  
-Enter yes at the prompt Do you wish the installer to initialize Miniconda3 by running conda init?  
-
+``` 
 Install dependencies (from a new shell):  
 ```  
 conda install tornado psycopg2 pandas gdal colorama psutil sqlalchemy    

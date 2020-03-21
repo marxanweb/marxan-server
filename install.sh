@@ -33,4 +33,4 @@ rm ./dump.sql
 #create the default server.dat file for the server configuration
 cp ./marxan-server/server.dat.default ./marxan-server/server.dat
 
-echo "Installed. Run: 'sudo bash marxan-server/startup.sh'"
+echo "Installed."

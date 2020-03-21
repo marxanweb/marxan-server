@@ -7,8 +7,6 @@ bash ./Miniconda3-latest-Linux-x86_64.sh -b -p ./miniconda3
 rm ./Miniconda3-latest-Linux-x86_64.sh 
 #initialise so we can use conda from bash (this is for the root user)
 sudo su -c "./miniconda3/bin/conda init bash"
-#set the base environment
-./miniconda3/bin/conda activate base
 ### PYTHON PREREQUISITES
 #install the python prerequisites silently
 ./miniconda3/bin/conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
@@ -35,8 +33,4 @@ rm ./dump.sql
 #create the default server.dat file for the server configuration
 cp ./marxan-server/server.dat.default ./marxan-server/server.dat
 
-#NOT TRIED YET
-# sudo group add conda_users
-# sudo chgrp -R conda_users ./miniconda3
-# sudo chmod 770 -R ./miniconda3
-# sudo adduser root conda_users
+echo "Installed. Start a new shell and run 'bash marxan-server/startup.sh'"

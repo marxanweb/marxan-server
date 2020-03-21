@@ -1,3 +1,2 @@
 sudo service postgresql start
-conda activate base
-screen -d -m python ./marxan-server.py
+screen -d -m python /home/a_cottam/marxan-server/marxan-server.py 

@@ -6,7 +6,7 @@ bash ./Miniconda3-latest-Linux-x86_64.sh -b -p ./miniconda3
 #remove the installer
 rm ./Miniconda3-latest-Linux-x86_64.sh 
 #initialise so we can use conda from bash (this is for the root user)
-sudo su -c "/home/a_cottam/miniconda3/bin/conda init bash"
+sudo su -c "./miniconda3/bin/conda init bash"
 #set the base environment
 ./miniconda3/bin/conda activate base
 ### PYTHON PREREQUISITES

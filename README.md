@@ -33,15 +33,14 @@ marxan-server can be configured to change various settings including linking to 
 
 ## Starting automatically
 
-You can also configure marxan-server to start automatically whenever the server is started. For example, on a Google Cloud Platform VM you can use the startup script (/home/\<user\>/marxan-server/startup.sh) like the following (replace \<user\> with your logged in user name):
+You can also configure marxan-server to start automatically whenever the server is started. For example, on a Google Cloud Platform VM you can use the startup script (/marxan-server/startup.sh) like the following (replace \<user\> with your logged in user name):
 
 ```
-#! /bin/bash
-sudo service postgresql start
+/home/<user>/miniconda3/bin/conda activate base
 screen -d -m /home/<user>/miniconda3/bin/python /home/<user>/marxan-server/marxan-server.py
 ```
 
-Then this can thenbe added to the VM so that it is run when the server starts:
+Then this can then be added to the VM so that it is run when the server starts:
 
 ```
 gcloud compute instances add-metadata <instance> --metadata-from-file startup-script=/home/<user>/marxan-server/startup.sh

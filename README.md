@@ -38,7 +38,7 @@ You can also configure marxan-server to start automatically whenever the server 
 ```
 #!/bin/bash -i
 ${CONDA_EXE} activate base
-screen -d -m ${CONDA_PYTHON_EXE} /home/a_cottam/marxan-server/marxan-server.py
+screen -d -m ${CONDA_PYTHON_EXE} /home/<user>/marxan-server/marxan-server.py
 ```
 
 Then this can then be added to the VM so that it is run when the server starts:

@@ -36,8 +36,9 @@ marxan-server can be configured to change various settings including linking to 
 You can also configure marxan-server to start automatically whenever the server is started. For example, on a Google Cloud Platform VM you can use the startup script (/marxan-server/startup.sh) like the following (replace \<user\> with your logged in user name):
 
 ```
-/home/<user>/miniconda3/bin/conda activate base
-screen -d -m /home/<user>/miniconda3/bin/python /home/<user>/marxan-server/marxan-server.py
+#!/bin/bash -i
+${CONDA_EXE} activate base
+screen -d -m ${CONDA_PYTHON_EXE} /home/a_cottam/marxan-server/marxan-server.py
 ```
 
 Then this can then be added to the VM so that it is run when the server starts:

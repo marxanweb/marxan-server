@@ -15,7 +15,7 @@ git clone https://github.com/marxanweb/marxan-server.git
 ```
 ### Install marxan-server:
 ```
-bash marxan-server/install.sh
+marxan-server/install.sh
 ```
 
 ### Start marxan-server:

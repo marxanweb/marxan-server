@@ -11,7 +11,7 @@ The following installation was testing on Ubuntu 18.04.
 ### Clone the repo:  
 In the folder where you want to install marxan-server, type the following:
 ```
-git clone https://github.com/andrewcottam/marxan-server.git
+git clone https://github.com/marxanweb/marxan-server.git
 ```
 ### Install marxan-server:
 ```

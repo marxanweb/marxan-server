@@ -7,6 +7,8 @@ bash ./Miniconda3-latest-Linux-x86_64.sh -b -p ./miniconda3
 rm ./Miniconda3-latest-Linux-x86_64.sh 
 #initialise so we can use conda from bash (this is for the root user)
 sudo su -c "./miniconda3/bin/conda init bash"
+#and current user
+./miniconda3/bin/conda init bash
 ### PYTHON PREREQUISITES
 #install the python prerequisites silently
 ./miniconda3/bin/conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    

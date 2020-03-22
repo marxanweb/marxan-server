@@ -26,7 +26,7 @@ python /home/<user>/marxan-server/marxan-server.py
 ```
 
 ## Test the installation
-To test the installation goto: http://\<host\>:\<port\>/marxan-server/testTornado.  
+To test the installation goto: http://\<host\>\>/marxan-server/testTornado.  
   
 ## Configuration  
 marxan-server can be configured to change various settings including linking to an existing database, configuring security etc. For more information see the [Administrator Guide - Configuration](https://andrewcottam.github.io/marxan-web/documentation/docs_admin.html#configuration).  

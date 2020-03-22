@@ -137,6 +137,16 @@ def _setGlobalVariables():
     COOKIE_RANDOM_VALUE = _getDictValue(serverData,'COOKIE_RANDOM_VALUE')
     PERMITTED_DOMAINS = _getDictValue(serverData,'PERMITTED_DOMAINS').split(",")
     PLANNING_GRID_UNITS_LIMIT = int(_getDictValue(serverData,'PLANNING_GRID_UNITS_LIMIT'))
+    #get the GDAL_DATA environment variable
+    if ('GDAL_DATA' in os.environ.keys()):
+        GDAL_DATA_ENVIRONMENT_VARIABLE = os.environ['GDAL_DATA']
+    else:
+        GDAL_DATA_ENVIRONMENT_VARIABLE = "Not set"
+    #get the name of the current conda environment
+    if ('CONDA_DEFAULT_ENV' in os.environ.keys()):
+        CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE = os.environ['CONDA_DEFAULT_ENV']
+    else:
+        CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE = "Not set"
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
     print("\x1b[1;32;48m\nStarting marxan-server " + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..\x1b[0m")
     #print out which operating system is being used
@@ -158,6 +168,7 @@ def _setGlobalVariables():
     print(" PostGIS:\t\t" + DATABASE_VERSION_POSTGIS)
     print(" WDPA Version:\t\t" + _getDictValue(serverData,'WDPA_VERSION'))
     print(" Planning grid limit:\t" + str(PLANNING_GRID_UNITS_LIMIT))
+    print(" Conda environment:\t" + CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE)
     print(" Python executable:\t" + sys.executable)
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
@@ -180,24 +191,13 @@ def _setGlobalVariables():
     #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
-    #get the GDAL_DATA environment variable
-    if ('GDAL_DATA' in os.environ.keys()):
-        GDAL_DATA_ENVIRONMENT_VARIABLE = os.environ['GDAL_DATA']
-    else:
-        GDAL_DATA_ENVIRONMENT_VARIABLE = "Not set"
-    #get the name of the current conda environment
-    if ('CONDA_DEFAULT_ENV' in os.environ.keys()):
-        CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE = os.environ['CONDA_DEFAULT_ENV']
-    else:
-        CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE = "Not set"
     MARXAN_EXECUTABLE = MARXAN_FOLDER + marxan_executable
     MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources" + os.sep
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
     CASE_STUDY_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "British Columbia Marine Case Study" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
-    print(" Marxan executable:\t" + MARXAN_EXECUTABLE)
     print(" GDAL_DATA path:\t" + GDAL_DATA_ENVIRONMENT_VARIABLE)
-    print(" Conda environment:\t" + CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE)
+    print(" Marxan executable:\t" + MARXAN_EXECUTABLE)
     print("\x1b[1;32;48mStarted at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m")
     print("\x1b[1;32;48m\nTo test marxan-server goto " + testUrl + "\x1b[0m")
     print(stopCmd)

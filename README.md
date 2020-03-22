@@ -19,11 +19,10 @@ bash marxan-server/install.sh
 ```
 
 ### Start marxan-server:
-Login as root and start PostGIS and marxan-server
+Login as root and start marxan-server (replace \<user\> with your username):
 ```
 sudo -i
-sudo service postgresql start
-screen -d -m /home/<user>/miniconda3/bin/python /home/<user>/marxan-server/marxan-server.py
+python /home/<user>/marxan-server/marxan-server.py
 ```
 
 ## Test the installation

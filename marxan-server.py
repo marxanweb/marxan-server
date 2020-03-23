@@ -1,5 +1,5 @@
 #!/home/ubuntu/miniconda2/envs/python36/bin/python3.6 
-import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp
+import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp, monkeypatch
 from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
 from tornado.process import Subprocess
@@ -1867,9 +1867,9 @@ class validateUser(MarxanRESTHandler):
         #compare the passed password to the one in the user.dat file
         if self.get_argument("password") == self.userData["PASSWORD"]:
             #set a response cookie for the authenticated user
-            self.set_secure_cookie("user", self.get_argument("user"), httponly = True) 
+            self.set_secure_cookie("user", self.get_argument("user"), httponly = True, samesite = None, secure = True) 
             #set a response cookie for the authenticated users role
-            self.set_secure_cookie("role", self.userData["ROLE"], httponly = True)
+            self.set_secure_cookie("role", self.userData["ROLE"], httponly = True, samesite = None, secure = True)
             #set the response
             self.send_response({'info': "User " + self.user + " validated"})
         else:

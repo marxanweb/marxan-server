@@ -798,6 +798,7 @@ def _copyDirectory(src, dest):
         
 #creates a new parameter in the *.dat file, either user (user.dat) or project (project.dat), by iterating through all the files and adding the key/value if it doesnt already exist
 def _addParameter(_type, key, value):
+    results = []
     if (_type == 'user'):
         #get all of the user.dat files on the server
         _files = glob.glob(MARXAN_USERS_FOLDER  + os.sep + "*"  + os.sep + "user.dat")
@@ -815,9 +816,10 @@ def _addParameter(_type, key, value):
             #add the key
             s = s + key + " " + value + "\n"
             _writeFileUnicode(file, s)
-            print("Key '" + key + "' added to " + file)
+            results.append("Key '" + key + "' added to " + file)
         else:
-            print("Key '" + key + "' already exists in file " + file)
+            results.append("Key '" + key + "' already exists in file " + file)
+        return results
             
 #updates the parameters in the *.dat file with the new parameters passed as a dict
 def _updateParameters(data_file, newParams):
@@ -2290,9 +2292,9 @@ class addParameter(MarxanRESTHandler):
         #validate the input arguments - the type parameter is one of {'user','project'}
         _validateArguments(self.request.arguments, ['type','key','value'])
         #add the parameter
-        _addParameter(self.get_argument('type'), self.get_argument('key'), self.get_argument('value'))
+        results = _addParameter(self.get_argument('type'), self.get_argument('key'), self.get_argument('value'))
         #set the response
-        self.send_response({'info': "Parameter added"})
+        self.send_response({'info': results})
 
 #updates parameters in the users user.dat file       
 #POST ONLY

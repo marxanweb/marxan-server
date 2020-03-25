@@ -817,10 +817,10 @@ def _addParameter(_type, key, value):
             s = s + key + " " + value + "\n"
             _writeFileUnicode(file, s)
             print("Key '" + key + "' added to " + file)
-            results.append("Key '" + key + "' added to " + file)
+            results.append("Key " + key + " added to " + file)
         else:
             print("Key '" + key + "' already exists in file " + file)
-            results.append("Key '" + key + "' already exists in file " + file)
+            results.append("Key " + key + " already exists in file " + file)
     return results
             
 #updates the parameters in the *.dat file with the new parameters passed as a dict

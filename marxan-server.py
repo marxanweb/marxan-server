@@ -28,13 +28,13 @@ from osgeo import ogr
 
 ##SECURITY SETTINGS
 # Set to True to turn off all security, i.e. authentication and authorisation
-DISABLE_SECURITY = False
+DISABLE_SECURITY = True
 # REST services that have do not need authentication/authorisation
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown"],
-    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter"],
+    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter"],
     "Admin": []
 }
 MARXAN_SERVER_VERSION = "v0.9.34"
@@ -796,6 +796,29 @@ def _copyDirectory(src, dest):
     except OSError as e:
         raise MarxanServicesError('Directory not copied. Error: %s' % e)
         
+#creates a new parameter in the *.dat file, either user (user.dat) or project (project.dat), by iterating through all the files and adding the key/value if it doesnt already exist
+def _addParameter(_type, key, value):
+    if (_type == 'user'):
+        #get all of the user.dat files on the server
+        _files = glob.glob(MARXAN_USERS_FOLDER  + os.sep + "*"  + os.sep + "user.dat")
+    else:
+        #get all of the input.dat files on the server
+        _files = glob.glob(MARXAN_USERS_FOLDER  + os.sep + "*"  + os.sep  + "*"  + os.sep + "input.dat")
+    #iterate through the files and add the keys if necessary
+    for file in _files:
+        #get the file contents
+        s = _readFile(file)
+        #get the existing keys
+        keys = _getKeys(s)
+        #if not present
+        if not (key in keys):
+            #add the key
+            s = s + key + " " + value + "\n"
+            _writeFileUnicode(file, s)
+            print("Key '" + key + "' added to " + file)
+        else:
+            print("Key '" + key + "' already exists in file " + file)
+            
 #updates the parameters in the *.dat file with the new parameters passed as a dict
 def _updateParameters(data_file, newParams):
     if newParams:
@@ -2260,6 +2283,17 @@ class createFeaturePreprocessingFileFromImport(MarxanRESTHandler): #not currentl
         #set the response
         self.send_response({'info': "feature_preprocessing.dat file populated"})
 
+#creates a new parameter in the *.dat file, either user (user.dat) or project (project.dat), by iterating through all the files and adding the key/value if it doesnt already exist
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/addParameter?type=user&key=REPORTUNITS&value=Hacallback=__jp2
+class addParameter(MarxanRESTHandler):
+    def get(self):
+        #validate the input arguments - the type parameter is one of {'user','project'}
+        _validateArguments(self.request.arguments, ['type','key','value'])
+        #add the parameter
+        _addParameter(self.get_argument('type'), self.get_argument('key'), self.get_argument('value'))
+        #set the response
+        self.send_response({'info': "Parameter added"})
+
 #updates parameters in the users user.dat file       
 #POST ONLY
 class updateUserParameters(MarxanRESTHandler):
@@ -3281,6 +3315,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/resetNotifications", resetNotifications),
             ("/marxan-server/deleteGapAnalysis", deleteGapAnalysis),
             ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
+            ("/marxan-server/addParameter", addParameter),
             ("/marxan-server/shutdown", shutdown),
             ("/marxan-server/testTornado", testTornado),
             ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server

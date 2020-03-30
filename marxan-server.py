@@ -1034,14 +1034,17 @@ def _tilesetExists(tilesetid):
         return True
 
 #starts an upload job to mapbox from the passed feature class and returns the uploadid        
-def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
+async def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     if (_tilesetExists(feature_class_name)):
         return "0"
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
     cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -t_srs EPSG:3857'
     logging.debug(cmd)
     try:
-        subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+        #run the export
+        process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT)
+        #await the results
+        result = await process.wait()
     #catch any unforeseen circumstances
     except CalledProcessError as e:
         raise MarxanServicesError("Error exporting shapefile. " + e.output.decode("utf-8"))
@@ -2349,10 +2352,10 @@ class listProjectsForPlanningGrid(MarxanRESTHandler):
 #uploads a feature class with the passed feature class name to MapBox as a tileset using the MapBox Uploads API
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/uploadTilesetToMapBox?feature_class_name=pu_ton_marine_hexagon_20&mapbox_layer_name=hexagon&callback=__jp9
 class uploadTilesetToMapBox(MarxanRESTHandler):
-    def get(self):
+    async def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['feature_class_name','mapbox_layer_name'])  
-        uploadId = _uploadTilesetToMapbox(self.get_argument('feature_class_name'),self.get_argument('mapbox_layer_name'))
+        uploadId = await _uploadTilesetToMapbox(self.get_argument('feature_class_name'),self.get_argument('mapbox_layer_name'))
         #set the response for uploading to mapbox
         self.send_response({'info': "Tileset '" + self.get_argument('feature_class_name') + "' uploading",'uploadid': uploadId})
             
@@ -2433,7 +2436,7 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         #add an index and a record in the metadata_interest_features table
         id = await _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Drawn on screen", self.get_current_user())
         #start the upload to mapbox
-        uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+        uploadId = await _uploadTilesetToMapbox(feature_class_name, feature_class_name)
         #set the response
         self.send_response({'info': "Feature '" + self.get_argument('name') + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
         
@@ -2893,7 +2896,7 @@ class importFeatures(MarxanWebSocketHandler):
                     #finish the import by adding a record in the metadata table
                     id = await _finishImportingFeature(feature_class_name, feature_name, description, "Imported shapefile", self.get_current_user())
                     #upload the feature class to Mapbox
-                    uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+                    uploadId = await _uploadTilesetToMapbox(feature_class_name, feature_class_name)
                     #append the uploadId to the uploadIds array
                     uploadIds.append(uploadId)
                     self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
@@ -2938,7 +2941,7 @@ class importGBIFData(MarxanWebSocketHandler):
                     #finish the import by adding a record in the metadata table
                     id = await _finishImportingFeature(feature_class_name, feature_name, description, "Imported from GBIF", self.get_current_user())
                     #upload the feature class to Mapbox
-                    uploadId = _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+                    uploadId = await _uploadTilesetToMapbox(feature_class_name, feature_class_name)
                     self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
                     #complete
                     self.close({'info': "Features imported", 'uploadId':uploadId})
@@ -3217,7 +3220,7 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
                 #create a primary key so the feature class can be used in ArcGIS
                 await pg.createPrimaryKey(fc, "puid")    
                 #start the upload to Mapbox
-                uploadId = _uploadTilesetToMapbox(fc, fc)
+                uploadId = await _uploadTilesetToMapbox(fc, fc)
                 #set the response
                 self.close({'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId})
 

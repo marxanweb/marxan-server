@@ -1042,9 +1042,13 @@ async def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     logging.debug(cmd)
     try:
         #run the export
-        process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT)
-        #await the results
-        result = await process.wait()
+        if platform.system() != "Windows":
+            process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT) # asynchronous on unix
+            #await the results
+            result = await process.wait()
+        else:
+            #run the import using the python subprocess module 
+            subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT) # synchronous on windows
     #catch any unforeseen circumstances
     except CalledProcessError as e:
         raise MarxanServicesError("Error exporting shapefile. " + e.output.decode("utf-8"))

@@ -148,28 +148,28 @@ def _setGlobalVariables():
     else:
         CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE = "Not set"
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
-    print("\x1b[1;32;48m\nStarting marxan-server " + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..\x1b[0m")
+    log("\x1b[1;32;48m\nStarting marxan-server " + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..\x1b[0m")
     #print out which operating system is being used
-    print(" Operating system:\t" + platform.system()) 
-    print(" Tornado version:\t" + tornado.version)
-    print(" Permitted domains:\t" + _getDictValue(serverData,'PERMITTED_DOMAINS')) 
+    log(" Operating system:\t" + platform.system()) 
+    log(" Tornado version:\t" + tornado.version)
+    log(" Permitted domains:\t" + _getDictValue(serverData,'PERMITTED_DOMAINS')) 
     #output the ssl information if it is being used
     if CERTFILE != "None":
-        print(" SSL certificate file:\t" + CERTFILE)
+        log(" SSL certificate file:\t" + CERTFILE)
         testUrl = "https://"
     else:
-        print(" SSL certificate file:\tNone")
+        log(" SSL certificate file:\tNone")
         testUrl = "http://"
     testUrl = testUrl + "<host>:" + PORT + "/marxan-server/testTornado" if (PORT != '80') else testUrl + "<host>/marxan-server/testTornado"
     if KEYFILE != "None":
-        print(" Private key file:\t" + KEYFILE)
-    print(" Database:\t\t" + CONNECTION_STRING)
-    print(" PostgreSQL:\t\t" + DATABASE_VERSION_POSTGRESQL)
-    print(" PostGIS:\t\t" + DATABASE_VERSION_POSTGIS)
-    print(" WDPA Version:\t\t" + _getDictValue(serverData,'WDPA_VERSION'))
-    print(" Planning grid limit:\t" + str(PLANNING_GRID_UNITS_LIMIT))
-    print(" Conda environment:\t" + CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE)
-    print(" Python executable:\t" + sys.executable)
+        log(" Private key file:\t" + KEYFILE)
+    log(" Database:\t\t" + CONNECTION_STRING)
+    log(" PostgreSQL:\t\t" + DATABASE_VERSION_POSTGRESQL)
+    log(" PostGIS:\t\t" + DATABASE_VERSION_POSTGIS)
+    log(" WDPA Version:\t\t" + _getDictValue(serverData,'WDPA_VERSION'))
+    log(" Planning grid limit:\t" + str(PLANNING_GRID_UNITS_LIMIT))
+    log(" Conda environment:\t" + CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE)
+    log(" Python executable:\t" + sys.executable)
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
         ogr2ogr_executable = "ogr2ogr.exe"
@@ -187,7 +187,7 @@ def _setGlobalVariables():
     if not os.path.exists(OGR2OGR_EXECUTABLE):
         raise MarxanServicesError(" ogr2ogr executable:\t'" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the marxan-server.py file.")
     else:
-        print(" ogr2ogr executable:\t" + OGR2OGR_EXECUTABLE)
+        log(" ogr2ogr executable:\t" + OGR2OGR_EXECUTABLE)
     #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
@@ -196,11 +196,11 @@ def _setGlobalVariables():
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
     CASE_STUDY_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "British Columbia Marine Case Study" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
-    print(" GDAL_DATA path:\t" + GDAL_DATA_ENVIRONMENT_VARIABLE)
-    print(" Marxan executable:\t" + MARXAN_EXECUTABLE)
-    print("\x1b[1;32;48mStarted at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m")
-    print("\x1b[1;32;48m\nTo test marxan-server goto " + testUrl + "\x1b[0m")
-    print(stopCmd)
+    log(" GDAL_DATA path:\t" + GDAL_DATA_ENVIRONMENT_VARIABLE)
+    log(" Marxan executable:\t" + MARXAN_EXECUTABLE)
+    log("\x1b[1;32;48mStarted at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m")
+    log("\x1b[1;32;48m\nTo test marxan-server goto " + testUrl + "\x1b[0m")
+    log(stopCmd)
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-CLIENT SOFTWARE IF PRESENT
@@ -211,12 +211,16 @@ def _setGlobalVariables():
         f = open(packageJson)
         MARXAN_CLIENT_VERSION = json.load(f)['version']
         f.close()
-        print("\x1b[1;32;48mmarxan-client " + MARXAN_CLIENT_VERSION + " installed\x1b[0m")
+        log("\x1b[1;32;48mmarxan-client " + MARXAN_CLIENT_VERSION + " installed\x1b[0m")
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
-        print("\x1b[1;32;48mmarxan-client is not installed\x1b[0m\n")
+        log("\x1b[1;32;48mmarxan-client is not installed\x1b[0m\n")
         
+#logs the string to the console
+def log(str):
+    print(str)
+    
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
     pos = path.rfind("/")
@@ -816,10 +820,10 @@ def _addParameter(_type, key, value):
             #add the key
             s = s + key + " " + value + "\n"
             _writeFileUnicode(file, s)
-            print("Key '" + key + "' added to " + file)
+            log("Key '" + key + "' added to " + file)
             results.append("Key " + key + " added to " + file)
         else:
-            print("Key '" + key + "' already exists in file " + file)
+            log("Key '" + key + "' already exists in file " + file)
             results.append("Key " + key + " already exists in file " + file)
     return results
             
@@ -2689,7 +2693,7 @@ class runMarxan(MarxanWebSocketHandler):
                     line = await self.marxanProcess.stdout.read_bytes(1024, partial=True)
                     self.send_response({'info':line.decode("utf-8"), 'status': 'RunningMarxan','pid': 'm' + str(self.marxanProcess.pid)})
             except (WebSocketClosedError):
-                print("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
+                log("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):                
                 pass
         else:
@@ -2706,12 +2710,12 @@ class runMarxan(MarxanWebSocketHandler):
                         # break
 
             except (BufferError):
-                print("BufferError")
+                log("BufferError")
                 pass
             except (WebSocketClosedError):
-                print("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
+                log("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):  
-                print("StreamClosedError")
+                log("StreamClosedError")
                 pass
 
     #writes the details of the started marxan job to the RUN_LOG_FILENAME file as a single line
@@ -2748,7 +2752,7 @@ class runMarxan(MarxanWebSocketHandler):
                 self.close({'info': 'Run completed', 'project': self.project, 'user': self.user})
 
         except (WebSocketClosedError): #the websocket may already have been closed
-            print("The WebSocket was closed in finishOutput - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
+            log("The WebSocket was closed in finishOutput - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
 
 #updates the WDPA table in PostGIS using the publically available downloadUrl
 class updateWDPA(MarxanWebSocketHandler):
@@ -2995,7 +2999,7 @@ class importGBIFData(MarxanWebSocketHandler):
                     #fetch the url
                     await fetch_url(url)
                 except Exception as e:
-                    print("Exception: %s %s" % (e, url))
+                    log("Exception: %s %s" % (e, url))
                     dead.add(url)
                 finally:
                     q.task_done()
@@ -3046,7 +3050,7 @@ class importGBIFData(MarxanWebSocketHandler):
             results = json.loads(resp.read())
             return results['results']
         except (Exception) as e:
-            print (e.args[0])
+            log(e.args[0])
 
     def getCommonName(self, vernacularNames, language = 'eng'):
         commonNames = [i['vernacularName'] for i in vernacularNames if i['language'] == language]
@@ -3361,15 +3365,15 @@ async def main():
         #open the web browser if the call includes a url, e.g. python marxan-server.py http://localhost/index.html
         if len(sys.argv)>1:
             if MARXAN_CLIENT_VERSION == "Not installed":
-                print("\x1b[1;32;48mIgnoring <url> parameter - the marxan-client is not installed\x1b[0m")
+                log("\x1b[1;32;48mIgnoring <url> parameter - the marxan-client is not installed\x1b[0m")
             else:
                 url = sys.argv[1] # normally "http://localhost/index.html"
-                print("\x1b[1;32;48mOpening Marxan Web at '" + url + "' ..\x1b[0m\n")
+                log("\x1b[1;32;48mOpening Marxan Web at '" + url + "' ..\x1b[0m\n")
                 webbrowser.open(url, new=1, autoraise=True)
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":
-                print("\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m")
-                print("\x1b[1;32;48mOr run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
+                log("\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m")
+                log("\x1b[1;32;48mOr run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
         #otherwise subprocesses fail on windows
         if platform.system() == "Windows":
             asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
@@ -3398,11 +3402,11 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             pass    
         finally:
-            print("\x1b[1;31;48mShutting down marxan-server at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n")
+            log("\x1b[1;31;48mShutting down marxan-server at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n")
             SHUTDOWN_EVENT.set()   
             
     except Exception as e:
         if (e.args[0] == 98):
-            print ("The port " + str(PORT) + " is already in use")
+            log("The port " + str(PORT) + " is already in use")
         else:
-            print(e.args)
+            log(e.args)

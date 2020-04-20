@@ -6,6 +6,7 @@
 import unittest, importlib, tornado, aiopg, json, urllib
 from tornado.testing import AsyncHTTPSTestCase, gen_test
 from tornado.ioloop import IOLoop
+from tornado.httpclient import HTTPRequest
 from tornado import httputil
 #CONSTANTS
 TEST_USER = "unit_tester"
@@ -71,11 +72,24 @@ class TestMarxanServerApp(AsyncHTTPSTestCase):
         return _dict
 
     @gen_test
-    def makeWebSocketRequest(self, request):
+    def makeWebSocketRequest(self, request, **kwargs):
+        # add the cookies if they have been set
+        if cookie:
+            kwargs.update({'headers':{'Cookie': cookie, "referer": "https://www.marxanweb.org"}})
+        else:
+            kwargs.update({'headers':{"referer": "https://www.marxanweb.org"}})
+        #dont attempt to validate the SSL certificate otherwise you get SSL errors - not sure why
+        kwargs.update({'validate_cert': False})
+        #get the websocket url
         ws_url = "wss://localhost:" + str(self.get_http_port()) + request
-        ws_client = yield tornado.websocket.websocket_connect(ws_url)
-        response = yield ws_client.read_message()
-        self.assertEqual(response, "Hi client! This is a response from the server.")
+        #make the request
+        ws_client = yield tornado.websocket.websocket_connect(HTTPRequest(ws_url, **kwargs))
+        #log the messages from the websocket
+        while True:
+            msg = yield ws_client.read_message()
+            if not msg:
+                break
+            print(msg)
         
     ###########################################################################
     # start of individual tests
@@ -85,73 +99,73 @@ class TestMarxanServerApp(AsyncHTTPSTestCase):
     def test_0050_validateUser(self):
         self.makeRequest('/marxan-server/validateUser?user=admin&password=password') 
 
-    def test_0100_getServerData(self):
-        self.makeRequest('/marxan-server/getServerData')
+    # def test_0100_getServerData(self):
+    #     self.makeRequest('/marxan-server/getServerData')
 
-    def test_0200_deleteUser(self):
-        self.makeRequest('/marxan-server/deleteUser?user=' + TEST_USER)
+    # def test_0200_deleteUser(self):
+    #     self.makeRequest('/marxan-server/deleteUser?user=' + TEST_USER)
         
-    def test_0300_createUser(self):
-        body = urllib.parse.urlencode({"user":TEST_USER,"password":"wibble","fullname":"wibble","email":"a@b.com"})
-        self.makeRequest('/marxan-server/createUser', method="POST", body=body)
+    # def test_0300_createUser(self):
+    #     body = urllib.parse.urlencode({"user":TEST_USER,"password":"wibble","fullname":"wibble","email":"a@b.com"})
+    #     self.makeRequest('/marxan-server/createUser', method="POST", body=body)
         
-    def test_0600_toggleEnableGuestUser(self):
-        _dict = self.makeRequest('/marxan-server/toggleEnableGuestUser')
-        self.assertTrue('enabled' in _dict.keys())
+    # def test_0600_toggleEnableGuestUser(self):
+    #     _dict = self.makeRequest('/marxan-server/toggleEnableGuestUser')
+    #     self.assertTrue('enabled' in _dict.keys())
         
-    def test_0800_getProjectsWithGrids(self):
-        self.makeRequest('/marxan-server/getProjectsWithGrids')
+    # def test_0800_getProjectsWithGrids(self):
+    #     self.makeRequest('/marxan-server/getProjectsWithGrids')
 
-    def test_1000_createProject(self):
-        body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_PROJECT,"description":"whatever","planning_grid_name":"pu_ton_marine_hexagon_50", 'interest_features':'63407942,63408405,63408475,63767166','target_values':'33,17,45,17','spf_values':'40,40,40,40'})
-        self.makeRequest('/marxan-server/createProject', method="POST", body=body)
+    # def test_1000_createProject(self):
+    #     body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_PROJECT,"description":"whatever","planning_grid_name":"pu_ton_marine_hexagon_50", 'interest_features':'63407942,63408405,63408475,63767166','target_values':'33,17,45,17','spf_values':'40,40,40,40'})
+    #     self.makeRequest('/marxan-server/createProject', method="POST", body=body)
 
-    def test_1100_createImportProject(self):
-        body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT})
-        self.makeRequest('/marxan-server/createImportProject', method="POST", body=body)
+    # def test_1100_createImportProject(self):
+    #     body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT})
+    #     self.makeRequest('/marxan-server/createImportProject', method="POST", body=body)
 
-    def test_1125_getProjects(self):
-        _dict = self.makeRequest('/marxan-server/getProjects?user=' + TEST_USER)
+    # def test_1125_getProjects(self):
+    #     _dict = self.makeRequest('/marxan-server/getProjects?user=' + TEST_USER)
         
-    def test_1150_getProject(self):
-        _dict = self.makeRequest('/marxan-server/getProject?user=' + TEST_USER + '&project=' + TEST_PROJECT)
+    # def test_1150_getProject(self):
+    #     _dict = self.makeRequest('/marxan-server/getProject?user=' + TEST_USER + '&project=' + TEST_PROJECT)
 
-    def test_1200_cloneProject(self):
-        self.makeRequest('/marxan-server/cloneProject?user=' + TEST_USER + '&project=' + TEST_PROJECT)
+    # def test_1200_cloneProject(self):
+    #     self.makeRequest('/marxan-server/cloneProject?user=' + TEST_USER + '&project=' + TEST_PROJECT)
 
-    def test_1300_createProjectGroup(self):
-        _dict = self.makeRequest('/marxan-server/createProjectGroup?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&copies=5&blmValues=0.1,0.2,0.3,0.4,0.5')
-        global projects
-        # get the names of the projects so we can delete them in the next test
-        projects = ",".join([i['projectName'] for i in _dict['data']])
+    # def test_1300_createProjectGroup(self):
+    #     _dict = self.makeRequest('/marxan-server/createProjectGroup?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&copies=5&blmValues=0.1,0.2,0.3,0.4,0.5')
+    #     global projects
+    #     # get the names of the projects so we can delete them in the next test
+    #     projects = ",".join([i['projectName'] for i in _dict['data']])
 
-    def test_1400_deleteProjects(self):
-        self.makeRequest('/marxan-server/deleteProjects?projectNames=' + projects)
+    # def test_1400_deleteProjects(self):
+    #     self.makeRequest('/marxan-server/deleteProjects?projectNames=' + projects)
 
-    def test_1500_renameProject(self):
-        self.makeRequest('/marxan-server/renameProject?user=' + TEST_USER + '&project=' + TEST_PROJECT + "&newName=wibble")
+    # def test_1500_renameProject(self):
+    #     self.makeRequest('/marxan-server/renameProject?user=' + TEST_USER + '&project=' + TEST_PROJECT + "&newName=wibble")
 
-    def test_1600_updateProjectParameters(self):
-        body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT, 'params': {'COLORCODE':['wibble']}})
-        self.makeRequest('/marxan-server/updateProjectParameters', method="POST", body=body)
+    # def test_1600_updateProjectParameters(self):
+    #     body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT, 'params': {'COLORCODE':['wibble']}})
+    #     self.makeRequest('/marxan-server/updateProjectParameters', method="POST", body=body)
 
-    def test_1700_deleteProject(self):
-        self.makeRequest('/marxan-server/deleteProject?user=' + TEST_USER + '&project=wibble')
+    # def test_1700_deleteProject(self):
+    #     self.makeRequest('/marxan-server/deleteProject?user=' + TEST_USER + '&project=wibble')
 
-    def test_1800_listProjectsForFeature(self):
-        self.makeRequest('/marxan-server/listProjectsForFeature?feature_class_id=63407942')
+    # def test_1800_listProjectsForFeature(self):
+    #     self.makeRequest('/marxan-server/listProjectsForFeature?feature_class_id=63407942')
 
-    def test_1900_listProjectsForPlanningGrid(self):
-        self.makeRequest('/marxan-server/listProjectsForPlanningGrid?feature_class_name=pu_89979654c5d044baa27b6008f9d06')
+    # def test_1900_listProjectsForPlanningGrid(self):
+    #     self.makeRequest('/marxan-server/listProjectsForPlanningGrid?feature_class_name=pu_89979654c5d044baa27b6008f9d06')
 
-    def test_2000_getCountries(self):
-        self.makeRequest('/marxan-server/getCountries')
+    # def test_2000_getCountries(self):
+    #     self.makeRequest('/marxan-server/getCountries')
 
-    def test_2100_getPlanningUnitGrids(self):
-        self.makeRequest('/marxan-server/getPlanningUnitGrids')
+    # def test_2100_getPlanningUnitGrids(self):
+    #     self.makeRequest('/marxan-server/getPlanningUnitGrids')
 
     def test_2200_createPlanningUnitGrid(self):
-        self.makeWebSocketRequest('/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon')
+        self.makeWebSocketRequest('/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=30&shape=hexagon')
 
     # def test_(self):
     #     self.makeRequest('/marxan-server/')

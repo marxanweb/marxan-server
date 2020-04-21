@@ -16,6 +16,7 @@ from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.ioloop import IOLoop
 from tornado.httpclient import HTTPRequest
 from tornado import httputil
+from shutil import copyfile
 
 #CONSTANTS
 LOGIN_USER = "admin"
@@ -26,6 +27,7 @@ TEST_REFERER = "http://localhost"
 TEST_USER = "unit_tester"
 TEST_PROJECT = "test_project"
 TEST_IMPORT_PROJECT = "test_import_project"
+TEST_ZIPFILE = "multiple_features.zip"
 
 #global variables
 cookie = None
@@ -83,11 +85,15 @@ class TestClass(AsyncHTTPTestCase):
         
     @gen_test
     def makeRequest(self, request, **kwargs):
-        # add the cookies if they have been set
-        if cookie:
-            kwargs.update({'headers':{'Cookie': cookie, "referer": TEST_REFERER}})
+        #get any existing headers
+        if "headers" in kwargs.keys():
+            d1 = kwargs['headers']
         else:
-            kwargs.update({'headers':{"referer": TEST_REFERER}})
+            d1 = {}
+        # get the generic headers
+        d2 = {'Cookie': cookie, "referer": TEST_REFERER} if cookie else {"referer": TEST_REFERER}
+        #merge the headers
+        kwargs.update({'headers': {**d1, **d2}})
         # ports are different for each request
         port = str(self.get_http_port())
         response = yield self.http_client.fetch(TEST_HTTP + ':' + port + "/marxan-server" + request, **kwargs)
@@ -123,32 +129,26 @@ class TestClass(AsyncHTTPTestCase):
             self.assertFalse('error' in _dict.keys())
             # print(_dict)
     
-    @gen_test    
-    def test_something(self):
+    def uploadFile(self, fullPath, formData):
+        #get the filename from the full path
+        filename = fullPath[fullPath.rfind(os.sep) + 1:]
         boundary = 'SomeRandomBoundary'
-        headers = {'Cookie': cookie, "referer": TEST_REFERER, 'Content-Type': 'multipart/form-data; boundary=%s' % boundary}
+        headers = {'Content-Type': 'multipart/form-data; boundary=%s' % boundary}
         body = '--%s\r\n' % boundary 
-        body += 'Content-Disposition: form-data; name="filename"\r\n'
-        body += '\r\n' 
-        body += "Interesting habitat.zip\r\n"
-        body += '--%s\r\n' % boundary 
-        body += 'Content-Disposition: form-data; name="name"\r\n'
-        body += '\r\n' 
-        body += "whatever\r\n"
-        body += '--%s\r\n' % boundary 
-        body += 'Content-Disposition: form-data; name="description"\r\n'
-        body += '\r\n' 
-        body += "whatever 2\r\n"
-        body += '--%s\r\n' % boundary 
-        body += 'Content-Disposition: form-data; name="value"; filename="Interesting habitat.zip"\r\n'
+        #add the form-data to the request
+        for k in formData.keys():
+            body += 'Content-Disposition: form-data; name="' + k + '"\r\n'
+            body += '\r\n' 
+            body += formData[k] + "\r\n"
+            body += '--%s\r\n' % boundary 
+        body += 'Content-Disposition: form-data; name="value"; filename="' + filename + '"\r\n'
+        body += 'Content-Type: application/zip\r\n'
         body += '\r\n' # blank line
-        with open('/home/ubuntu/environment/marxanweb/general/test-data/Interesting habitat.zip', 'rb') as f:
-            body += '%s\r\n' % f.read()
-        # the closing boundary
+        with open(fullPath, 'rb') as f:
+            body += '%s\r\n' % f.read() #TODO This needs to be written as binary data!
         body += "--%s--\r\n" % boundary
         port = str(self.get_http_port())
-        response = yield self.http_client.fetch(TEST_HTTP + ':' + port + "/marxan-server/uploadShapefile", headers=headers, body=body, method="POST")
-        # self.fetch('http://locahost/uploadShapefile', method='POST', headers=headers, body=body)
+        self.makeRequest('/uploadShapefile', method='POST', headers=headers, body=body)
         
     ###########################################################################
     # start of individual tests
@@ -243,16 +243,25 @@ class TestClass(AsyncHTTPTestCase):
     #     self.makeRequest('/getFeature?oid=63407942')
         
     def test_2900_uploadShapefile(self):
-        self.test_something()
+        testFile = os.path.dirname(os.getcwd()) + os.sep + "general" + os.sep + "test-data" + os.sep + TEST_ZIPFILE
+        destFile = os.getcwd() + os.sep + TEST_ZIPFILE
+        self.uploadFile(testFile, {'name': 'whatever', 'description': 'whatever2', 'filename': TEST_ZIPFILE})
+        # TODO The following is a hack as I cant upload a zip file as a binary file so all subsequent operations on the zip shapefile fail
+        os.remove(destFile)
+        copyfile(testFile, destFile)
+
+    def test_3000_unzipShapefile(self):
+        self.makeRequest('/unzipShapefile?filename=' + TEST_ZIPFILE)
+
+    def test_3100_getShapefileFieldnames(self):
+        filename = TEST_ZIPFILE[:-4] + ".shp"
+        self.makeRequest('/getShapefileFieldnames?filename=' + filename)
 
     # def test_(self):
     #     self.makeRequest('/')
 
             # ("/upgradeProject", upgradeProject),
-            # ("/uploadShapefile", uploadShapefile),
-            # ("/unzipShapefile", unzipShapefile),
             # ("/deleteShapefile", deleteShapefile),
-            # ("/getShapefileFieldnames", getShapefileFieldnames),
             # ("/uploadFile", uploadFile),
             # ("/importPlanningUnitGrid", importPlanningUnitGrid),
             # ("/createFeaturePreprocessingFileFromImport", createFeaturePreprocessingFileFromImport),
@@ -298,7 +307,7 @@ class TestClass(AsyncHTTPTestCase):
             # ("/block", block),
             # ("/testTornado", testTornado),
         
-    # def test_9999_deleteUser(self):
-    #     self.makeRequest('/deleteUser?user=' + TEST_USER)
+    def test_9999_deleteUser(self):
+        self.makeRequest('/deleteUser?user=' + TEST_USER)
         
         

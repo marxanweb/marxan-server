@@ -29,6 +29,8 @@ from osgeo import ogr
 ##SECURITY SETTINGS
 # Set to True to turn off all security, i.e. authentication and authorisation
 DISABLE_SECURITY = False
+# Set to False to hide initial output
+SHOW_START_LOG = True
 # REST services that have do not need authentication/authorisation
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
@@ -219,7 +221,8 @@ def _setGlobalVariables():
         
 #logs the string to the console
 def log(str):
-    print(str)
+    if SHOW_START_LOG:
+        print(str)
     
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
@@ -1470,6 +1473,11 @@ def _importDataFrame(df, table_name):
     conn.commit()    
     conn.close()
 
+def _getExceptionLastLine(exc_info):
+    lastLine = traceback.format_exception(*exc_info)[-1]
+    lastLine = lastLine[lastLine.find(":")+2:]
+    return lastLine
+    
 ####################################################################################################################################################################################################################################################################
 ## generic classes
 ####################################################################################################################################################################################################################################################################
@@ -1687,6 +1695,9 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
             self.set_status(200)
             self.send_response({"error": lastLine, "trace" : trace})
             self.finish()
+
+    def log_exception(self, typ, value, tb): # uncomment if unit testing
+        pass
     
 ####################################################################################################################################################################################################################################################################
 ## RequestHandler subclasses
@@ -2560,7 +2571,11 @@ class testTornado(MarxanRESTHandler):
 class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
     #get the current user
     def get_current_user(self):
-        return self.get_secure_cookie("user").decode("utf-8")
+        if self.get_secure_cookie("user"):
+            returnVal = self.get_secure_cookie("user").decode("utf-8")
+        else:
+            returnVal = None
+        return returnVal
 
     #check CORS access for the websocket
     def check_origin(self, origin):
@@ -2619,7 +2634,8 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
     
     def close(self, closeMessage = {}):
         #stop the ping messages
-        self.pc.stop()
+        if hasattr(self, 'pc'):
+            self.pc.stop()
         #send a message
         closeMessage.update({'status': 'Finished'})
         self.send_response(closeMessage)
@@ -2638,7 +2654,8 @@ class runMarxan(MarxanWebSocketHandler):
         try:
             await super().open({'info': "Running Marxan.."})
         except (HTTPError) as e:
-            self.close({'error': e.reason})
+            error = _getExceptionLastLine(sys.exc_info())
+            self.close({'error': error})
         else:
             #see if the project is already running - if it is then return an error
             if _isProjectRunning(self.get_argument("user"), self.get_argument("project")):
@@ -2761,7 +2778,8 @@ class updateWDPA(MarxanWebSocketHandler):
         try:
             await super().open({'info': "Updating WDPA.."})
         except (HTTPError) as e:
-            self.close({'error': e.reason, 'info': 'WDPA not updated'})
+            error = _getExceptionLastLine(sys.exc_info())
+            self.close({'error': error})
         else:
             try:
                 #download the new wdpa zip
@@ -2862,7 +2880,8 @@ class importFeatures(MarxanWebSocketHandler):
             #validate the input arguments
             _validateArguments(self.request.arguments, ['zipfile', 'shapefile'])   
         except (HTTPError) as e:
-            self.close({'error': e.reason, 'info': 'Failed to import features'})
+            error = _getExceptionLastLine(sys.exc_info())
+            self.close({'error': error})
         except (MarxanServicesError) as e:
             self.close({'error': e.args[0], 'info': 'Failed to import features'})
         else:
@@ -2926,7 +2945,8 @@ class importGBIFData(MarxanWebSocketHandler):
             #validate the input arguments
             _validateArguments(self.request.arguments, ['taxonKey','scientificName'])   
         except (HTTPError) as e:
-            self.close({'error': e.reason, 'info': 'Failed to import features'})
+            error = _getExceptionLastLine(sys.exc_info())
+            self.close({'error': error})
         except (MarxanServicesError) as e:
             self.close({'error': e.args[0], 'info': 'Failed to import features'})
         else:
@@ -3117,7 +3137,8 @@ class preprocessFeature(QueryWebSocketHandler):
         try:
             await super().open({'info': "Preprocessing '" + self.get_argument('alias') + "'.."})
         except (HTTPError) as e:
-            self.close({'error': e.reason})
+            error = _getExceptionLastLine(sys.exc_info())
+            self.close({'error': error})
         else:
             _validateArguments(self.request.arguments, ['user','project','id','feature_class_name','alias','planning_grid_name'])    
             #run the query asynchronously and wait for the results
@@ -3163,7 +3184,8 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
         try:
             await super().open({'info': "Preprocessing protected areas"})
         except (HTTPError) as e:
-            self.close({'error': e.reason})
+            error = _getExceptionLastLine(sys.exc_info())
+            self.close({'error': error})
         else:
             _validateArguments(self.request.arguments, ['user','project','planning_grid_name'])    
             #do the intersection with the protected areas
@@ -3184,7 +3206,8 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
         try:
             await super().open({'info': "Calculating boundary lengths"})
         except (HTTPError) as e:
-            self.close({'error': e.reason})
+            error = _getExceptionLastLine(sys.exc_info())
+            self.close({'error': error})
         else:
             _validateArguments(self.request.arguments, ['user','project'])    
             #get the project data
@@ -3213,7 +3236,8 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
         try:
             await super().open({'info': "Creating planning grid.."})
         except (HTTPError) as e:
-            self.close({'error': e.reason})
+            error = _getExceptionLastLine(sys.exc_info())
+            self.close({'error': error})
         else:
             _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
             #estimate how many planning units are in the grid that will be created
@@ -3223,16 +3247,17 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
                 self.close({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + " (=" + str(int(unitCount)) + "). See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
             else:
                 results = await self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()])
-                #get the planning grid alias
-                alias = results["records"][0][0]
-                #get the feature class name
-                fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
-                #create a primary key so the feature class can be used in ArcGIS
-                await pg.createPrimaryKey(fc, "puid")    
-                #start the upload to Mapbox
-                uploadId = await _uploadTilesetToMapbox(fc, fc)
-                #set the response
-                self.close({'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId})
+                if results:
+                    #get the planning grid alias
+                    alias = results["records"][0][0]
+                    #get the feature class name
+                    fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
+                    #create a primary key so the feature class can be used in ArcGIS
+                    await pg.createPrimaryKey(fc, "puid")    
+                    #start the upload to Mapbox
+                    uploadId = await _uploadTilesetToMapbox(fc, fc)
+                    #set the response
+                    self.close({'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId})
 
 #runs a gap analysis
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/runGapAnalysis?user=admin&project=British%20Columbia%20Marine%20Case%20Study
@@ -3241,7 +3266,8 @@ class runGapAnalysis(QueryWebSocketHandler):
         try:
             await super().open({'info': "Running gap analysis.."})
         except (HTTPError) as e:
-            self.close({'error': e.reason})
+            error = _getExceptionLastLine(sys.exc_info())
+            self.close({'error': error})
         else:
             _validateArguments(self.request.arguments, ['user','project'])    
             #get the identifiers of the features for the project

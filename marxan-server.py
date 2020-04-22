@@ -69,8 +69,8 @@ GBIF_CONCURRENCY = 10
 GBIF_PAGE_SIZE = 300
 GBIF_POINT_BUFFER_RADIUS = 1000
 GBIF_OCCURRENCE_LIMIT = 200000 # from the GBIF docs here: https://www.gbif.org/developer/occurrence#search
-DOCS_ROOT = "https://andrewcottam.github.io/marxan-web/documentation/"
-ERRORS_PAGE = DOCS_ROOT + "docs_errors.html"
+DOCS_ROOT = "https://docs.marxanweb.org"
+ERRORS_PAGE = DOCS_ROOT + "errors.html"
 LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 SHUTDOWN_EVENT = tornado.locks.Event() #to allow Tornado to exit gracefully
 PING_INTERVAL = 30000 #interval between regular pings when using websockets
@@ -1027,7 +1027,7 @@ def _unzipFile(filename, rejectMultipleShapefiles = True, searchTerm = None):
             zip_ref.close()
             return rootfilename
     else: # nested files/folders - raise an error
-        raise MarxanServicesError("The zipped file should not contain directories. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#importing-existing-marxan-projects' target='blank'>here</a>")
+        raise MarxanServicesError("The zipped file should not contain directories. See <a href='" + DOCS_ROOT + "/user.html#importing-existing-marxan-projects' target='blank'>here</a>")
         
 #checks to see if the tileset already exists on mapbox
 def _tilesetExists(tilesetid):
@@ -1093,7 +1093,7 @@ async def _deleteFeature(feature_class_name):
     #if it is a system supplied planning grid then raise an error
     if "created_by" in data[0].keys():
         if data[0]['created_by']=='global admin':
-            raise MarxanServicesError("The feature cannot be deleted as it is a system supplied item. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#the-planning-grid-cannot-be-deleted-as-it-is-a-system-supplied-item' target='blank'>here</a>")
+            raise MarxanServicesError("The feature cannot be deleted as it is a system supplied item. See <a href='" + DOCS_ROOT + "user.html#the-planning-grid-cannot-be-deleted-as-it-is-a-system-supplied-item' target='blank'>here</a>")
     #get a list of projects that the feature is used in
     projects = _getProjectsForFeature(int(data[0]['oid']))
     #if it is in use then return an error
@@ -1180,7 +1180,7 @@ async def _deletePlanningUnitGrid(planning_grid):
     #if it is a system supplied planning grid then raise an error
     if "created_by" in data[0].keys():
         if data[0]['created_by']=='global admin':
-            raise MarxanServicesError("The planning grid cannot be deleted as it is a system supplied item. See <a href='https://andrewcottam.github.io/marxan-web/documentation/docs_user.html#the-planning-grid-cannot-be-deleted-as-it-is-a-system-supplied-item' target='blank'>here</a>")
+            raise MarxanServicesError("The planning grid cannot be deleted as it is a system supplied item. See <a href='" + DOCS_ROOT + "user.html#the-planning-grid-cannot-be-deleted-as-it-is-a-system-supplied-item' target='blank'>here</a>")
     #get a list of projects that the planning grid is used in
     projects = _getProjectsForPlanningGrid(planning_grid)
     #if it is in use then return an error
@@ -2312,7 +2312,7 @@ class createFeaturePreprocessingFileFromImport(MarxanRESTHandler): #not currentl
         self.send_response({'info': "feature_preprocessing.dat file populated"})
 
 #creates a new parameter in the *.dat file, either user (user.dat) or project (project.dat), by iterating through all the files and adding the key/value if it doesnt already exist
-#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/addParameter?type=user&key=REPORTUNITS&value=Hacallback=__jp2
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/addParameter?type=user&key=REPORTUNITS&value=Ha&callback=__jp2
 class addParameter(MarxanRESTHandler):
     def get(self):
         #validate the input arguments - the type parameter is one of {'user','project'}
@@ -2532,7 +2532,7 @@ class testRoleAuthorisation(MarxanRESTHandler):
         self.send_response({'info': "Service successful"})
 
 #shuts down the marxan-server and computer after a period of time - currently only on Unix
-#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/shutdown&callback=_wibble
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/shutdown&delay=10&callback=_wibble
 class shutdown(MarxanRESTHandler):
     async def get(self):
         if platform.system() != "Windows":
@@ -2552,7 +2552,7 @@ class shutdown(MarxanRESTHandler):
             #shutdown the os
             os.system('sudo shutdown now')
         
-#blocks tornado for the passed number of seconds - for test
+#blocks tornado for the passed number of seconds - for testing
 class block(MarxanRESTHandler):
     def get(self):
         _validateArguments(self.request.arguments, ['seconds'])  
@@ -2872,21 +2872,22 @@ class updateWDPA(MarxanWebSocketHandler):
             await session.close()
                 
 
-#imports a set of features from a zipped shapefile
+#imports a set of features from an unzipped shapefile
 class importFeatures(MarxanWebSocketHandler):
     async def open(self):
         try:
             await super().open({'info': "Importing features.."})
             #validate the input arguments
-            _validateArguments(self.request.arguments, ['zipfile', 'shapefile'])   
+            _validateArguments(self.request.arguments, ['shapefile'])   
         except (HTTPError) as e:
             error = _getExceptionLastLine(sys.exc_info())
             self.close({'error': error})
         except (MarxanServicesError) as e:
             self.close({'error': e.args[0], 'info': 'Failed to import features'})
         else:
-            #initiate the upload ids array
+            #initiate the mapbox upload ids array
             uploadIds = []
+            #get the name of the shapefile that has already been unzipped on the server
             shapefile = self.get_argument('shapefile')
             #if a name is passed then this is a single feature class
             if "name" in list(self.request.arguments.keys()):
@@ -2896,7 +2897,7 @@ class importFeatures(MarxanWebSocketHandler):
             try:
                 #get a scratch name for the import
                 scratch_name = _getUniqueFeatureclassName("scratch_")
-                #import the shapefile into a PostGIS feature class in EPSG:4326
+                #first, import the shapefile into a PostGIS feature class in EPSG:4326
                 await pg.importShapefile(shapefile, scratch_name, "EPSG:4326")
                 #check the geometry
                 self.send_response({'status':'Preprocessing', 'info': "Checking the geometry.."})
@@ -2921,7 +2922,7 @@ class importFeatures(MarxanWebSocketHandler):
                     else: #multiple feature names
                         feature_class_name = _getUniqueFeatureclassName("fs_")
                         await pg.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable} WHERE {splitField} = %s;").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name),splitField=sql.Identifier(splitfield)),[feature_name])
-                        description = "Imported from shapefile '" + shapefile + "' and split by the '" + splitfield + "' field"
+                        description = "Imported from '" + shapefile + "' and split by '" + splitfield + "' field"
                     #finish the import by adding a record in the metadata table
                     id = await _finishImportingFeature(feature_class_name, feature_name, description, "Imported shapefile", self.get_current_user())
                     #upload the feature class to Mapbox
@@ -2933,9 +2934,13 @@ class importFeatures(MarxanWebSocketHandler):
                 self.close({'info': "Features imported",'uploadIds':uploadIds})
             except (MarxanServicesError) as e:
                 if "already exists" in e.args[0]:
+                    print("wibble")
                     self.close({'error':"The feature '" + feature_name + "' already exists", 'info': 'Failed to import features'})
                 else:
                     self.close({'error': e.args[0], 'info': 'Failed to import features'})
+            finally:
+                #delete the scratch feature class
+                await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(scratch_name)))
 
 #imports an item from GBIF
 class importGBIFData(MarxanWebSocketHandler):

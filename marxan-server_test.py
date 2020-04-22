@@ -6,7 +6,7 @@
 # 3. In marxan-server.py uncomment the log_exception function
 # 4. python3 -m unittest marxan-server_test -v
 # When finished:
-# 1. In marxan-server.py set SHOW_START_LOG = True and comment out the log_exception function
+# 1. In marxan-server.py comment out the log_exception function
 
 # To test against an SSL localhost
 # 1. Replace all AsyncHTTPTestCase with AsyncHTTPSTestCase
@@ -27,7 +27,8 @@ TEST_REFERER = "http://localhost"
 TEST_USER = "unit_tester"
 TEST_PROJECT = "test_project"
 TEST_IMPORT_PROJECT = "test_import_project"
-TEST_ZIPFILE = "multiple_features.zip"
+TEST_DATA_FOLDER = os.path.dirname(os.getcwd()) + os.sep + "general" + os.sep + "test-data" + os.sep 
+TEST_ZIPPED_SHAPEFILE_MULTIPLE_FEATURES = "multiple_features.zip"
 
 #global variables
 cookie = None
@@ -56,17 +57,6 @@ def setCookies(response):
     global cookie
     cookie = "user=" + userCookie['user'] + ";role=" + roleCookie['role']
 
-#gets the response as a dictionary and if there is an error prints it to stdout
-def getDictResponse(response):
-    if hasattr(response, 'body'):
-        _dict = dict(json.loads(response.body.decode("utf-8"))) # http response
-    else:
-        _dict = dict(json.loads(response)) # websocket message
-    if ('error' in _dict.keys()):
-        print("\n")
-        print(_dict)
-    return _dict
-
 class TestClass(AsyncHTTPTestCase):
     @gen_test
     def get_app(self):
@@ -83,8 +73,45 @@ class TestClass(AsyncHTTPTestCase):
         self._pool.close()
         yield self._pool.wait_closed()
         
+    def getDictResponse(self, response, mustReturnError):
+        """
+        Parses the response from either a GET/POST request or a WebSocket message to check for errors
+        """
+        #set a flag to indicate if the request is complete or not
+        requestComplete = False
+        if hasattr(response, 'body'):
+            #for GET/POST requests there is only one response
+            _dict = dict(json.loads(response.body.decode("utf-8"))) 
+            requestComplete = True
+        else:
+            #for WebSocket requests there will be more than one message
+            _dict = dict(json.loads(response)) 
+            #if the status is Finished then the request is complete
+            requestComplete = _dict['status'] == "Finished"
+        #print any error messages
+        if ('error' in _dict.keys()):
+            print("\n")
+            print(_dict['error'])
+        #assertions for errors
+        if requestComplete:
+            if mustReturnError:
+                self.assertTrue('error' in _dict.keys())
+            else:
+                self.assertFalse('error' in _dict.keys())
+        return _dict
+    
     @gen_test
-    def makeRequest(self, request, **kwargs):
+    def makeRequest(self, url, mustReturnError, **kwargs):
+        """Makes a GET/POST request to the url using the optional kwargs arguments
+        
+        Parameters:
+            url (str): The query part of the url to request - this excludes the /marxan-server prefix
+            mustReturnError (bool): If True, the request must return an error and the assertTrue will be run
+            **kwargs (optional): Additional parameters that are passed by keyword to the url fetch function, e.g. headers, body
+        
+        Returns:
+            dict: The json response from the marxan-server
+        """
         #get any existing headers
         if "headers" in kwargs.keys():
             d1 = kwargs['headers']
@@ -94,21 +121,19 @@ class TestClass(AsyncHTTPTestCase):
         d2 = {'Cookie': cookie, "referer": TEST_REFERER} if cookie else {"referer": TEST_REFERER}
         #merge the headers
         kwargs.update({'headers': {**d1, **d2}})
-        # ports are different for each request
-        port = str(self.get_http_port())
-        response = yield self.http_client.fetch(TEST_HTTP + ':' + port + "/marxan-server" + request, **kwargs)
+        #make the request
+        response = yield self.http_client.fetch(TEST_HTTP + ':' + str(self.get_http_port()) + "/marxan-server" + url, **kwargs)
+        #assert a valid response
+        self.assertEqual(response.code, 200)
         #if the response has cookies then set them globally
         if ('set-cookie' in response.headers.keys() and response.headers['set-cookie']):
             setCookies(response)
         # get the response as a dictionary
-        _dict = getDictResponse(response)
-        #check there is a valid response and no error
-        self.assertEqual(response.code, 200)
-        self.assertFalse('error' in _dict.keys())
+        _dict = self.getDictResponse(response, mustReturnError)
         return _dict
 
     @gen_test
-    def makeWebSocketRequest(self, request, **kwargs):
+    def makeWebSocketRequest(self, request, mustReturnError, **kwargs):
         # add the cookies if they have been set
         if cookie:
             kwargs.update({'headers':{'Cookie': cookie, "referer": TEST_REFERER}})
@@ -125,11 +150,10 @@ class TestClass(AsyncHTTPTestCase):
             msg = yield ws_client.read_message()
             if not msg:
                 break
-            _dict = getDictResponse(msg)
-            self.assertFalse('error' in _dict.keys())
+            _dict = self.getDictResponse(msg, mustReturnError)
             # print(_dict)
     
-    def uploadFile(self, fullPath, formData):
+    def uploadFile(self, fullPath, formData, mustReturnError):
         #get the filename from the full path
         filename = fullPath[fullPath.rfind(os.sep) + 1:]
         boundary = 'SomeRandomBoundary'
@@ -148,7 +172,7 @@ class TestClass(AsyncHTTPTestCase):
             body += '%s\r\n' % f.read() #TODO This needs to be written as binary data!
         body += "--%s--\r\n" % boundary
         port = str(self.get_http_port())
-        self.makeRequest('/uploadShapefile', method='POST', headers=headers, body=body)
+        self.makeRequest('/uploadShapefile', mustReturnError, method='POST', headers=headers, body=body)
         
     ###########################################################################
     # start of individual tests
@@ -156,106 +180,114 @@ class TestClass(AsyncHTTPTestCase):
 
     #synchronous GET request
     def test_0050_validateUser(self):
-        self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD) 
+        self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
 
     # def test_0100_getServerData(self):
-    #     self.makeRequest('/getServerData')
+    #     self.makeRequest('/getServerData', False)
 
     # def test_0300_createUser(self):
     #     body = urllib.parse.urlencode({"user":TEST_USER,"password":"wibble","fullname":"wibble","email":"a@b.com"})
-    #     self.makeRequest('/createUser', method="POST", body=body)
+    #     self.makeRequest('/createUser', False, method="POST", body=body)
         
     # def test_0600_toggleEnableGuestUser(self):
-    #     _dict = self.makeRequest('/toggleEnableGuestUser')
+    #     _dict = self.makeRequest('/toggleEnableGuestUser', False)
     #     self.assertTrue('enabled' in _dict.keys())
         
     # def test_0800_getProjectsWithGrids(self):
-    #     self.makeRequest('/getProjectsWithGrids')
+    #     self.makeRequest('/getProjectsWithGrids', False)
 
     # def test_1000_createProject(self):
     #     body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_PROJECT,"description":"whatever","planning_grid_name":"pu_ton_marine_hexagon_50", 'interest_features':'63407942,63408405,63408475,63767166','target_values':'33,17,45,17','spf_values':'40,40,40,40'})
-    #     self.makeRequest('/createProject', method="POST", body=body)
+    #     self.makeRequest('/createProject', False, method="POST", body=body)
 
     # def test_1100_createImportProject(self):
     #     body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT})
-    #     self.makeRequest('/createImportProject', method="POST", body=body)
+    #     self.makeRequest('/createImportProject', False, method="POST", body=body)
 
     # def test_1125_getProjects(self):
-    #     self.makeRequest('/getProjects?user=' + TEST_USER)
+    #     self.makeRequest('/getProjects?user=' + TEST_USER, False)
         
     # def test_1150_getProject(self):
-    #     self.makeRequest('/getProject?user=' + TEST_USER + '&project=' + TEST_PROJECT)
+    #     self.makeRequest('/getProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
     # def test_1200_cloneProject(self):
-    #     self.makeRequest('/cloneProject?user=' + TEST_USER + '&project=' + TEST_PROJECT)
+    #     self.makeRequest('/cloneProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
     # def test_1300_createProjectGroup(self):
-    #     _dict = self.makeRequest('/createProjectGroup?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&copies=5&blmValues=0.1,0.2,0.3,0.4,0.5')
+    #     _dict = self.makeRequest('/createProjectGroup?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&copies=5&blmValues=0.1,0.2,0.3,0.4,0.5', False)
     #     global projects
     #     # get the names of the projects so we can delete them in the next test
     #     projects = ",".join([i['projectName'] for i in _dict['data']])
 
     # def test_1400_deleteProjects(self): 
-    #     self.makeRequest('/deleteProjects?projectNames=' + projects)
+    #     self.makeRequest('/deleteProjects?projectNames=' + projects, False)
 
     # def test_1500_renameProject(self):
-    #     self.makeRequest('/renameProject?user=' + TEST_USER + '&project=' + TEST_PROJECT + "&newName=wibble")
+    #     self.makeRequest('/renameProject?user=' + TEST_USER + '&project=' + TEST_PROJECT + "&newName=wibble", False)
  
     # def test_1600_updateProjectParameters(self):
     #     body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT, 'COLORCODE':'wibble'})
-    #     self.makeRequest('/updateProjectParameters', method="POST", body=body)
+    #     self.makeRequest('/updateProjectParameters', False, method="POST", body=body)
 
     # def test_1700_deleteProject(self):
-    #     self.makeRequest('/deleteProject?user=' + TEST_USER + '&project=wibble')
+    #     self.makeRequest('/deleteProject?user=' + TEST_USER + '&project=wibble', False)
 
     # def test_1800_listProjectsForFeature(self):
-    #     self.makeRequest('/listProjectsForFeature?feature_class_id=63407942')
+    #     self.makeRequest('/listProjectsForFeature?feature_class_id=63407942', False)
 
     # def test_1900_listProjectsForPlanningGrid(self):
-    #     self.makeRequest('/listProjectsForPlanningGrid?feature_class_name=pu_89979654c5d044baa27b6008f9d06')
+    #     self.makeRequest('/listProjectsForPlanningGrid?feature_class_name=pu_89979654c5d044baa27b6008f9d06', False)
 
     # def test_2000_getCountries(self):
-    #     self.makeRequest('/getCountries')
+    #     self.makeRequest('/getCountries', False)
 
     # def test_2100_getPlanningUnitGrids(self):
-    #     self.makeRequest('/getPlanningUnitGrids')
+    #     self.makeRequest('/getPlanningUnitGrids', False)
 
     # def test_2200_deletePlanningUnitGrid(self):
-    #     self.makeRequest('/deletePlanningUnitGrid?planning_grid_name=pu_and_terrestrial_square_50')
+    #     self.makeRequest('/deletePlanningUnitGrid?planning_grid_name=pu_and_terrestrial_square_50', False)
 
     # def test_2300_createPlanningUnitGrid(self):
-    #     self.makeWebSocketRequest('/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=square')
+    #     self.makeWebSocketRequest('/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=square', False)
 
     # def test_2400_uploadTilesetToMapBox(self):
-    #     self.makeRequest('/uploadTilesetToMapBox?feature_class_name=pu_and_terrestrial_square_50&mapbox_layer_name=square')
+    #     self.makeRequest('/uploadTilesetToMapBox?feature_class_name=pu_and_terrestrial_square_50&mapbox_layer_name=square', False)
     
     # def test_2500_getUser(self):
-    #     self.makeRequest('/getUser?user=' + TEST_USER)
+    #     self.makeRequest('/getUser?user=' + TEST_USER, False)
 
     # def test_2600_getUsers(self):
-    #     self.makeRequest('/getUsers')
+    #     self.makeRequest('/getUsers', False)
 
     # def test_2700_updateUserParameters(self):
     #     body = urllib.parse.urlencode({"user":TEST_USER, 'EMAIL':'wibble2'})
-    #     self.makeRequest('/updateUserParameters', method="POST", body=body)
+    #     self.makeRequest('/updateUserParameters', False, method="POST", body=body)
 
     # def test_2800_getFeature(self):
-    #     self.makeRequest('/getFeature?oid=63407942')
+    #     self.makeRequest('/getFeature?oid=63407942', False)
         
-    def test_2900_uploadShapefile(self):
-        testFile = os.path.dirname(os.getcwd()) + os.sep + "general" + os.sep + "test-data" + os.sep + TEST_ZIPFILE
-        destFile = os.getcwd() + os.sep + TEST_ZIPFILE
-        self.uploadFile(testFile, {'name': 'whatever', 'description': 'whatever2', 'filename': TEST_ZIPFILE})
-        # TODO The following is a hack as I cant upload a zip file as a binary file so all subsequent operations on the zip shapefile fail
-        os.remove(destFile)
-        copyfile(testFile, destFile)
+    # def test_2900_uploadShapefile(self):
+    #     testFile = TEST_DATA_FOLDER + TEST_ZIPPED_SHAPEFILE_MULTIPLE_FEATURES
+    #     destFile = os.getcwd() + os.sep + TEST_ZIPPED_SHAPEFILE_MULTIPLE_FEATURES
+    #     self.uploadFile(testFile, {'name': 'whatever', 'description': 'whatever2', 'filename': TEST_ZIPPED_SHAPEFILE_MULTIPLE_FEATURES}, False)
+    #     # TODO The following is a hack as I cant upload a zip file as a binary file so all subsequent operations on the zip shapefile fail
+    #     os.remove(destFile)
+    #     copyfile(testFile, destFile)
 
-    def test_3000_unzipShapefile(self):
-        self.makeRequest('/unzipShapefile?filename=' + TEST_ZIPFILE)
+    # def test_3000_unzipShapefile(self):
+    #     testFile = TEST_DATA_FOLDER + TEST_ZIPPED_SHAPEFILE_MULTIPLE_FEATURES
+    #     self.makeRequest('/unzipShapefile?filename=' + TEST_ZIPPED_SHAPEFILE_MULTIPLE_FEATURES, False)
 
-    def test_3100_getShapefileFieldnames(self):
-        filename = TEST_ZIPFILE[:-4] + ".shp"
-        self.makeRequest('/getShapefileFieldnames?filename=' + filename)
+    # def test_3100_getShapefileFieldnames(self):
+    #     self.makeRequest('/getShapefileFieldnames?filename=' + TEST_ZIPPED_SHAPEFILE_MULTIPLE_FEATURES[:-4] + ".shp", False)
+
+    # def test_3200_deleteShapefile(self):
+    #     self.makeRequest('/deleteShapefile?zipfile=' + TEST_ZIPPED_SHAPEFILE_MULTIPLE_FEATURES + '&shapefile=' + TEST_ZIPPED_SHAPEFILE_MULTIPLE_FEATURES[:-4] + ".shp", False)
+
+    def test_3300_importFeatures(self):
+        #non-existing shapefile
+        self.makeWebSocketRequest('/importFeatures?zipfile=ignored&shapefile=nonexisting', True)
+        # self.makeWebSocketRequest('/importFeatures?zipfile=' + TEST_ZIPPED_SHAPEFILE_MULTIPLE_FEATURES)
 
     # def test_(self):
     #     self.makeRequest('/')
@@ -307,7 +339,7 @@ class TestClass(AsyncHTTPTestCase):
             # ("/block", block),
             # ("/testTornado", testTornado),
         
-    def test_9999_deleteUser(self):
-        self.makeRequest('/deleteUser?user=' + TEST_USER)
+    # def test_9999_deleteUser(self):
+    #     self.makeRequest('/deleteUser?user=' + TEST_USER, False)
         
         

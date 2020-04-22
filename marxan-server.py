@@ -39,7 +39,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.34"
+MARXAN_SERVER_VERSION = "v0.9.35"
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -1696,8 +1696,8 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
             self.send_response({"error": lastLine, "trace" : trace})
             self.finish()
 
-    def log_exception(self, typ, value, tb): # uncomment if unit testing
-        pass
+    # def log_exception(self, typ, value, tb): # uncomment if unit testing
+    #     pass
     
 ####################################################################################################################################################################################################################################################################
 ## RequestHandler subclasses

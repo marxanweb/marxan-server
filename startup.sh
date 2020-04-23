@@ -5,4 +5,4 @@ ${CONDA_EXE} activate base
 # on unix the following may be required
 #sudo service postgresql start
 #start marxan-server using a detached screen session that can be resumed
-screen -d -m ${CONDA_PYTHON_EXE} /home/a_cottam/marxan-server/marxan-server.py
+screen -d -m ${CONDA_PYTHON_EXE} ${MARXAN_SERVER_DIRECTORY}\/marxan-server.py

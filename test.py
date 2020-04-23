@@ -1,18 +1,13 @@
 #unit tests for marxan-server.py. 
-# PREREQUISITES: The test data in the general repo
 # To test:
 # 1. change to the marxan-server directory
-# 2. conda activate base (or whatever environment was used in the install of marxan-server)
-# 3. In marxan-server.py uncomment the log_exception function
-# 4. Run the following (the -W option disables all warnings - if you omit it you will see ResourceWarnings for things like Sockets not closing when you start an upload the Mapbox and the unit tests stop)
-#    python3 -W ignore -m unittest marxan-server_test -v
-# When finished:
-# 1. In marxan-server.py comment out the log_exception function
-
-# To test against an SSL localhost
+# 2. conda activate base (or the conda environment used to install marxan-server)
+# 3. Run the following (the -W option disables all warnings - if you omit it you will see ResourceWarnings for things like Sockets not closing when you start an upload the Mapbox and the unit tests stop)
+#    python3 -W ignore -m unittest test -v
+# To test against an SSL localhost:
 # 1. Replace all AsyncHTTPTestCase with AsyncHTTPSTestCase
 # 2. Set TEST_HTTP, TEST_WS and TEST_REFERER to point to secure endpoints, e.g. https and wss
-import unittest, importlib, tornado, aiopg, json, urllib, os
+import unittest, importlib, tornado, aiopg, json, urllib, os, sys
 from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.ioloop import IOLoop
 from tornado.httpclient import HTTPRequest
@@ -29,7 +24,7 @@ TEST_REFERER = "http://localhost"
 TEST_USER = "unit_tester"
 TEST_PROJECT = "test_project"
 TEST_IMPORT_PROJECT = "test_import_project"
-TEST_DATA_FOLDER = os.path.dirname(MARXAN_SERVER_FOLDER) + os.sep + "general" + os.sep + "test-data" + os.sep 
+TEST_DATA_FOLDER = MARXAN_SERVER_FOLDER + os.sep + "test-data" + os.sep 
 TEST_ZIP_SHP_MULTIPLE = "multiple_features.zip"
 TEST_ZIP_SHP_INVALID_GEOM = "invalid_geometry.zip"
 TEST_ZIP_SHP_MISSING_FILE = "pulayer_missing_file.zip"
@@ -65,7 +60,7 @@ def setCookies(response):
 
 def copyTestData(filename):
     """
-    Copies a file from the general repos test-data folder to the marxan-server folder
+    Copies a file from the unittests/test-data folder to the marxan-server folder
     
     Arguments:
         filename (str): the name of the file to copy including the extension

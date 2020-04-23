@@ -35,7 +35,7 @@ rm ./dump.sql
 #create the default server.dat file for the server configuration
 cp ./marxan-server/server.dat.default ./marxan-server/server.dat
 #create a file in /etc/profile.d/ to store the MARXAN_SERVER_DIRECTORY environment variable for all users
-sudo bash -c 'echo MARXAN_SERVER_DIRECTORY=\"$PWD\" > /etc/profile.d/marxan-server.sh'
+sudo bash -c 'echo MARXAN_SERVER_DIRECTORY=\"$PWD\/marxan-server\" > /etc/profile.d/marxan-server.sh'
 #source the MARXAN_SERVER_DIRECTORY environment variable
 source /etc/profile.d/marxan-server.sh
 echo "marxan-server installed to" $MARXAN_SERVER_DIRECTORY

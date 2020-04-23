@@ -6,7 +6,7 @@ The following image shows the high level architecture of marxan-server.
 ![marxan-server architecture](https://github.com/marxanweb/marxan-client/raw/master/architecture_client.png)  
 
 ## Installation
-The following installation was testing on Ubuntu 18.04.     
+The following instructions describe how to install on Ubuntu 18.04. For Windows, see [here](https://github.com/marxanweb/general/releases)    
 
 ### Clone the repo:  
 In the folder where you want to install marxan-server, type the following:
@@ -26,7 +26,13 @@ python /home/<user>/marxan-server/marxan-server.py
 ```
 
 ## Test the installation
-To test the installation goto: http://\<host\>\>/marxan-server/testTornado.  
+To test the installation goto: http://\<host\>/marxan-server/testTornado.  
+
+To run a complete set of unit tests (replace \<user\> with your username):  
+```
+conda activate base
+python -W ignore -m unittest /home/<user>/marxan-server/test -v
+```
   
 ## Configuration  
 marxan-server can be configured to change various settings including linking to an existing database, configuring security etc. For more information see the [Administrator Guide - Configuration](https://docs.marxanweb.org/admin.html#configuration).  

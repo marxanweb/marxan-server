@@ -1,0 +1,1 @@
+python -W ignore -m unittest test -v

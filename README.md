@@ -28,10 +28,10 @@ python /home/<user>/marxan-server/marxan-server.py
 ## Test the installation
 To test the installation goto: http://\<host\>/marxan-server/testTornado.  
 
-To run a complete set of unit tests (replace \<user\> with your username):  
+To run a complete set of unit tests:  
 ```
-conda activate base
-python -W ignore -m unittest /home/<user>/marxan-server/test -v
+cd marxan-server/
+python -W ignore -m unittest test -v
 ```
   
 ## Configuration  

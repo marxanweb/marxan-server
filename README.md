@@ -6,7 +6,7 @@ The following image shows the high level architecture of marxan-server.
 ![marxan-server architecture](https://github.com/marxanweb/marxan-client/raw/master/architecture_client.png)  
 
 ## Installation
-The following instructions describe how to install on Ubuntu 18.04. For Windows, see [here](https://github.com/marxanweb/general/releases)    
+The following instructions describe how to install on Ubuntu 18.04 LTS. For Windows, see [here](https://github.com/marxanweb/general/releases)    
 
 ### Clone the repo:  
 In the folder where you want to install marxan-server, type the following:

@@ -1478,6 +1478,11 @@ def _getExceptionLastLine(exc_info):
     lastLine = lastLine[lastLine.find(":")+2:]
     return lastLine
     
+def _deleteShutdownFile():
+    if (os.path.exists(MARXAN_FOLDER + SHUTDOWN_FILENAME)):
+        print("Deleting the shutdown file")
+        os.remove(MARXAN_FOLDER + SHUTDOWN_FILENAME)
+
 ####################################################################################################################################################################################################################################################################
 ## generic classes
 ####################################################################################################################################################################################################################################################################
@@ -2547,8 +2552,7 @@ class shutdown(MarxanRESTHandler):
             #wait for so many minutes
             await asyncio.sleep(minutes * 60)
             #delete the shutdown file
-            if (os.path.exists(MARXAN_FOLDER + SHUTDOWN_FILENAME)):
-                os.remove(MARXAN_FOLDER + SHUTDOWN_FILENAME)
+            _deleteShutdownFile()
             #shutdown the os
             os.system('sudo shutdown now')
         
@@ -3431,6 +3435,7 @@ if __name__ == "__main__":
         try:
             tornado.ioloop.IOLoop.current().run_sync(main)
         except KeyboardInterrupt:
+            _deleteShutdownFile()
             pass    
         finally:
             log("\x1b[1;31;48mShutting down marxan-server at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n")

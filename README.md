@@ -31,7 +31,7 @@ To test the installation goto: http://\<host\>/marxan-server/testTornado.
 To run a complete set of unit tests:  
 ```
 cd marxan-server/
-python -W ignore -m unittest test -v
+./unittest.sh
 ```
   
 ## Configuration  

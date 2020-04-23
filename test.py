@@ -3,7 +3,7 @@
 # 1. change to the marxan-server directory
 # 2. conda activate base (or the conda environment used to install marxan-server)
 # 3. Run the following (the -W option disables all warnings - if you omit it you will see ResourceWarnings for things like Sockets not closing when you start an upload the Mapbox and the unit tests stop)
-#    python3 -W ignore -m unittest test -v
+#    python -W ignore -m unittest test -v
 # To test against an SSL localhost:
 # 1. Replace all AsyncHTTPTestCase with AsyncHTTPSTestCase
 # 2. Set TEST_HTTP, TEST_WS and TEST_REFERER to point to secure endpoints, e.g. https and wss
@@ -25,9 +25,11 @@ TEST_USER = "unit_tester"
 TEST_PROJECT = "test_project"
 TEST_IMPORT_PROJECT = "test_import_project"
 TEST_DATA_FOLDER = MARXAN_SERVER_FOLDER + os.sep + "test-data" + os.sep 
+TEST_FILE = "readme.md"
 TEST_ZIP_SHP_MULTIPLE = "multiple_features.zip"
 TEST_ZIP_SHP_INVALID_GEOM = "invalid_geometry.zip"
 TEST_ZIP_SHP_MISSING_FILE = "pulayer_missing_file.zip"
+TEST_ZIP_SHP_PLANNING_GRID = "pu_sample.zip"
 
 #global variables
 cookie = None
@@ -175,6 +177,14 @@ class TestClass(AsyncHTTPTestCase):
         return msgs
     
     def uploadFile(self, fullPath, formData, mustReturnError):
+        headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
+        self.makeRequest('/uploadFile', mustReturnError, method='POST', headers=headers, body=body)
+
+    def uploadShapefile(self, fullPath, formData, mustReturnError):
+        headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
+        self.makeRequest('/uploadShapefile', mustReturnError, method='POST', headers=headers, body=body)
+    
+    def getRequestHeaders(self, fullPath, formData, mustReturnError):
         #get the filename from the full path
         filename = fullPath[fullPath.rfind(os.sep) + 1:]
         boundary = 'SomeRandomBoundary'
@@ -192,8 +202,7 @@ class TestClass(AsyncHTTPTestCase):
         with open(fullPath, 'rb') as f:
             body += '%s\r\n' % f.read() #TODO This needs to be written as binary data!
         body += "--%s--\r\n" % boundary
-        port = str(self.get_http_port())
-        self.makeRequest('/uploadShapefile', mustReturnError, method='POST', headers=headers, body=body)
+        return headers, body
         
     ###########################################################################
     # start of individual tests
@@ -229,6 +238,11 @@ class TestClass(AsyncHTTPTestCase):
 
     def test_1090_preprocessProtectedAreas(self):
         self.makeWebSocketRequest('/preprocessProtectedAreas?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50', False)
+
+    def test_1091_uploadFile(self):
+        #get the path to the file to upload
+        testFile = TEST_DATA_FOLDER + TEST_FILE
+        self.uploadFile(testFile, {"user":TEST_USER,"project":TEST_PROJECT, "filename": TEST_FILE}, False)
 
     def test_1092_updatePUFile(self):
         body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_PROJECT, "status2": "8172", "status3": "8542,8541"})
@@ -275,6 +289,9 @@ class TestClass(AsyncHTTPTestCase):
     def test_1400_deleteProjects(self): 
         self.makeRequest('/deleteProjects?projectNames=' + projects, False)
 
+    def test_1450_createFeaturePreprocessingFileFromImport(self):
+        self.makeRequest('/createFeaturePreprocessingFileFromImport?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+ 
     def test_1500_renameProject(self):
         self.makeRequest('/renameProject?user=' + TEST_USER + '&project=' + TEST_PROJECT + "&newName=wibble", False)
  
@@ -296,6 +313,11 @@ class TestClass(AsyncHTTPTestCase):
 
     def test_2100_getPlanningUnitGrids(self):
         self.makeRequest('/getPlanningUnitGrids', False)
+
+    def test_2150_importPlanningUnitGrid(self):
+        copyTestData(TEST_ZIP_SHP_PLANNING_GRID)
+        f = self.makeRequest('/importPlanningUnitGrid?filename=' + TEST_ZIP_SHP_PLANNING_GRID + '&name=pu_test&description=wibble', False)
+        self.makeRequest('/deletePlanningUnitGrid?planning_grid_name=' + f['feature_class_name'], False)
 
     def test_2200_deletePlanningUnitGrid(self):
         self.makeRequest('/deletePlanningUnitGrid?planning_grid_name=pu_and_terrestrial_square_50', False)
@@ -322,7 +344,7 @@ class TestClass(AsyncHTTPTestCase):
     def test_2900_uploadShapefile(self):
         #get the path to the file to upload
         testFile = TEST_DATA_FOLDER + TEST_ZIP_SHP_MULTIPLE
-        self.uploadFile(testFile, {'name': 'whatever', 'description': 'whatever2', 'filename': TEST_ZIP_SHP_MULTIPLE}, False)
+        self.uploadShapefile(testFile, {'name': 'whatever', 'description': 'whatever2', 'filename': TEST_ZIP_SHP_MULTIPLE}, False)
         # TODO The following is a hack as I cant upload a zip file as a binary file through the API, so all subsequent operations on the zip shapefile fail
         copyTestData(TEST_ZIP_SHP_MULTIPLE)
 
@@ -416,21 +438,16 @@ class TestClass(AsyncHTTPTestCase):
     def test_4850_deleteProject(self):
         self.makeRequest('/deleteProject?user=' + TEST_USER + '&project=wibble', False)
 
-    def test_9999_deleteUser(self):
+    def test_4900_deleteUser(self):
         self.makeRequest('/deleteUser?user=' + TEST_USER, False)
         
-    # def test_(self):
-    #     self.makeRequest('/')
+    def test_5000_logout(self):
+        self.makeRequest('/logout', False)
 
-            # ("/uploadFile", uploadFile),
-            # ("/importPlanningUnitGrid", importPlanningUnitGrid),
-            # ("/createFeaturePreprocessingFileFromImport", createFeaturePreprocessingFileFromImport),
-            # ("/logout", logout),
-            # ("/resendPassword", resendPassword),
-
-            # ("/stopProcess", stopProcess), #cant easily unit test
-            # ("/updateWDPA", updateWDPA), #cant easily unit test at the moment because we dont have the april 2020 wdpa online
-            # ("/shutdown", shutdown), #not a good idea to test this!
-            # ("/block", block), #no unit test required
+    # ("/resendPassword", resendPassword), #no unit test required
+    # ("/stopProcess", stopProcess), #cant easily unit test
+    # ("/updateWDPA", updateWDPA), #cant easily unit test at the moment because we dont have the april 2020 wdpa online
+    # ("/shutdown", shutdown), #not a good idea to test this!
+    # ("/block", block), #no unit test required
         
         

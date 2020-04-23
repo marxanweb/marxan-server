@@ -3,6 +3,6 @@
 . /etc/profile.d/marxan-server.sh
 conda activate base 
 #start marxan-server using a detached screen session that can be resumed
-# screen -d -m ${CONDA_PYTHON_EXE} ${MARXAN_SERVER_DIRECTORY}\/marxan-server.py
+screen -d -m ${CONDA_PYTHON_EXE} ${MARXAN_SERVER_DIRECTORY}\/marxan-server.py
 #for testing - this will output to stdout
-${CONDA_PYTHON_EXE} ${MARXAN_SERVER_DIRECTORY}\/marxan-server.py
+# ${CONDA_PYTHON_EXE} ${MARXAN_SERVER_DIRECTORY}\/marxan-server.py

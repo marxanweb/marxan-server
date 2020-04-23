@@ -15,14 +15,12 @@ git clone https://github.com/marxanweb/marxan-server.git
 ```
 ### Install marxan-server:
 ```
-. marxan-server/install.sh
+marxan-server/install.sh
 ```
 
 ### Start marxan-server:
-Login as root and start marxan-server (replace \<user\> with your username):
 ```
-sudo -i
-python /home/<user>/marxan-server/marxan-server.py
+sudo marxan-server/startup.sh
 ```
 
 ## Test the installation

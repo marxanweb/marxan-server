@@ -6,5 +6,4 @@ conda activate base
 screen -d -m ${CONDA_PYTHON_EXE} ${MARXAN_SERVER_DIRECTORY}\/marxan-server.py
 echo "marxan-server is running"
 echo "To connect to the running instance:"
-echo " sudo -i"
-echo " screen -r"
+echo " sudo screen -r"

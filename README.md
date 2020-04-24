@@ -41,7 +41,7 @@ You can also configure marxan-server to start automatically whenever the server 
 For example, on a Google Cloud Platform VM configure the marxan-server/unix_startup.sh script to be run on restart:  
 
 ```
-gcloud compute instances add-metadata $HOSTNAME --metadata-from-file startup-script=$MARXAN_SERVER_DIRECTORY\/unix_startup.sh
+sudo gcloud compute instances add-metadata $HOSTNAME --metadata-from-file startup-script=$MARXAN_SERVER_DIRECTORY\/unix_startup.sh
 ```
 
 ## Updating

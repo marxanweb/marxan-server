@@ -10,7 +10,7 @@ externalip=$(gcloud compute instances list --filter="name=($HOSTNAME)" --format=
 if [ "$externalip" != '' ]
 then
     echo "To test the marxan-server is accessible goto:"
-    echo "  http://"$externalip"//marxan-server/testTornado"
+    echo "  http://"$externalip"/marxan-server/testTornado"
 fi
 echo "To connect to the running instance:"
 echo "  sudo screen -r"

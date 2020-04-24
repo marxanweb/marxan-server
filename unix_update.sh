@@ -2,7 +2,7 @@
 #import the environment variables for marxan-server
 . /etc/profile.d/marxan-server.sh
 #kill the screen process that is running marxan-server
-pkill screen
+sudo pkill screen
 if [ $? -eq 1 ]
 then
     echo 'screen killed'

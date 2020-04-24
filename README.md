@@ -26,7 +26,7 @@ sudo marxan-server/unix_startup.sh
 ## Test the installation
 To test the installation goto: http://\<host\>/marxan-server/testTornado.  
 
-To run a complete set of unit tests:  
+To run a complete set of unit tests, start a new shell and run the following:  
 ```
 cd marxan-server/
 ./unittest.sh
@@ -45,9 +45,9 @@ gcloud compute instances add-metadata <instancename> --metadata-from-file startu
 ```
 
 ## Updating
-To download and apply updates to marxan-server:  
+To download and apply the latest updates to marxan-server:  
 ```
-marxan-server/unix_upgrade.sh 
+marxan-server/unix_update.sh 
 ```
 
 ## Troubleshooting

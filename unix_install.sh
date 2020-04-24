@@ -1,4 +1,5 @@
 ## MINICONDA
+echo "Installing miniconda .."
 download the miniconda installer
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh 
 #installs miniconda silently
@@ -10,10 +11,12 @@ sudo su -c "./miniconda3/bin/conda init bash"
 #and current user
 ./miniconda3/bin/conda init bash
 ### PYTHON PREREQUISITES
+echo "Installing Python packages .."
 #install the python prerequisites silently
 ./miniconda3/bin/conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
 ./miniconda3/bin/pip install mapbox aiopg aiohttp -q
 ### POSTGRESQL/POSTGIS
+echo "Installing PostGIS .."
 #install postgresql/postgis
 sudo apt-get update  
 sudo apt-get install postgresql-10 postgis -y
@@ -22,6 +25,7 @@ sudo apt-get update
 sudo -u postgres psql -c "CREATE EXTENSION postgis;"
 sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"
 ### MARXAN DATABASE
+echo "Creating the marxan-server database .."
 #create the jrc user
 sudo -u postgres psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPERUSER IN GROUP postgres;"
 #create the marxanserver database
@@ -29,6 +33,7 @@ sudo -u postgres psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0
 #get the database dump 
 wget https://github.com/marxanweb/marxan-server/releases/download/Beta2/dump.sql 
 #restore the database
+echo "Restoring database objects .."
 sudo -u postgres pg_restore ./dump.sql -d marxanserver
 #remove dump file
 rm ./dump.sql   

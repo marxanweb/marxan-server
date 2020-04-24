@@ -10,6 +10,7 @@ fi
 #pull the new github repo
 echo "Pulling from GitHub.."
 cd $MARXAN_SERVER_DIRECTORY
+git reset --hard
 git pull
 #restart marxan-server
 echo "Restarting marxan-server.."

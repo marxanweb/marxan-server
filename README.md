@@ -36,13 +36,18 @@ cd marxan-server/
 marxan-server can be configured to change various settings including linking to an existing database, configuring security etc. For more information see the [Administrator Guide - Configuration](https://docs.marxanweb.org/admin.html#configuration).  
 
 ## Starting automatically
-
 You can also configure marxan-server to start automatically whenever the server is restarted.  
 
 For example, on a Google Cloud Platform VM configure the marxan-server/unix_startup.sh script to be run on restart (replace the \<instancename\> with the name of the VM):  
 
 ```
 gcloud compute instances add-metadata <instancename> --metadata-from-file startup-script=$MARXAN_SERVER_DIRECTORY\/unix_startup.sh
+```
+
+## Updating
+To download and apply updates to marxan-server:  
+```
+marxan-server/unix_upgrade.sh 
 ```
 
 ## Troubleshooting

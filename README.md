@@ -47,7 +47,8 @@ gcloud compute instances add-metadata $HOSTNAME --metadata-from-file startup-scr
 ## Updating
 To download and apply the latest updates to marxan-server:  
 ```
-marxan-server/unix_update.sh 
+cd marxan-server/
+./unix_update.sh 
 ```
 
 ## Troubleshooting

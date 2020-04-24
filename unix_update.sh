@@ -13,5 +13,5 @@ cd $MARXAN_SERVER_DIRECTORY
 git reset --hard
 git pull
 #restart marxan-server
-echo "Restarting marxan-server.."
+printf "\n"
 sudo ./unix_startup.sh

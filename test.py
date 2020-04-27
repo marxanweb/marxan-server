@@ -109,7 +109,7 @@ class TestClass(AsyncHTTPTestCase):
         if ('error' in _dict.keys()):
             err = _dict['error']
             #leave out the href link to the error message
-            if err.find("See <"):
+            if err.find("See <")!=-1:
                 err = err[:err.find("See <")]
             print(err, end=' ', flush=True)
         #assertions for errors

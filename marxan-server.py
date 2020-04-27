@@ -1135,7 +1135,7 @@ async def _finishImportingFeature(feature_class_name, name, description, source,
 #imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox
 async def _importPlanningUnitGrid(filename, name, description, user):
     #unzip the shapefile and get the name of the shapefile without an extension, e.g. PlanningUnitsData.zip -> planningunits.shp -> planningunits
-    rootfilename = _unzipFile(filename)
+    rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, filename) 
     #get a unique feature class name for the import
     feature_class_name = _getUniqueFeatureclassName("pu_")
     try:
@@ -2407,14 +2407,14 @@ class uploadFile(MarxanRESTHandler):
         #set the response
         self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
 
-#unzips a shapefile and returns the rootname
+#unzips an already uploaded shapefile and returns the rootname
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/unzipShapefile?filename=test&callback=__jp5
 class unzipShapefile(MarxanRESTHandler):
-    def get(self):
+    async def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['filename'])   
         #write the file to the server
-        rootfilename = _unzipFile(self.get_argument('filename')) 
+        rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, self.get_argument('filename')) 
         #set the response
         self.send_response({'info': "File '" + self.get_argument('filename') + "' unzipped", 'rootfilename': rootfilename})
         
@@ -2796,7 +2796,7 @@ class updateWDPA(MarxanWebSocketHandler):
                 try:
                     #download finished - upzip the polygons shapefile
                     self.send_response({'status':'Preprocessing', 'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'"})
-                    rootfilename = _unzipFile(WDPA_DOWNLOAD_FILE, False, "polygons") 
+                    rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, WDPA_DOWNLOAD_FILE, False, "polygons") 
                 except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
                     #delete the zip file
                     os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)

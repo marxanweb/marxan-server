@@ -1459,7 +1459,7 @@ def _getMBAT():
                     raise MarxanServicesError("MBAT not found in Marxan Registry")
                 return mbat_line[startPos:-1]
 
-#imports a dataframe into a table - this is not part of the PostGIS class as it uses a different connection string - and it is not asynchronous at the moment
+#imports a dataframe into a table - this is not part of the PostGIS class as it uses a different connection string - and it is not asynchronous 
 def _importDataFrame(df, table_name):
     engine_text = 'postgresql://' + DATABASE_USER + ':' + DATABASE_PASSWORD + '@' + DATABASE_HOST + '/' + DATABASE_NAME
     engine = create_engine(engine_text)
@@ -2969,8 +2969,8 @@ class importGBIFData(MarxanWebSocketHandler):
                     #create the table if it doesnt already exists
                     await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(feature_class_name)))
                     await pg.execute(sql.SQL("CREATE TABLE marxan.{} (eventdate date, gbifid bigint, lng double precision, lat double precision, geometry geometry)").format(sql.Identifier(feature_class_name))) 
-                    #insert the records
-                    _importDataFrame(df, feature_class_name)
+                    #insert the records - this calls _importDataFrame which is blocking
+                    await IOLoop.current().run_in_executor(None, _importDataFrame, df, feature_class_name) 
                     #update the geometry field
                     await pg.execute(sql.SQL("UPDATE marxan.{} SET geometry=marxan.ST_SplitAtDateline(ST_Transform(ST_Buffer(ST_Transform(ST_SetSRID(ST_Point(lng, lat),4326),3410),%s),4326))").format(sql.Identifier(feature_class_name)), [GBIF_POINT_BUFFER_RADIUS])
                     #get the gbif vernacular name

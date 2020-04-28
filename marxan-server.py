@@ -1406,19 +1406,24 @@ def _getNumberOfRunsCompleted(obj):
 def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
     #load the run log
     df = _getRunLogs()
-    #get the index for the record that needs to be updated
-    i = df.loc[df['pid'] == pid].index.tolist()[0]  
-    #update the dataframe in place
-    if startTime:
-        df.loc[i,'endtime'] = datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S")
-        df.loc[i,'runtime'] = str((datetime.datetime.now() - startTime).seconds) + "s"
-    if numRunsCompleted:
-        df.loc[i,'runs'] = str(numRunsCompleted) + "/" + str(numRunsRequired) 
-    if (df.loc[i,'status'] == 'Running'): #only update the status if it isnt already set
-        df.loc[i,'status'] = status
-    #write the dataframe back to the run log 
-    df.to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
-    return df.loc[i,'status']
+    try:
+        #get the index for the record that needs to be updated
+        i = df.loc[df['pid'] == pid].index.tolist()[0]  
+    except:
+        # probably the user cleared the run log so the pid was not found
+        return "Unable to update run log"
+    else:
+        #update the dataframe in place
+        if startTime:
+            df.loc[i,'endtime'] = datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S")
+            df.loc[i,'runtime'] = str((datetime.datetime.now() - startTime).seconds) + "s"
+        if numRunsCompleted:
+            df.loc[i,'runs'] = str(numRunsCompleted) + "/" + str(numRunsRequired) 
+        if (df.loc[i,'status'] == 'Running'): #only update the status if it isnt already set
+            df.loc[i,'status'] = status
+        #write the dataframe back to the run log 
+        df.to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
+        return df.loc[i,'status']
 
 def _debugSQLStatement(sql, connection):
     if type(sql) is str:

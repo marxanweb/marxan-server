@@ -214,9 +214,16 @@ class TestClass(AsyncHTTPTestCase):
     def test_0050_validateUser(self):
         self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
 
-    def test_3000_unzipShapefile(self):
-        copyTestData(TEST_ZIP_SHP_MULTIPLE)
-        self.makeRequest('/unzipShapefile?filename=' + TEST_ZIP_SHP_MULTIPLE, False)
+    def test_1080_preprocessFeature(self):
+        self.makeWebSocketRequest('/preprocessFeature?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50&feature_class_name=volcano&alias=volcano&id=63408475', False)
+
+    #this needs some data to be in the puvspr.dat file
+    def test_1450_createFeaturePreprocessingFileFromImport(self):
+        self.makeRequest('/createFeaturePreprocessingFileFromImport?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+
+    # def test_3000_unzipShapefile(self):
+    #     copyTestData(TEST_ZIP_SHP_MULTIPLE)
+    #     self.makeRequest('/unzipShapefile?filename=' + TEST_ZIP_SHP_MULTIPLE, False)
 
     # #asynchronous/synchronous POST request
     # def test_1600_updateProjectParameters(self):
@@ -226,3 +233,4 @@ class TestClass(AsyncHTTPTestCase):
     # #WebSocket request
     # def test_2300_createPlanningUnitGrid(self):
     #     self.makeWebSocketRequest('/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=square', False)
+    

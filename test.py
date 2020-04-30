@@ -233,6 +233,13 @@ class TestClass(AsyncHTTPTestCase):
     def test_1080_preprocessFeature(self):
         self.makeWebSocketRequest('/preprocessFeature?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50&feature_class_name=volcano&alias=volcano&id=63408475', False)
 
+    #this needs some data to be in the puvspr.dat file - the previous test populates it
+    def test_1082_createFeaturePreprocessingFileFromImport(self):
+        self.makeRequest('/createFeaturePreprocessingFileFromImport?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+ 
+    def test_1083_upgradeProject(self):
+        self.makeRequest('/upgradeProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+
     def test_1085_preprocessPlanningUnits(self):
         self.makeWebSocketRequest('/preprocessPlanningUnits?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
@@ -289,18 +296,12 @@ class TestClass(AsyncHTTPTestCase):
     def test_1400_deleteProjects(self): 
         self.makeRequest('/deleteProjects?projectNames=' + projects, False)
 
-    def test_1450_createFeaturePreprocessingFileFromImport(self):
-        self.makeRequest('/createFeaturePreprocessingFileFromImport?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
- 
     def test_1500_renameProject(self):
         self.makeRequest('/renameProject?user=' + TEST_USER + '&project=' + TEST_PROJECT + "&newName=wibble", False)
  
     def test_1600_updateProjectParameters(self):
         body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT, 'COLORCODE':'wibble'})
         self.makeRequest('/updateProjectParameters', False, method="POST", body=body)
-
-    def test_1650_upgradeProject(self):
-        self.makeRequest('/upgradeProject?user=' + TEST_USER + '&project=wibble', False)
 
     def test_1800_listProjectsForFeature(self):
         self.makeRequest('/listProjectsForFeature?feature_class_id=63407942', False)

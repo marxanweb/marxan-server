@@ -10,6 +10,7 @@ from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent 
+from colorama import Fore, Back, Style
 from datetime import timedelta, timezone
 from sqlalchemy import create_engine
 from collections import OrderedDict
@@ -27,12 +28,6 @@ from osgeo import ogr
 ####################################################################################################################################################################################################################################################################
 
 ##SECURITY SETTINGS
-# Set to True to turn off all security, i.e. authentication and authorisation
-DISABLE_SECURITY = False
-# Set to False to hide initial output
-SHOW_START_LOG = True
-# Set to True to disable logging to file
-DISABLE_LOGGING_TO_FILE = False
 # REST services that have do not need authentication/authorisation
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
@@ -41,7 +36,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.36"
+MARXAN_SERVER_VERSION = "v0.9.37"
 MARXAN_LOG_FILE = 'marxan-server.log'
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.js"
 GUEST_USERNAME = "guest"
@@ -77,6 +72,7 @@ ERRORS_PAGE = DOCS_ROOT + "errors.html"
 LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 SHUTDOWN_EVENT = tornado.locks.Event() #to allow Tornado to exit gracefully
 PING_INTERVAL = 30000 #interval between regular pings when using websockets
+SHOW_START_LOG = True #to disable the start logging from unit tests
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -113,6 +109,8 @@ def _setGlobalVariables():
     global CERTFILE
     global KEYFILE
     global PLANNING_GRID_UNITS_LIMIT
+    global DISABLE_SECURITY
+    global DISABLE_FILE_LOGGING
     #get data from the marxan registry
     MBAT = _getMBAT()
     #initialise colorama to be able to show log messages on windows in color
@@ -132,6 +130,8 @@ def _setGlobalVariables():
     PORT = str(_getDictValue(serverData, 'PORT'))
     CERTFILE = _getDictValue(serverData,'CERTFILE')
     KEYFILE = _getDictValue(serverData,'KEYFILE')
+    DISABLE_SECURITY = _getDictValue(serverData,'DISABLE_SECURITY')
+    DISABLE_FILE_LOGGING = _getDictValue(serverData,'DISABLE_FILE_LOGGING')
     CONNECTION_STRING = "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
     conn = psycopg2.connect(CONNECTION_STRING)
     cur = conn.cursor()
@@ -153,7 +153,7 @@ def _setGlobalVariables():
     else:
         CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE = "Not set"
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
-    log("\x1b[1;32;48m\nStarting marxan-server " + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..\x1b[0m")
+    log("Starting marxan-server " + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..", Fore.GREEN)
     #print out which operating system is being used
     log(" Operating system:\t" + platform.system()) 
     log(" Tornado version:\t" + tornado.version)
@@ -168,11 +168,15 @@ def _setGlobalVariables():
     testUrl = testUrl + "<host>:" + PORT + "/marxan-server/testTornado" if (PORT != '80') else testUrl + "<host>/marxan-server/testTornado"
     if KEYFILE != "None":
         log(" Private key file:\t" + KEYFILE)
+    else:
+        log(" Private key file:\tNone")
     log(" Database:\t\t" + CONNECTION_STRING)
     log(" PostgreSQL:\t\t" + DATABASE_VERSION_POSTGRESQL)
     log(" PostGIS:\t\t" + DATABASE_VERSION_POSTGIS)
     log(" WDPA Version:\t\t" + _getDictValue(serverData,'WDPA_VERSION'))
     log(" Planning grid limit:\t" + str(PLANNING_GRID_UNITS_LIMIT))
+    log(" Disable security:\t" + str(DISABLE_SECURITY))
+    log(" Disable file logging:\t" + str(DISABLE_FILE_LOGGING))
     log(" Conda environment:\t" + CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE)
     log(" Python executable:\t" + sys.executable)
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
@@ -180,12 +184,12 @@ def _setGlobalVariables():
         ogr2ogr_executable = "ogr2ogr.exe"
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep + "library" + os.sep + "bin" + os.sep # sys.executable is the Python.exe file and will likely be in C:\Users\a_cottam\Miniconda2 folder - ogr2ogr is then in /library/bin on windows
         marxan_executable = "Marxan.exe" #TODO Use Marxan_x64.exe for 64 bit processors
-        stopCmd = "\x1b[1;31;48mPress CTRL+C or CTRL+Fn+Pause to stop the server\x1b[0m\n"
+        stopCmd = "Press CTRL+C or CTRL+Fn+Pause to stop the server\n"
     else:
         ogr2ogr_executable = "ogr2ogr"
         OGR2OGR_PATH = os.path.dirname(sys.executable) + os.sep # sys.executable is the Python.exe file and will likely be in /home/ubuntu//miniconda2/bin/ - the same place as ogr2ogr
         marxan_executable = "MarOpt_v243_Linux64"
-        stopCmd = "\x1b[1;31;48mPress CTRL+C to stop the server\x1b[0m\n"
+        stopCmd = "Press CTRL+C to stop the server\n"
     #if the ogr2ogr executable path is not in the miniconda bin directory, then hard-code it here and uncomment the line
     #OGR2OGR_PATH = ""
     OGR2OGR_EXECUTABLE = OGR2OGR_PATH + ogr2ogr_executable 
@@ -203,9 +207,9 @@ def _setGlobalVariables():
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     log(" GDAL_DATA path:\t" + GDAL_DATA_ENVIRONMENT_VARIABLE)
     log(" Marxan executable:\t" + MARXAN_EXECUTABLE)
-    log("\x1b[1;32;48mStarted at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m")
-    log("\x1b[1;32;48m\nTo test marxan-server goto " + testUrl + "\x1b[0m")
-    log(stopCmd)
+    log("Started at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"), Fore.GREEN)
+    log("\nTo test marxan-server goto " + testUrl, Fore.GREEN)
+    log(stopCmd, Fore.RED)
     #get the parent folder
     PARENT_FOLDER = MARXAN_FOLDER[:MARXAN_FOLDER[:-1].rindex(os.sep)] + os.sep 
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-CLIENT SOFTWARE IF PRESENT
@@ -216,16 +220,20 @@ def _setGlobalVariables():
         f = open(packageJson)
         MARXAN_CLIENT_VERSION = json.load(f)['version']
         f.close()
-        log("\x1b[1;32;48mmarxan-client " + MARXAN_CLIENT_VERSION + " installed\x1b[0m")
+        log("marxan-client " + MARXAN_CLIENT_VERSION + " installed", Fore.GREEN)
     else:
         MARXAN_CLIENT_BUILD_FOLDER = ""
         MARXAN_CLIENT_VERSION = "Not installed"
-        log("\x1b[1;32;48mmarxan-client is not installed\x1b[0m\n")
+        log("marxan-client is not installed\n", Fore.GREEN)
         
-#logs the string to the console
-def log(str):
+#logs the string to the logging handlers using the passed colorama color
+def log(_str, _color = Fore.RESET):
     if SHOW_START_LOG:
-        print(str)
+        #print to the console
+        print(_color + _str)
+        if not DISABLE_FILE_LOGGING:
+            #print to file
+            _writeFileUnicode(MARXAN_FOLDER + MARXAN_LOG_FILE, _str + "\n", "a")
     
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
@@ -1252,6 +1260,8 @@ def _getProjectsForPlanningGrid(feature_class_name):
 async def _createFeaturePreprocessingFileFromImport(obj):
     #load the puvspr data
     df = await _getProjectInputData(obj, "PUVSPRNAME")
+    if df.empty:
+        raise MarxanServicesError("There are no records in the puvspr.dat file")
     #calculate the statistics for all features - each record will have the species id, the sum of the planning unit areas for that species and the count of the planning units
     pivotted = df.pivot_table(index=['species'], aggfunc=['sum','count'], values='amount')
     #flatten the pivot table
@@ -1780,7 +1790,7 @@ class createImportProject(MarxanRESTHandler):
 #updates a project from the Marxan old version to the new version
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/upgradeProject?user=andrew&project=test2&callback=__jp7
 class upgradeProject(MarxanRESTHandler):
-    def get(self):
+    async def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project'])  
         #get the projects existing data from the input.dat file
@@ -1796,7 +1806,7 @@ class upgradeProject(MarxanRESTHandler):
         else:
             raise MarxanServicesError("Unable to update the old version of Marxan to the new one")
         #populate the feature_preprocessing.dat file using data in the puvspr.dat file
-        _createFeaturePreprocessingFileFromImport(self)
+        await _createFeaturePreprocessingFileFromImport(self)
         #delete the contents of the output folder
         _deleteAllFiles(self.folder_output)
         #set the response
@@ -2316,11 +2326,11 @@ class getPUData(MarxanRESTHandler):
 #used to populate the feature_preprocessing.dat file from an imported puvspr.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createFeaturePreprocessingFileFromImport?user=andrew&project=test&callback=__jp2
 class createFeaturePreprocessingFileFromImport(MarxanRESTHandler): #not currently used
-    def get(self):
+    async def get(self):
         #validate the input arguments
         _validateArguments(self.request.arguments, ['user','project']) 
         #run the internal routine
-        _createFeaturePreprocessingFileFromImport(self)
+        await _createFeaturePreprocessingFileFromImport(self)
         #set the response
         self.send_response({'info': "feature_preprocessing.dat file populated"})
 
@@ -3408,15 +3418,15 @@ async def main():
         #open the web browser if the call includes a url, e.g. python marxan-server.py http://localhost/index.html
         if len(sys.argv)>1:
             if MARXAN_CLIENT_VERSION == "Not installed":
-                log("\x1b[1;32;48mIgnoring <url> parameter - the marxan-client is not installed\x1b[0m")
+                log("Ignoring <url> parameter - the marxan-client is not installed", Fore.GREEN)
             else:
                 url = sys.argv[1] # normally "http://localhost/index.html"
-                log("\x1b[1;32;48mOpening Marxan Web at '" + url + "' ..\x1b[0m\n")
+                log("Opening Marxan Web at '" + url + "' ..\n", Fore.GREEN)
                 webbrowser.open(url, new=1, autoraise=True)
         else:
             if MARXAN_CLIENT_VERSION != "Not installed":
-                log("\x1b[1;32;48mGoto to " + navigateTo + " to open Marxan Web\x1b[0m")
-                log("\x1b[1;32;48mOr run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\x1b[0m\n")
+                log("Goto to " + navigateTo + " to open Marxan Web", Fore.GREEN)
+                log("Or run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\n", Fore.GREEN)
         #otherwise subprocesses fail on windows
         if platform.system() == "Windows":
             asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
@@ -3438,7 +3448,7 @@ if __name__ == "__main__":
         root_streamhandler = root_logger.handlers[0]
         root_streamhandler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True))
         # add a file logger
-        if not DISABLE_LOGGING_TO_FILE:
+        if not DISABLE_FILE_LOGGING:
             file_log_handler = logging.FileHandler(MARXAN_FOLDER + MARXAN_LOG_FILE)
             file_log_handler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=False))
             root_logger.addHandler(file_log_handler)
@@ -3450,7 +3460,7 @@ if __name__ == "__main__":
             _deleteShutdownFile()
             pass    
         finally:
-            log("\x1b[1;31;48mShutting down marxan-server at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\x1b[0m\n")
+            log("Shutting down marxan-server at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\n", Fore.RED)
             SHUTDOWN_EVENT.set()   
             
     except Exception as e:

@@ -843,9 +843,9 @@ def _addParameter(_type, key, value):
             results.append("Key " + key + " added to " + file)
         else:
             #update the existing value
-            _updateParameters(file, {k,v})
-            log("Key '" + key + "' updated to '" + v + "' in file " + file)
-            results.append("Key '" + key + "' updated to '" + v + "' in file " + file)
+            _updateParameters(file, {key:value})
+            log("Key '" + key + "' updated to '" + value + "' in file " + file)
+            results.append("Key '" + key + "' updated to '" + value + "' in file " + file)
     return results
             
 #updates the parameters in the *.dat file with the new parameters passed as a dict

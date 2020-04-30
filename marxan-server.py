@@ -31,6 +31,8 @@ from osgeo import ogr
 DISABLE_SECURITY = False
 # Set to False to hide initial output
 SHOW_START_LOG = True
+# Set to True to disable logging to file
+DISABLE_LOGGING_TO_FILE = False
 # REST services that have do not need authentication/authorisation
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
@@ -39,7 +41,8 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","getRunLogs","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.35"
+MARXAN_SERVER_VERSION = "v0.9.36"
+MARXAN_LOG_FILE = 'marxan-server.log'
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.js"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
@@ -3425,17 +3428,21 @@ if __name__ == "__main__":
     try:
         #turn on tornado logging 
         tornado.options.parse_command_line() 
-        # create an instance of tornado formatter
-        my_log_formatter = LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True)
-        # get the parent logger of all tornado loggers 
-        root_logger = logging.getLogger()
-        root_logger.setLevel(LOGGING_LEVEL)
-        # set your format to root_logger
-        root_streamhandler = root_logger.handlers[0]
-        root_streamhandler.setFormatter(my_log_formatter)
-        # logging.disable(logging.ERROR)
         #set the global variables
         _setGlobalVariables()
+        # get the parent logger of all tornado loggers 
+        root_logger = logging.getLogger()
+        # set the logging level
+        root_logger.setLevel(LOGGING_LEVEL)
+        # set your format for the streaming logger
+        root_streamhandler = root_logger.handlers[0]
+        root_streamhandler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True))
+        # add a file logger
+        if not DISABLE_LOGGING_TO_FILE:
+            file_log_handler = logging.FileHandler(MARXAN_FOLDER + MARXAN_LOG_FILE)
+            file_log_handler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=False))
+            root_logger.addHandler(file_log_handler)
+        # logging.disable(logging.ERROR)
         #initialise the app 
         try:
             tornado.ioloop.IOLoop.current().run_sync(main)

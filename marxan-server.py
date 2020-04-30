@@ -73,6 +73,7 @@ LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logge
 SHUTDOWN_EVENT = tornado.locks.Event() #to allow Tornado to exit gracefully
 PING_INTERVAL = 30000 #interval between regular pings when using websockets
 SHOW_START_LOG = True #to disable the start logging from unit tests
+DICT_PAD = 25 #text is right padded this much in dictionary outputs
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -155,30 +156,30 @@ def _setGlobalVariables():
     #OUTPUT THE INFORMATION ABOUT THE MARXAN-SERVER SOFTWARE
     log("Starting marxan-server " + MARXAN_SERVER_VERSION + " listening on port " + PORT + " ..", Fore.GREEN)
     #print out which operating system is being used
-    log(" Operating system:\t" + platform.system()) 
-    log(" Tornado version:\t" + tornado.version)
-    log(" Permitted domains:\t" + _getDictValue(serverData,'PERMITTED_DOMAINS')) 
+    log(_padDict("Operating system:", platform.system(), DICT_PAD)) 
+    log(_padDict("Tornado version:", tornado.version, DICT_PAD))
+    log(_padDict("Permitted domains:" , _getDictValue(serverData,'PERMITTED_DOMAINS'), DICT_PAD)) 
     #output the ssl information if it is being used
     if CERTFILE != "None":
-        log(" SSL certificate file:\t" + CERTFILE)
+        log(_padDict("SSL certificate file:", CERTFILE,DICT_PAD))
         testUrl = "https://"
     else:
-        log(" SSL certificate file:\tNone")
+        log(_padDict("SSL certificate file:", "None", DICT_PAD))
         testUrl = "http://"
     testUrl = testUrl + "<host>:" + PORT + "/marxan-server/testTornado" if (PORT != '80') else testUrl + "<host>/marxan-server/testTornado"
     if KEYFILE != "None":
-        log(" Private key file:\t" + KEYFILE)
+        log(_padDict("Private key file:", KEYFILE, DICT_PAD))
     else:
-        log(" Private key file:\tNone")
-    log(" Database:\t\t" + CONNECTION_STRING)
-    log(" PostgreSQL:\t\t" + DATABASE_VERSION_POSTGRESQL)
-    log(" PostGIS:\t\t" + DATABASE_VERSION_POSTGIS)
-    log(" WDPA Version:\t\t" + _getDictValue(serverData,'WDPA_VERSION'))
-    log(" Planning grid limit:\t" + str(PLANNING_GRID_UNITS_LIMIT))
-    log(" Disable security:\t" + str(DISABLE_SECURITY))
-    log(" Disable file logging:\t" + str(DISABLE_FILE_LOGGING))
-    log(" Conda environment:\t" + CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE)
-    log(" Python executable:\t" + sys.executable)
+        log(_padDict("Private key file:", "None", DICT_PAD))
+    log(_padDict("Database:", CONNECTION_STRING, DICT_PAD))
+    log(_padDict("PostgreSQL:", DATABASE_VERSION_POSTGRESQL, DICT_PAD))
+    log(_padDict("PostGIS:", DATABASE_VERSION_POSTGIS, DICT_PAD))
+    log(_padDict("WDPA Version:", _getDictValue(serverData,'WDPA_VERSION'), DICT_PAD))
+    log(_padDict("Planning grid limit:", str(PLANNING_GRID_UNITS_LIMIT), DICT_PAD))
+    log(_padDict("Disable security:", str(DISABLE_SECURITY), DICT_PAD))
+    log(_padDict("Disable file logging:", str(DISABLE_FILE_LOGGING), DICT_PAD))
+    log(_padDict("Conda environment:", CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE, DICT_PAD))
+    log(_padDict("Python executable:", sys.executable, DICT_PAD))
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
     if platform.system() == "Windows":
         ogr2ogr_executable = "ogr2ogr.exe"
@@ -196,7 +197,7 @@ def _setGlobalVariables():
     if not os.path.exists(OGR2OGR_EXECUTABLE):
         raise MarxanServicesError(" ogr2ogr executable:\t'" + OGR2OGR_EXECUTABLE + "' could not be found. Set it manually in the marxan-server.py file.")
     else:
-        log(" ogr2ogr executable:\t" + OGR2OGR_EXECUTABLE)
+        log(_padDict("ogr2ogr executable:", OGR2OGR_EXECUTABLE, DICT_PAD))
     #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
@@ -205,8 +206,8 @@ def _setGlobalVariables():
     START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
     CASE_STUDY_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "British Columbia Marine Case Study" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
-    log(" GDAL_DATA path:\t" + GDAL_DATA_ENVIRONMENT_VARIABLE)
-    log(" Marxan executable:\t" + MARXAN_EXECUTABLE)
+    log(_padDict("GDAL_DATA path:", GDAL_DATA_ENVIRONMENT_VARIABLE, DICT_PAD))
+    log(_padDict("Marxan executable:", MARXAN_EXECUTABLE, DICT_PAD))
     log("Started at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"), Fore.GREEN)
     log("\nTo test marxan-server goto " + testUrl, Fore.GREEN)
     log(stopCmd, Fore.RED)
@@ -226,6 +227,10 @@ def _setGlobalVariables():
         MARXAN_CLIENT_VERSION = "Not installed"
         log("marxan-client is not installed\n", Fore.GREEN)
         
+#outputs a key: value from a dictionary into 2 columns with width w
+def _padDict(k, v, w):
+    return k + (w - len(k))*" " + v
+    
 #logs the string to the logging handlers using the passed colorama color
 def log(_str, _color = Fore.RESET):
     if SHOW_START_LOG:

@@ -2659,6 +2659,8 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         #add in messages from descendent classes
         if hasattr(self, 'pid'):
             message.update({'pid': self.pid})
+        if hasattr(self, 'marxanProcess'):
+            message.update({'pid': self.marxanProcess.pid})
         self.write_message(message)
     
     def close(self, closeMessage = {}):
@@ -2739,7 +2741,7 @@ class runMarxan(MarxanWebSocketHandler):
                     line = await self.marxanProcess.stdout.read_bytes(1024, partial=True)
                     self.send_response({'info':line.decode("utf-8"), 'status': 'RunningMarxan','pid': 'm' + str(self.marxanProcess.pid)})
             except (WebSocketClosedError):
-                log("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
+                log("The client closed the WebSocket unexpectedly. The run log was not updated for pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):                
                 pass
         else:
@@ -2759,7 +2761,7 @@ class runMarxan(MarxanWebSocketHandler):
                 log("BufferError")
                 pass
             except (WebSocketClosedError):
-                log("The WebSocket was closed in stream_marxan_output - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
+                log("The client closed the WebSocket unexpectedly. The run log was not updated for pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):  
                 log("StreamClosedError")
                 pass
@@ -2798,7 +2800,7 @@ class runMarxan(MarxanWebSocketHandler):
                 self.close({'info': 'Run completed', 'project': self.project, 'user': self.user})
 
         except (WebSocketClosedError): #the websocket may already have been closed
-            log("The WebSocket was closed in finishOutput - unable to send a response to the client. pid = " + str(self.marxanProcess.pid))
+            log("The client closed the WebSocket unexpectedly. The run log was not updated for pid = " + str(self.marxanProcess.pid))
 
 #updates the WDPA table in PostGIS using the publically available downloadUrl
 class updateWDPA(MarxanWebSocketHandler):
@@ -3461,7 +3463,7 @@ if __name__ == "__main__":
             root_logger.addHandler(file_log_handler)
         # logging.disable(logging.ERROR)
         #initialise the app 
-        try:
+        try: 
             tornado.ioloop.IOLoop.current().run_sync(main)
         except KeyboardInterrupt:
             _deleteShutdownFile()

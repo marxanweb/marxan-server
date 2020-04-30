@@ -41,6 +41,8 @@ rm ./dump.sql
 cp ./marxan-server/server.dat.default ./marxan-server/server.dat
 #create the default admin user.dat file - this allows git resets without overwriting any password changes
 cp ./marxan-server/users/admin/user.dat.default ./marxan-server/users/admin/user.dat
+#create the default marxan-server.log file - this allows git resets without overwriting log changes
+cp ./marxan-server/marxan-server.log.default ./marxan-server/marxan-server.log
 #create a file in /etc/profile.d/ to store the MARXAN_SERVER_DIRECTORY environment variable for all users
 sudo bash -c 'echo MARXAN_SERVER_DIRECTORY=\"$PWD\/marxan-server\" > /etc/profile.d/marxan-server.sh'
 #source the MARXAN_SERVER_DIRECTORY environment variable

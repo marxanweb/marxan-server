@@ -3277,6 +3277,12 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
             self.close({'error': error})
         else:
             _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
+            #get the feature class name
+            fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
+            #see if the planning grid already exists
+            query = await self.executeQuery("SELECT * FROM marxan.metadata_planning_units WHERE feature_class_name =(%s);", [fc])            
+            if len(query['records']) > 0:
+                self.close({'error':"That item already exists"})
             #estimate how many planning units are in the grid that will be created
             unitCount = await _estimatePlanningUnitCount(self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'))
             #see if the unit count is above the PLANNING_GRID_UNITS_LIMIT
@@ -3287,8 +3293,6 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
                 if results:
                     #get the planning grid alias
                     alias = results["records"][0][0]
-                    #get the feature class name
-                    fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
                     #create a primary key so the feature class can be used in ArcGIS
                     await pg.createPrimaryKey(fc, "puid")    
                     #start the upload to Mapbox

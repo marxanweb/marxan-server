@@ -2741,7 +2741,7 @@ class runMarxan(MarxanWebSocketHandler):
                     line = await self.marxanProcess.stdout.read_bytes(1024, partial=True)
                     self.send_response({'info':line.decode("utf-8"), 'status': 'RunningMarxan','pid': 'm' + str(self.marxanProcess.pid)})
             except (WebSocketClosedError):
-                log("The client closed the WebSocket unexpectedly. The run log was not updated for pid = " + str(self.marxanProcess.pid))
+                log("The WebSocket is already closed. Unable to stream Marxan output for pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):                
                 pass
         else:
@@ -2761,7 +2761,7 @@ class runMarxan(MarxanWebSocketHandler):
                 log("BufferError")
                 pass
             except (WebSocketClosedError):
-                log("The client closed the WebSocket unexpectedly. The run log was not updated for pid = " + str(self.marxanProcess.pid))
+                log("The WebSocket is already closed. Unable to stream Marxan output for pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):  
                 log("StreamClosedError")
                 pass
@@ -2800,7 +2800,7 @@ class runMarxan(MarxanWebSocketHandler):
                 self.close({'info': 'Run completed', 'project': self.project, 'user': self.user})
 
         except (WebSocketClosedError): #the websocket may already have been closed
-            log("The client closed the WebSocket unexpectedly. The run log was not updated for pid = " + str(self.marxanProcess.pid))
+            log("The WebSocket is already closed. Unable to send a close message for pid = " + str(self.marxanProcess.pid))
 
 #updates the WDPA table in PostGIS using the publically available downloadUrl
 class updateWDPA(MarxanWebSocketHandler):
@@ -3148,7 +3148,8 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                     return {'columns': columns, 'records': records}
                 else: #an error
                     return None
-        
+        except (psycopg2.errors.UniqueViolation):
+            self.close({'error': "That item already exists"})
         except (psycopg2.extensions.QueryCanceledError, psycopg2.InternalError, asyncio.CancelledError): #stopped by user
             self.close({'error': 'Processing stopped by ' + self.get_current_user()})
         except (psycopg2.OperationalError) as e: #killed by operating system

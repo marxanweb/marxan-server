@@ -3283,22 +3283,23 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
             query = await self.executeQuery("SELECT * FROM marxan.metadata_planning_units WHERE feature_class_name =(%s);", [fc])            
             if len(query['records']) > 0:
                 self.close({'error':"That item already exists"})
-            #estimate how many planning units are in the grid that will be created
-            unitCount = await _estimatePlanningUnitCount(self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'))
-            #see if the unit count is above the PLANNING_GRID_UNITS_LIMIT
-            if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
-                self.close({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + " (=" + str(int(unitCount)) + "). See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
             else:
-                results = await self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()])
-                if results:
-                    #get the planning grid alias
-                    alias = results["records"][0][0]
-                    #create a primary key so the feature class can be used in ArcGIS
-                    await pg.createPrimaryKey(fc, "puid")    
-                    #start the upload to Mapbox
-                    uploadId = await _uploadTilesetToMapbox(fc, fc)
-                    #set the response
-                    self.close({'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId})
+                #estimate how many planning units are in the grid that will be created
+                unitCount = await _estimatePlanningUnitCount(self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'))
+                #see if the unit count is above the PLANNING_GRID_UNITS_LIMIT
+                if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
+                    self.close({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + " (=" + str(int(unitCount)) + "). See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
+                else:
+                    results = await self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()])
+                    if results:
+                        #get the planning grid alias
+                        alias = results["records"][0][0]
+                        #create a primary key so the feature class can be used in ArcGIS
+                        await pg.createPrimaryKey(fc, "puid")    
+                        #start the upload to Mapbox
+                        uploadId = await _uploadTilesetToMapbox(fc, fc)
+                        #set the response
+                        self.close({'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId})
 
 #runs a gap analysis
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/runGapAnalysis?user=admin&project=British%20Columbia%20Marine%20Case%20Study

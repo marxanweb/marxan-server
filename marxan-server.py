@@ -10,6 +10,7 @@ from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent 
+from google.cloud import logging as googlelogger
 from colorama import Fore, Back, Style
 from datetime import timedelta, timezone
 from sqlalchemy import create_engine
@@ -69,11 +70,11 @@ GBIF_POINT_BUFFER_RADIUS = 1000
 GBIF_OCCURRENCE_LIMIT = 200000 # from the GBIF docs here: https://www.gbif.org/developer/occurrence#search
 DOCS_ROOT = "https://docs.marxanweb.org"
 ERRORS_PAGE = DOCS_ROOT + "errors.html"
-LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 SHUTDOWN_EVENT = tornado.locks.Event() #to allow Tornado to exit gracefully
 PING_INTERVAL = 30000 #interval between regular pings when using websockets
 SHOW_START_LOG = True #to disable the start logging from unit tests
 DICT_PAD = 25 #text is right padded this much in dictionary outputs
+LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG
 
 ####################################################################################################################################################################################################################################################################
 ## generic functions that dont belong to a class so can be called by subclasses of tornado.web.RequestHandler and tornado.websocket.WebSocketHandler equally - underscores are used so they dont mask the equivalent url endpoints
@@ -428,7 +429,7 @@ async def _getProjectData(obj):
             key, value = _getKeyValue(s, k)
             metadataDict.update({key: value})
             if k=='PLANNING_UNIT_NAME':
-                df2 = await pg.query("select * from marxan.get_planning_units_metadata(%s)", [value], "DataFrame")
+                df2 = await pg.execute("select * from marxan.get_planning_units_metadata(%s)", data=[value], returnFormat="DataFrame")
                 if (df2.shape[0] == 0):
                     metadataDict.update({'pu_alias': value,'pu_description': 'No description','pu_domain': 'Unknown domain','pu_area': 'Unknown area','pu_creation_date': 'Unknown date','pu_created_by':'Unknown','pu_country':'Unknown'})
                 else:
@@ -532,7 +533,7 @@ async def _getSpeciesData(obj):
             raise MarxanServicesError("Unable to load spec.dat data. " + e.args[1] + ". Column names: " + ",".join(df.columns.to_list()).encode('unicode_escape')) #.encode('unicode_escape') in case there are tab characters which will be escaped to \\t
     else:
         #get the postgis feature data - this doesnt use _getAllSpeciesData because we have to join on the oid column
-        df2 = await pg.query("select * from marxan.get_features()", None, "DataFrame")
+        df2 = await pg.execute("select * from marxan.get_features()", returnFormat="DataFrame")
         #join the species data to the PostGIS data
         output_df = output_df.join(df2.set_index("oid"))
     #rename the columns that are sent back to the client as the names of various properties are different in Marxan compared to the web client
@@ -543,11 +544,11 @@ async def _getSpeciesData(obj):
         
 #gets data for a single feature
 async def _getFeature(obj, oid):
-    obj.data = await pg.query("SELECT oid::integer id,feature_class_name,alias,description,_area area,extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features WHERE oid=%s;",[oid], "DataFrame")
+    obj.data = await pg.execute("SELECT oid::integer id,feature_class_name,alias,description,_area area,extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features WHERE oid=%s;",data=[oid], returnFormat="DataFrame")
 
 #get all species information from the PostGIS database
 async def _getAllSpeciesData(obj):
-    obj.allSpeciesData = await pg.query("SELECT oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features ORDER BY lower(alias);", None, "DataFrame")
+    obj.allSpeciesData = await pg.execute("SELECT oid::integer id,feature_class_name , alias , description , _area area, extent, to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date, tilesetid, source, created_by FROM marxan.metadata_interest_features ORDER BY lower(alias);", returnFormat="DataFrame")
 
 #get the information about which species have already been preprocessed
 def _getSpeciesPreProcessingData(obj):
@@ -567,15 +568,15 @@ async def _getPlanningUnitsCostData(obj):
 
 #gets the data for the planning grids
 async def _getPlanningUnitGrids():
-    return await pg.query("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by,tilesetid, planning_unit_count FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by lower(alias);", None, "Dict")
+    return await pg.execute("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by,tilesetid, planning_unit_count FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by lower(alias);", returnFormat="Dict")
 
 #estimates the number of planning grid units in the passed country, area and domain
 async def _estimatePlanningUnitCount(areakm2, iso3, domain):
     #see if we are using terrestrial or marine
     if (domain == 'Terrestrial'):
-        unitCount = await pg.query("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.gaul_2015_simplified_1km WHERE iso3 = %s;", [areakm2,iso3])
+        unitCount = await pg.execute("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.gaul_2015_simplified_1km WHERE iso3 = %s;", data=[areakm2,iso3], returnFormat="Array")
     else:
-        unitCount = await pg.query("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.eez_simplified_1km WHERE iso3 = %s;", [areakm2,iso3])
+        unitCount = await pg.execute("SELECT ST_Area(ST_Transform(wkb_geometry, 3410))/(%s*1000000) FROM marxan.eez_simplified_1km WHERE iso3 = %s;", data=[areakm2,iso3], returnFormat="Array")
     return unitCount[0][0]
 
 #get the protected area intersections information
@@ -711,7 +712,7 @@ async def _createPuFile(obj, planning_grid_name):
     #get the path to the pu.dat file
     filename = obj.folder_input + PLANNING_UNITS_FILENAME
     #create the pu.dat file using a postgis query
-    await pg.query(sql.SQL("SELECT puid as id,1::double precision as cost,0::integer as status FROM marxan.{};").format(sql.Identifier(planning_grid_name)), None, "File" , filename)
+    await pg.execute(sql.SQL("SELECT puid as id,1::double precision as cost,0::integer as status FROM marxan.{};").format(sql.Identifier(planning_grid_name)), returnFormat="File" , filename=filename)
     #update the input.dat file
     _updateParameters(obj.folder_project + PROJECT_DATA_FILENAME, {'PUNAME': PLANNING_UNITS_FILENAME})
 
@@ -1104,7 +1105,7 @@ def _deleteTileset(tilesetid):
 #deletes a feature
 async def _deleteFeature(feature_class_name):
     #get the data for the feature
-    data = await pg.query("SELECT oid, created_by FROM marxan.metadata_interest_features WHERE feature_class_name = %s;", [feature_class_name], "Dict")
+    data = await pg.execute("SELECT oid, created_by FROM marxan.metadata_interest_features WHERE feature_class_name = %s;", data=[feature_class_name], returnFormat="Dict")
     #return if it is not found
     if len(data)==0:
         return
@@ -1141,7 +1142,7 @@ async def _finishImportingFeature(feature_class_name, name, description, source,
     await pg.execute(sql.SQL("ALTER TABLE marxan.{} ADD COLUMN id SERIAL PRIMARY KEY;").format(sql.Identifier(feature_class_name)))
     try:    
         #create a record for this new feature in the metadata_interest_features table
-        id = await pg.query(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT ST_Area(ST_Transform(geom, 3410)) _area, box2d(geom) extent FROM (SELECT ST_Union(geometry) geom FROM marxan.{}) AS sub2) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), [feature_class_name, name, description, tilesetId, source, user])
+        id = await pg.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT ST_Area(ST_Transform(geom, 3410)) _area, box2d(geom) extent FROM (SELECT ST_Union(geometry) geom FROM marxan.{}) AS sub2) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), data=[feature_class_name, name, description, tilesetId, source, user], returnFormat="Array")
     except (MarxanServicesError) as e:
         await _deleteFeatureClass(feature_class_name)
         if "Database integrity error" in e.args[0]:
@@ -1191,7 +1192,7 @@ async def _importPlanningUnitGrid(filename, name, description, user):
 #deletes a planning grid
 async def _deletePlanningUnitGrid(planning_grid):
     #get the data for the planning grid
-    data = await pg.query("SELECT created_by, source FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [planning_grid], "Dict")
+    data = await pg.execute("SELECT created_by, source FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", data=[planning_grid], returnFormat="Dict")
     #return if it is not found
     if len(data)==0:
         return
@@ -1208,7 +1209,7 @@ async def _deletePlanningUnitGrid(planning_grid):
     if (data[0]['source'] != 'planning_grid function'):
         _deleteTileset(planning_grid)
     #delete the new planning unit record from the metadata_planning_units table
-    await pg.execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", [planning_grid])
+    await pg.execute("DELETE FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", data=[planning_grid])
     #delete the feature class
     await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(planning_grid)))
     
@@ -1527,67 +1528,50 @@ class PostGIS():
     def __init__(self, pool):
         self.pool = pool
 
-    #does argument binding to prevent sql injection attacks
-    def _mogrify(self, cur, sql, data):
-        if data is not None:
-            return cur.mogrify(sql, data)
-        else:
-            return sql
-
-    #executes a query and returns the records or writes them to file
-    async def query(self, sql, data = None, format = "Array", filename = None):
+    #executes a query and optionally returns the records or writes them to file
+    async def execute(self, sql, data=None, returnFormat=None, filename=None):
         try:
+            #initialise cur in case self.pool.cursor raises an exception
+            cur = None
             with (await self.pool.cursor()) as cur:
-                records = []
                 #do any argument binding 
-                sql = self._mogrify(cur, sql, data)
+                sql = cur.mogrify(sql, data) if data is not None else sql
                 #debug the SQL if in DEBUG mode
                 _debugSQLStatement(sql, cur.connection.raw)
                 #run the query
                 await cur.execute(sql)
+                #if the query doesnt return any records then return
+                if returnFormat == None:
+                    return
                 #get the results
+                records = []
                 records = await cur.fetchall()
-                if format == "Array":
+                if returnFormat == "Array":
                     return records
                 else:
                     #get the column names for the query
                     columns = [desc[0] for desc in cur.description]
                     #create a data frame
                     df = pandas.DataFrame.from_records(records, columns = columns)
-                    if format == "DataFrame":
+                    if returnFormat == "DataFrame":
                         return df
                     #convert to a dictionary
-                    elif format == "Dict":
+                    elif returnFormat == "Dict":
                         return df.to_dict(orient="records")
                     #output the results to a file
-                    elif format == "File":
+                    elif returnFormat == "File":
                         df.to_csv(filename, index=False)
-                        
         except psycopg2.IntegrityError as e:
             raise MarxanServicesError("Database integrity error: " + e.args[0])
         except psycopg2.OperationalError as e:
             if ("terminating connection due to administrator command" in e.args[0]):
                 raise MarxanServicesError("The database server was shutdown")
         except Exception as e:
+            print("Error in pg.execute: " + e.args[0])
             raise MarxanServicesError(e.args[0])
-
-    #executes a query 
-    async def execute(self, sql, data = None, format = "Array", filename = None):
-        with (await self.pool.cursor()) as cur:
-            #do any argument binding 
-            sql = self._mogrify(cur, sql, data)
-            #debug the SQL if in DEBUG mode
-            _debugSQLStatement(sql, cur.connection.raw)
-            #execute the query
-            try:
-                await cur.execute(sql)
-            except psycopg2.IntegrityError as e:
-                raise MarxanServicesError("Database integrity error: " + e.args[0])
-            except psycopg2.OperationalError as e:
-                if ("terminating connection due to administrator command" in e.args[0]):
-                    raise MarxanServicesError("The database server was shutdown")
-            except Exception as e:
-                raise MarxanServicesError(e.args[0])
+        finally: #close the cursor
+            if cur:
+                cur.close()
 
     #imports a shapefile into PostGIS
     async def importShapefile(self, shapefile, feature_class_name, epsgCode, splitAtDateline = True):
@@ -1620,7 +1604,7 @@ class PostGIS():
 
     #tests to see if a feature class is valid - raises an error if not
     async def isValid(self, feature_class_name):
-        _isValid = await self.query(sql.SQL("SELECT DISTINCT ST_IsValid(geometry) FROM marxan.{} LIMIT 1;").format(sql.Identifier(feature_class_name))) # will return [false],[false,true] or [true] - so the first row will be [false] or [false,true]
+        _isValid = await self.execute(sql.SQL("SELECT DISTINCT ST_IsValid(geometry) FROM marxan.{} LIMIT 1;").format(sql.Identifier(feature_class_name)), returnFormat="Array") # will return [false],[false,true] or [true] - so the first row will be [false] or [false,true]
         if not _isValid[0][0]:
             #delete the feature class
             await self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
@@ -1899,7 +1883,7 @@ class renameProject(MarxanRESTHandler):
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getCountries?callback=__jp0
 class getCountries(MarxanRESTHandler):
     async def get(self):
-        content = await pg.query("SELECT t.iso3, t.name_iso31, CASE WHEN m.iso3 IS NULL THEN False ELSE True END has_marine FROM marxan.gaul_2015_simplified_1km t LEFT JOIN marxan.eez_simplified_1km m on t.iso3 = m.iso3 WHERE t.iso3 NOT LIKE '%|%' ORDER BY lower(t.name_iso31);", None, "Dict")
+        content = await pg.execute("SELECT t.iso3, t.name_iso31, CASE WHEN m.iso3 IS NULL THEN False ELSE True END has_marine FROM marxan.gaul_2015_simplified_1km t LEFT JOIN marxan.eez_simplified_1km m on t.iso3 = m.iso3 WHERE t.iso3 NOT LIKE '%|%' ORDER BY lower(t.name_iso31);", returnFormat="Dict")
         self.send_response({'records': content})        
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitGrids?callback=__jp0
@@ -2661,7 +2645,10 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             message.update({'pid': self.pid})
         if hasattr(self, 'marxanProcess'):
             message.update({'pid': self.marxanProcess.pid})
-        self.write_message(message)
+        try:
+            self.write_message(message)
+        except WebSocketClosedError:
+            pass
     
     def close(self, closeMessage = {}):
         #stop the ping messages
@@ -2938,7 +2925,7 @@ class importFeatures(MarxanWebSocketHandler):
                     feature_names = [name]
                 else: #get the feature names from a field in the shapefile
                     splitfield = self.get_argument('splitfield')
-                    features = await pg.query(sql.SQL("SELECT {splitfield} FROM marxan.{scratchTable}").format(splitfield=sql.Identifier(splitfield),scratchTable=sql.Identifier(scratch_name)), None, "DataFrame")
+                    features = await pg.execute(sql.SQL("SELECT {splitfield} FROM marxan.{scratchTable}").format(splitfield=sql.Identifier(splitfield),scratchTable=sql.Identifier(scratch_name)), returnFormat="DataFrame")
                     feature_names = list(set(features[splitfield].tolist()))
                     #if they are not unique then return an error
                     # if (len(feature_names) != len(set(feature_names))):
@@ -2965,7 +2952,6 @@ class importFeatures(MarxanWebSocketHandler):
                 self.close({'info': "Features imported",'uploadIds':uploadIds})
             except (MarxanServicesError) as e:
                 if "already exists" in e.args[0]:
-                    print("wibble")
                     self.close({'error':"The feature '" + feature_name + "' already exists", 'info': 'Failed to import features'})
                 else:
                     self.close({'error': e.args[0], 'info': 'Failed to import features'})
@@ -3162,6 +3148,8 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
                 self.close({'error': "That item already exists"})
             else:
                 self.close({'error': e.pgerror})
+        finally:
+            cur.close()
     
 ####################################################################################################################################################################################################################################################################
 ## WebSocket subclasses
@@ -3258,7 +3246,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
                 if (os.path.exists(self.folder_input + BOUNDARY_LENGTH_FILENAME)):
                     os.remove(self.folder_input + BOUNDARY_LENGTH_FILENAME)
                 #write the boundary lengths to file
-                await pg.query(sql.SQL("SELECT * FROM marxan.{};").format(sql.Identifier(feature_class_name)), None, "File", self.folder_input + BOUNDARY_LENGTH_FILENAME)
+                await pg.execute(sql.SQL("SELECT * FROM marxan.{};").format(sql.Identifier(feature_class_name)), returnFormat="File", filename=self.folder_input + BOUNDARY_LENGTH_FILENAME)
                 #delete the tmp table
                 await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
                 #update the input.dat file
@@ -3420,7 +3408,7 @@ class Application(tornado.web.Application):
         super(Application, self).__init__(handlers, **settings)
 
 async def main():
-    async with aiopg.create_pool(CONNECTION_STRING, timeout = None) as pool:
+    async with aiopg.create_pool(CONNECTION_STRING, timeout = None, minsize=10) as pool:
         app = Application(pool)
         #start listening on whichever port, and if there is an https certificate then use the certificate information from the server.dat file to return data securely
         if CERTFILE != "None":
@@ -3455,6 +3443,13 @@ if __name__ == "__main__":
         tornado.options.parse_command_line() 
         #set the global variables
         _setGlobalVariables()
+
+        # # Instantiates a client 
+        # client = googlelogger.Client()
+        # # Connects the logger to the root logging handler; by default this captures
+        # # all logs at INFO level and higher
+        # client.setup_logging()
+
         # get the parent logger of all tornado loggers 
         root_logger = logging.getLogger()
         # set the logging level

@@ -15,3 +15,4 @@ then
 fi
 echo "To connect to the running instance:"
 echo "  sudo screen -r"
+sudo screen -r

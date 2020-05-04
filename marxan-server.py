@@ -1083,10 +1083,12 @@ async def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     zipfilename = MARXAN_FOLDER + feature_class_name + ".zip"
     _createZipfile(lstFilenames, MARXAN_FOLDER, feature_class_name + ".zip")
     #upload to mapbox
-    uploadId = _uploadTileset(zipfilename, feature_class_name)
-    #delete the temporary shapefile file and zip file
-    _deleteZippedShapefile(MARXAN_FOLDER, feature_class_name + ".zip", feature_class_name)
-    return uploadId
+    try:
+        uploadId = _uploadTileset(zipfilename, feature_class_name)
+        return uploadId
+    finally:
+        #delete the temporary shapefile file and zip file
+        _deleteZippedShapefile(MARXAN_FOLDER, feature_class_name + ".zip", feature_class_name)
     
 #uploads a tileset to mapbox using the filename of the file (filename) to upload and the name of the resulting tileset (_name)
 def _uploadTileset(filename, _name):
@@ -1094,8 +1096,10 @@ def _uploadTileset(filename, _name):
     service = Uploader(access_token=MBAT)    
     with open(filename, 'rb') as src:
         upload_resp = service.upload(src, _name)
-        upload_id = upload_resp.json()['id']
-        return upload_id
+        if 'id' in upload_resp.json().keys():
+            return upload_resp.json()['id']
+        else:
+            raise MarxanServicesError("Failed to get an upload ID from Mapbox")
         
 #deletes a tileset 
 def _deleteTileset(tilesetid):
@@ -1529,7 +1533,7 @@ class PostGIS():
         self.pool = pool
 
     #executes a query and optionally returns the records or writes them to file
-    async def execute(self, sql, data=None, returnFormat=None, filename=None):
+    async def execute(self, sql, data=None, returnFormat=None, filename=None, socketHandler=None):
         try:
             #initialise cur in case self.pool.cursor raises an exception
             cur = None
@@ -1538,6 +1542,11 @@ class PostGIS():
                 sql = cur.mogrify(sql, data) if data is not None else sql
                 #debug the SQL if in DEBUG mode
                 _debugSQLStatement(sql, cur.connection.raw)
+                #if a socketHandler is passed the query is being run from a MarxanWebSocketHandler class
+                if socketHandler:
+                    #send a websocket message with the pid if the socketHandler is specified - this is so the query can be stopped - and prefix it with a 'q'
+                    socketHandler.pid = 'q' + str(await cur.connection.get_backend_pid())
+                    socketHandler.send_response({'status':'pid', 'pid': socketHandler.pid})
                 #run the query
                 await cur.execute(sql)
                 #if the query doesnt return any records then return
@@ -3110,46 +3119,9 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
     async def open(self, startMessage):
         await super().open(startMessage)
     
-    #runs a PostGIS query asynchronously, i.e. non-blocking
-    async def executeQuery(self, sql, data = None):
-        try:
-            #get a cursor
-            with (await self.application.pool.cursor()) as cur:
-                #parameter bind if necessary
-                if data is not None:
-                    sql = cur.mogrify(sql, data)
-                _debugSQLStatement(sql, cur.connection.raw)                
-                #get the pid of the query so that it can be stopped - and prefix it with a 'q'
-                self.pid = 'q' + str(await cur.connection.get_backend_pid())
-                self.send_response({'status':'pid', 'pid': self.pid})
-                #execute the query
-                await cur.execute(sql)
-                #if the query returns data, then return the data
-                if cur.description is not None:
-                    #get the column names for the query
-                    columns = [desc[0] for desc in cur.description]
-                    #get the query results
-                    records = await cur.fetchall()
-                    #return the results
-                    return {'columns': columns, 'records': records}
-                else: #an error
-                    return None
-        except (psycopg2.errors.UniqueViolation):
-            self.close({'error': "That item already exists"})
-        except (psycopg2.extensions.QueryCanceledError, psycopg2.InternalError, asyncio.CancelledError): #stopped by user
-            self.close({'error': 'Processing stopped by ' + self.get_current_user()})
-        except (psycopg2.OperationalError) as e: #killed by operating system
-            if ("SSL SYSCALL error: EOF detected" in e.args[0]):
-                self.close({'error': "Preprocessing stopped by operating system"})
-        except (psycopg2.Error) as e: #other exception
-            if ("SSL connection has been closed unexpectedly" in e.pgerror):
-                self.close({'error': "The database server shutdown unexpectedly"})
-            elif ("duplicate key value" in e.pgerror):
-                self.close({'error': "That item already exists"})
-            else:
-                self.close({'error': e.pgerror})
-        finally:
-            cur.close()
+    #runs a PostGIS query asynchronously and writes the pid to the client
+    async def executeQuery(self, sql, data=None, returnFormat=None):
+        return await pg.execute(sql, data=data, returnFormat=returnFormat, socketHandler=self)
     
 ####################################################################################################################################################################################################################################################################
 ## WebSocket subclasses
@@ -3163,23 +3135,19 @@ class preprocessFeature(QueryWebSocketHandler):
             await super().open({'info': "Preprocessing '" + self.get_argument('alias') + "'.."})
         except (HTTPError) as e:
             error = _getExceptionLastLine(sys.exc_info())
-            self.close({'error': error})
+            self.close({'error': error}) 
         else:
             _validateArguments(self.request.arguments, ['user','project','id','feature_class_name','alias','planning_grid_name'])    
             #run the query asynchronously and wait for the results
-            results = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))),[self.get_argument('feature_class_name')])
-            #get an empty dataframe 
-            d = {'amount':pandas.Series([], dtype='float64'), 'species':pandas.Series([], dtype='int64'), 'pu':pandas.Series([], dtype='int64')}
-            emptyDataFrame = pandas.DataFrame(data=d)[['species', 'pu', 'amount']] #reorder the columns
-            #get the intersection data as a dataframe from the queryresults - TODO - this needs to be rewritten to be scalable - getting the records in this way fails when you have > 1000 records and you need to use a method that creates a tmp table - see preprocessPlanningUnits
-            intersectionData = pandas.DataFrame.from_records(results["records"], columns = results["columns"])
+            intersectionData = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))), data=[self.get_argument('feature_class_name')], returnFormat="DataFrame")
             #get the existing data
             try:
                 #load the existing preprocessing data
                 df = await _getProjectInputData(self, "PUVSPRNAME", True)
             except:
                 #no existing preprocessing data so use the empty data frame
-                df = emptyDataFrame
+                d = {'amount':pandas.Series([], dtype='float64'), 'species':pandas.Series([], dtype='int64'), 'pu':pandas.Series([], dtype='int64')}
+                df = pandas.DataFrame(data=d)[['species', 'pu', 'amount']] #reorder the columns
             #get the species id from the arguments
             speciesId = int(self.get_argument('id'))
             #make sure there are not existing records for this feature - otherwise we will get duplicates
@@ -3214,9 +3182,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
         else:
             _validateArguments(self.request.arguments, ['user','project','planning_grid_name'])    
             #do the intersection with the protected areas
-            results = await self.executeQuery(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))),[self.get_argument('planning_grid_name')])
-            #get the intersection data as a dataframe from the queryresults
-            intersectionData = pandas.DataFrame.from_records(results["records"], columns = results["columns"])
+            intersectionData = await self.executeQuery(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))), data=[self.get_argument('planning_grid_name')], returnFormat="DataFrame")
             #write the intersections to file
             intersectionData.to_csv(self.folder_input + PROTECTED_AREA_INTERSECTIONS_FILENAME, index=False)
             #get the data
@@ -3241,6 +3207,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
                 #new version of marxan - get the boundary lengths
                 feature_class_name = _getUniqueFeatureclassName("tmp_")
                 await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
+                #do the intersection
                 results = await self.executeQuery(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(ST_Transform(a.geometry, 3410), ST_Transform(b.geometry, 3410)), 2))/1000 boundary  FROM marxan.{planning_unit_name} a, marxan.{planning_unit_name} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(feature_class_name=sql.Identifier(feature_class_name), planning_unit_name=sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])))
                 #delete the file if it already exists
                 if (os.path.exists(self.folder_input + BOUNDARY_LENGTH_FILENAME)):
@@ -3268,8 +3235,9 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
             #get the feature class name
             fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
             #see if the planning grid already exists
-            query = await self.executeQuery("SELECT * FROM marxan.metadata_planning_units WHERE feature_class_name =(%s);", [fc])            
-            if len(query['records']) > 0:
+            print(fc)
+            records = await pg.execute("SELECT * FROM marxan.metadata_planning_units WHERE feature_class_name =(%s);", data=[fc],returnFormat="Array")            
+            if len(records):
                 self.close({'error':"That item already exists"})
             else:
                 #estimate how many planning units are in the grid that will be created
@@ -3278,10 +3246,10 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
                 if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
                     self.close({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + " (=" + str(int(unitCount)) + "). See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
                 else:
-                    results = await self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()])
+                    results = await self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], returnFormat="Array")
                     if results:
                         #get the planning grid alias
-                        alias = results["records"][0][0]
+                        alias = results[0][0]
                         #create a primary key so the feature class can be used in ArcGIS
                         await pg.createPrimaryKey(fc, "puid")    
                         #start the upload to Mapbox
@@ -3307,9 +3275,10 @@ class runGapAnalysis(QueryWebSocketHandler):
             await _getProjectData(self)
             #get a safe project name to use in the name of the table that will be produced
             project_name = _getSafeProjectName(self.get_argument("project"))
-            results = await self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s,%s,%s)", [self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds, self.get_argument("user"), project_name])
-            #get the results as a data frame
-            df = pandas.DataFrame.from_records(results["records"], columns = results["columns"])
+            #run the gap analysis
+            df = await self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s,%s,%s)", data=[self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds, self.get_argument("user"), project_name], returnFormat="DataFrame")
+            print(df)
+            #return the results
             self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
 
 ####################################################################################################################################################################################################################################################################
@@ -3408,7 +3377,7 @@ class Application(tornado.web.Application):
         super(Application, self).__init__(handlers, **settings)
 
 async def main():
-    async with aiopg.create_pool(CONNECTION_STRING, timeout = None, minsize=10) as pool:
+    async with aiopg.create_pool(CONNECTION_STRING, timeout = None, minsize=20, maxsize=0) as pool:
         app = Application(pool)
         #start listening on whichever port, and if there is an https certificate then use the certificate information from the server.dat file to return data securely
         if CERTFILE != "None":
@@ -3444,7 +3413,7 @@ if __name__ == "__main__":
         #set the global variables
         _setGlobalVariables()
 
-        # # Instantiates a client 
+        # # Instantiates a client
         # client = googlelogger.Client()
         # # Connects the logger to the root logging handler; by default this captures
         # # all logs at INFO level and higher

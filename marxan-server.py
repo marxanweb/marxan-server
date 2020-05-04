@@ -10,7 +10,7 @@ from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent 
-from google.cloud import logging as googlelogger
+# from google.cloud import logging as googlelogger
 from colorama import Fore, Back, Style
 from datetime import timedelta, timezone
 from sqlalchemy import create_engine

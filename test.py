@@ -233,6 +233,9 @@ class TestClass(AsyncHTTPTestCase):
     def test_1080_preprocessFeature(self):
         self.makeWebSocketRequest('/preprocessFeature?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50&feature_class_name=volcano&alias=volcano&id=63408475', False)
 
+    def test_1081_preprocessFeature(self): #no intersection
+        self.makeWebSocketRequest('/preprocessFeature?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50&feature_class_name=png2&alias=Pacific%20Coral%20Reefs&id=63408006', False)
+
     #this needs some data to be in the puvspr.dat file - the previous test populates it
     def test_1082_createFeaturePreprocessingFileFromImport(self):
         self.makeRequest('/createFeaturePreprocessingFileFromImport?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)

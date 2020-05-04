@@ -3277,7 +3277,6 @@ class runGapAnalysis(QueryWebSocketHandler):
             project_name = _getSafeProjectName(self.get_argument("project"))
             #run the gap analysis
             df = await self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s,%s,%s)", data=[self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds, self.get_argument("user"), project_name], returnFormat="DataFrame")
-            print(df)
             #return the results
             self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
 

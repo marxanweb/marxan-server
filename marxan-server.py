@@ -1529,47 +1529,47 @@ class ExtendableObject(object):
 ####################################################################################################################################################################################################################################################################
 
 class PostGIS():
-    def __init__(self, pool):
-        self.pool = pool
-
+    async def initialise(self):
+        async with aiopg.create_pool(CONNECTION_STRING, timeout = None, maxsize=100) as pool:
+            self.pool = await aiopg.create_pool(CONNECTION_STRING, timeout = None, maxsize=0)        
+            
     #executes a query and optionally returns the records or writes them to file
     async def execute(self, sql, data=None, returnFormat=None, filename=None, socketHandler=None):
         try:
-            #initialise cur in case self.pool.cursor raises an exception
-            cur = None
-            with (await self.pool.cursor()) as cur:
-                #do any argument binding 
-                sql = cur.mogrify(sql, data) if data is not None else sql
-                #debug the SQL if in DEBUG mode
-                _debugSQLStatement(sql, cur.connection.raw)
-                #if a socketHandler is passed the query is being run from a MarxanWebSocketHandler class
-                if socketHandler:
-                    #send a websocket message with the pid if the socketHandler is specified - this is so the query can be stopped - and prefix it with a 'q'
-                    socketHandler.pid = 'q' + str(await cur.connection.get_backend_pid())
-                    socketHandler.send_response({'status':'pid', 'pid': socketHandler.pid})
-                #run the query
-                await cur.execute(sql)
-                #if the query doesnt return any records then return
-                if returnFormat == None:
-                    return
-                #get the results
-                records = []
-                records = await cur.fetchall()
-                if returnFormat == "Array":
-                    return records
-                else:
-                    #get the column names for the query
-                    columns = [desc[0] for desc in cur.description]
-                    #create a data frame
-                    df = pandas.DataFrame.from_records(records, columns = columns)
-                    if returnFormat == "DataFrame":
-                        return df
-                    #convert to a dictionary
-                    elif returnFormat == "Dict":
-                        return df.to_dict(orient="records")
-                    #output the results to a file
-                    elif returnFormat == "File":
-                        df.to_csv(filename, index=False)
+            async with self.pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    #do any argument binding 
+                    sql = cur.mogrify(sql, data) if data is not None else sql
+                    #debug the SQL if in DEBUG mode
+                    _debugSQLStatement(sql, cur.connection.raw)
+                    #if a socketHandler is passed the query is being run from a MarxanWebSocketHandler class
+                    if socketHandler:
+                        #send a websocket message with the pid if the socketHandler is specified - this is so the query can be stopped - and prefix it with a 'q'
+                        socketHandler.pid = 'q' + str(await cur.connection.get_backend_pid())
+                        socketHandler.send_response({'status':'pid', 'pid': socketHandler.pid})
+                    #run the query
+                    await cur.execute(sql)
+                    #if the query doesnt return any records then return
+                    if returnFormat == None:
+                        return
+                    #get the results
+                    records = []
+                    records = await cur.fetchall()
+                    if returnFormat == "Array":
+                        return records
+                    else:
+                        #get the column names for the query
+                        columns = [desc[0] for desc in cur.description]
+                        #create a data frame
+                        df = pandas.DataFrame.from_records(records, columns = columns)
+                        if returnFormat == "DataFrame":
+                            return df
+                        #convert to a dictionary
+                        elif returnFormat == "Dict":
+                            return df.to_dict(orient="records")
+                        #output the results to a file
+                        elif returnFormat == "File":
+                            df.to_csv(filename, index=False)
         except psycopg2.IntegrityError as e:
             raise MarxanServicesError("Database integrity error: " + e.args[0])
         except psycopg2.OperationalError as e:
@@ -1578,9 +1578,6 @@ class PostGIS():
         except Exception as e:
             print("Error in pg.execute: " + e.args[0])
             raise MarxanServicesError(e.args[0])
-        finally: #close the cursor
-            if cur:
-                cur.close()
 
     #imports a shapefile into PostGIS
     async def importShapefile(self, shapefile, feature_class_name, epsgCode, splitAtDateline = True):
@@ -3102,9 +3099,6 @@ class importGBIFData(MarxanWebSocketHandler):
 ####################################################################################################################################################################################################################################################################
 
 class QueryWebSocketHandler(MarxanWebSocketHandler):
-    #authenticate and get the user folder and project folders
-    async def open(self, startMessage):
-        await super().open(startMessage)
     
     #runs a PostGIS query asynchronously and writes the pid to the client
     async def executeQuery(self, sql, data=None, returnFormat=None):
@@ -3246,12 +3240,7 @@ class runGapAnalysis(QueryWebSocketHandler):
 ####################################################################################################################################################################################################################################################################
 
 class Application(tornado.web.Application):
-    def __init__(self, _pool):
-        #this attribute is used by QueryWebSocketHandler descendent classes to get a pointer to the connection pool and a PID of the query
-        self.pool = _pool
-        #global variable to hold the postgis connection pool
-        global pg
-        pg = PostGIS(_pool)
+    def __init__(self):
         handlers = [
             ("/marxan-server/getServerData", getServerData),
             ("/marxan-server/getProjects", getProjects),
@@ -3337,34 +3326,38 @@ class Application(tornado.web.Application):
         super(Application, self).__init__(handlers, **settings)
 
 async def main():
-    async with aiopg.create_pool(CONNECTION_STRING, timeout = None, minsize=20, maxsize=0) as pool:
-        app = Application(pool)
-        #start listening on whichever port, and if there is an https certificate then use the certificate information from the server.dat file to return data securely
-        if CERTFILE != "None":
-            app.listen(PORT, ssl_options={"certfile": CERTFILE,"keyfile": KEYFILE})
-            navigateTo = "https://"
+    #initialise the app
+    app = Application()
+    #initialise the connection pool
+    global pg
+    pg = PostGIS()
+    await pg.initialise()
+    #start listening on whichever port, and if there is an https certificate then use the certificate information from the server.dat file to return data securely
+    if CERTFILE != "None":
+        app.listen(PORT, ssl_options={"certfile": CERTFILE,"keyfile": KEYFILE})
+        navigateTo = "https://"
+    else:
+        app.listen(PORT)
+        navigateTo = "http://"
+    navigateTo = navigateTo + "<host>:" + PORT + "/index.html" if (PORT != '80') else navigateTo + "<host>/index.html"
+    #open the web browser if the call includes a url, e.g. python marxan-server.py http://localhost/index.html
+    if len(sys.argv)>1:
+        if MARXAN_CLIENT_VERSION == "Not installed":
+            log("Ignoring <url> parameter - the marxan-client is not installed", Fore.GREEN)
         else:
-            app.listen(PORT)
-            navigateTo = "http://"
-        navigateTo = navigateTo + "<host>:" + PORT + "/index.html" if (PORT != '80') else navigateTo + "<host>/index.html"
-        #open the web browser if the call includes a url, e.g. python marxan-server.py http://localhost/index.html
-        if len(sys.argv)>1:
-            if MARXAN_CLIENT_VERSION == "Not installed":
-                log("Ignoring <url> parameter - the marxan-client is not installed", Fore.GREEN)
-            else:
-                url = sys.argv[1] # normally "http://localhost/index.html"
-                log("Opening Marxan Web at '" + url + "' ..\n", Fore.GREEN)
-                webbrowser.open(url, new=1, autoraise=True)
-        else:
-            if MARXAN_CLIENT_VERSION != "Not installed":
-                log("Goto to " + navigateTo + " to open Marxan Web", Fore.GREEN)
-                log("Or run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\n", Fore.GREEN)
-        #otherwise subprocesses fail on windows
-        if platform.system() == "Windows":
-            asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
-        await SHUTDOWN_EVENT.wait()
-        #close the database connection
-        pg.pool.close()
+            url = sys.argv[1] # normally "http://localhost/index.html"
+            log("Opening Marxan Web at '" + url + "' ..\n", Fore.GREEN)
+            webbrowser.open(url, new=1, autoraise=True)
+    else:
+        if MARXAN_CLIENT_VERSION != "Not installed":
+            log("Goto to " + navigateTo + " to open Marxan Web", Fore.GREEN)
+            log("Or run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\n", Fore.GREEN)
+    #otherwise subprocesses fail on windows
+    if platform.system() == "Windows":
+        asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
+    await SHUTDOWN_EVENT.wait()
+    #close the database connection
+    pg.pool.close()
         
 if __name__ == "__main__":
     try:

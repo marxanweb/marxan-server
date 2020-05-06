@@ -1530,7 +1530,7 @@ class ExtendableObject(object):
 
 class PostGIS():
     async def initialise(self):
-        self.pool = await aiopg.create_pool(CONNECTION_STRING, timeout = None, maxsize=0)        
+        self.pool = await aiopg.create_pool(CONNECTION_STRING, timeout = None, maxsize=250)        
             
     #executes a query and optionally returns the records or writes them to file
     async def execute(self, sql, data=None, returnFormat=None, filename=None, socketHandler=None):

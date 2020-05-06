@@ -41,14 +41,6 @@ m = importlib.import_module("marxan-server")
 #set the ASYNC_TEST_TIMEOUT environment variable as described here http://www.tornadoweb.org/en/stable/testing.html#tornado.testing.AsyncTestCase.wait
 os.environ['ASYNC_TEST_TIMEOUT'] = '600' # 10 minutes
 
-def initialiseServer():
-    m.SHOW_START_LOG = False
-    #set the global variables
-    m._setGlobalVariables()
-    m.DISABLE_SECURITY = False
-    m.SHOW_START_LOG = False
-    return 
-    
 def setCookies(response):
     #get the cookies
     cookies = response.headers['set-cookie'].split(",")
@@ -75,20 +67,22 @@ def copyTestData(filename):
 
 class TestClass(AsyncHTTPTestCase):
     @gen_test
-    def get_app(self):
+    async def get_app(self):
         #set variables
-        initialiseServer()
-        #create a connection pool 
-        self._pool = yield aiopg.create_pool(m.CONNECTION_STRING, timeout = None)
+        m.SHOW_START_LOG = False
+        #set the global variables
+        await m._setGlobalVariables()
+        m.DISABLE_SECURITY = False
+        m.SHOW_START_LOG = False
         #create the app
-        self._app = m.Application(self._pool)
+        self._app = m.Application()
         return self._app
     
     @gen_test
     def tearDown(self):
         #free the database connection
-        self._pool.close()
-        yield self._pool.wait_closed()
+        m.pg.pool.close()
+        yield m.pg.pool.wait_closed()
         
     def getDictResponse(self, response, mustReturnError):
         """

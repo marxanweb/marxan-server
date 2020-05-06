@@ -81,7 +81,7 @@ LOGGING_LEVEL = logging.INFO # Tornado logging level that controls what is logge
 ####################################################################################################################################################################################################################################################################
 
 #run when the server starts to set all of the global path variables
-def _setGlobalVariables():
+async def _setGlobalVariables():
     global MBAT
     global MARXAN_FOLDER
     global MARXAN_USERS_FOLDER
@@ -113,6 +113,7 @@ def _setGlobalVariables():
     global PLANNING_GRID_UNITS_LIMIT
     global DISABLE_SECURITY
     global DISABLE_FILE_LOGGING
+    global pg
     #get data from the marxan registry
     MBAT = _getMBAT()
     #initialise colorama to be able to show log messages on windows in color
@@ -135,12 +136,12 @@ def _setGlobalVariables():
     DISABLE_SECURITY = _getDictValue(serverData,'DISABLE_SECURITY')
     DISABLE_FILE_LOGGING = _getDictValue(serverData,'DISABLE_FILE_LOGGING')
     CONNECTION_STRING = "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
-    conn = psycopg2.connect(CONNECTION_STRING)
-    cur = conn.cursor()
-    cur.execute("SELECT version(), PostGIS_Version();")
-    DATABASE_VERSION_POSTGRESQL, DATABASE_VERSION_POSTGIS = cur.fetchall()[0]
-    cur.close()
-    conn.close()
+    #initialise the connection pool
+    pg = PostGIS()
+    await pg.initialise()
+    #get the database version
+    results = await pg.execute("SELECT version(), PostGIS_Version();", returnFormat="Array")
+    DATABASE_VERSION_POSTGRESQL, DATABASE_VERSION_POSTGIS = results[0]
     COOKIE_RANDOM_VALUE = _getDictValue(serverData,'COOKIE_RANDOM_VALUE')
     PERMITTED_DOMAINS = _getDictValue(serverData,'PERMITTED_DOMAINS').split(",")
     PLANNING_GRID_UNITS_LIMIT = int(_getDictValue(serverData,'PLANNING_GRID_UNITS_LIMIT'))
@@ -3328,13 +3329,32 @@ class Application(tornado.web.Application):
         )
         super(Application, self).__init__(handlers, **settings)
 
-async def main():
+async def initialiseApp():
+    #set the global variables
+    await _setGlobalVariables()
+    #LOGGING SECTION
+    #turn on tornado logging 
+    tornado.options.parse_command_line() 
+    # # Instantiates a client
+    # client = googlelogger.Client()
+    # # Connects the logger to the root logging handler; by default this captures
+    # # all logs at INFO level and higher
+    # client.setup_logging()
+    # get the parent logger of all tornado loggers 
+    root_logger = logging.getLogger()
+    # set the logging level
+    root_logger.setLevel(LOGGING_LEVEL)
+    # set your format for the streaming logger
+    root_streamhandler = root_logger.handlers[0]
+    root_streamhandler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True))
+    # add a file logger
+    if not DISABLE_FILE_LOGGING:
+        file_log_handler = logging.FileHandler(MARXAN_FOLDER + MARXAN_LOG_FILE)
+        file_log_handler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=False))
+        root_logger.addHandler(file_log_handler)
+    # logging.disable(logging.ERROR)
     #initialise the app
     app = Application()
-    #initialise the connection pool
-    global pg
-    pg = PostGIS()
-    await pg.initialise()
     #start listening on whichever port, and if there is an https certificate then use the certificate information from the server.dat file to return data securely
     if CERTFILE != "None":
         app.listen(PORT, ssl_options={"certfile": CERTFILE,"keyfile": KEYFILE})
@@ -3365,33 +3385,9 @@ async def main():
         
 if __name__ == "__main__":
     try:
-        #turn on tornado logging 
-        tornado.options.parse_command_line() 
-        #set the global variables
-        _setGlobalVariables()
-
-        # # Instantiates a client
-        # client = googlelogger.Client()
-        # # Connects the logger to the root logging handler; by default this captures
-        # # all logs at INFO level and higher
-        # client.setup_logging()
-
-        # get the parent logger of all tornado loggers 
-        root_logger = logging.getLogger()
-        # set the logging level
-        root_logger.setLevel(LOGGING_LEVEL)
-        # set your format for the streaming logger
-        root_streamhandler = root_logger.handlers[0]
-        root_streamhandler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True))
-        # add a file logger
-        if not DISABLE_FILE_LOGGING:
-            file_log_handler = logging.FileHandler(MARXAN_FOLDER + MARXAN_LOG_FILE)
-            file_log_handler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=False))
-            root_logger.addHandler(file_log_handler)
-        # logging.disable(logging.ERROR)
         #initialise the app 
         try: 
-            tornado.ioloop.IOLoop.current().run_sync(main)
+            tornado.ioloop.IOLoop.current().run_sync(initialiseApp)
         except KeyboardInterrupt:
             _deleteShutdownFile()
             pass    

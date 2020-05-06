@@ -1,1 +1,1 @@
-python -W ignore -m unittest test -v
+sudo python -W ignore -m unittest test -v

@@ -67,11 +67,11 @@ def copyTestData(filename):
 
 class TestClass(AsyncHTTPTestCase):
     @gen_test
-    async def get_app(self):
+    def get_app(self):
         #set variables
         m.SHOW_START_LOG = False
         #set the global variables
-        await m._setGlobalVariables()
+        yield m._setGlobalVariables()
         m.DISABLE_SECURITY = False
         m.SHOW_START_LOG = False
         #create the app

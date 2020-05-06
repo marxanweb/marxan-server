@@ -29,7 +29,7 @@ To test the installation goto: http://\<host\>/marxan-server/testTornado.
 To run a complete set of unit tests, start a new shell and run the following:  
 ```
 cd marxan-server/
-./unittest.sh
+sudo ./unittest.sh
 ```
   
 ## Configuration  

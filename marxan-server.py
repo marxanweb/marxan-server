@@ -1530,46 +1530,12 @@ class ExtendableObject(object):
 
 class PostGIS():
     async def initialise(self):
-        async with aiopg.create_pool(CONNECTION_STRING, timeout = None, maxsize=100) as pool:
-            self.pool = await aiopg.create_pool(CONNECTION_STRING, timeout = None, maxsize=0)        
+        self.pool = await aiopg.create_pool(CONNECTION_STRING, timeout = None, maxsize=0)        
             
     #executes a query and optionally returns the records or writes them to file
     async def execute(self, sql, data=None, returnFormat=None, filename=None, socketHandler=None):
         try:
-            async with self.pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    #do any argument binding 
-                    sql = cur.mogrify(sql, data) if data is not None else sql
-                    #debug the SQL if in DEBUG mode
-                    _debugSQLStatement(sql, cur.connection.raw)
-                    #if a socketHandler is passed the query is being run from a MarxanWebSocketHandler class
-                    if socketHandler:
-                        #send a websocket message with the pid if the socketHandler is specified - this is so the query can be stopped - and prefix it with a 'q'
-                        socketHandler.pid = 'q' + str(await cur.connection.get_backend_pid())
-                        socketHandler.send_response({'status':'pid', 'pid': socketHandler.pid})
-                    #run the query
-                    await cur.execute(sql)
-                    #if the query doesnt return any records then return
-                    if returnFormat == None:
-                        return
-                    #get the results
-                    records = []
-                    records = await cur.fetchall()
-                    if returnFormat == "Array":
-                        return records
-                    else:
-                        #get the column names for the query
-                        columns = [desc[0] for desc in cur.description]
-                        #create a data frame
-                        df = pandas.DataFrame.from_records(records, columns = columns)
-                        if returnFormat == "DataFrame":
-                            return df
-                        #convert to a dictionary
-                        elif returnFormat == "Dict":
-                            return df.to_dict(orient="records")
-                        #output the results to a file
-                        elif returnFormat == "File":
-                            df.to_csv(filename, index=False)
+            conn = await self.pool.acquire() 
         except psycopg2.IntegrityError as e:
             raise MarxanServicesError("Database integrity error: " + e.args[0])
         except psycopg2.OperationalError as e:
@@ -1578,6 +1544,42 @@ class PostGIS():
         except Exception as e:
             print("Error in pg.execute: " + e.args[0])
             raise MarxanServicesError(e.args[0])
+        else:        
+            async with conn.cursor() as cur:
+                #do any argument binding 
+                sql = cur.mogrify(sql, data) if data is not None else sql
+                #debug the SQL if in DEBUG mode
+                _debugSQLStatement(sql, cur.connection.raw)
+                #if a socketHandler is passed the query is being run from a MarxanWebSocketHandler class
+                if socketHandler:
+                    #send a websocket message with the pid if the socketHandler is specified - this is so the query can be stopped - and prefix it with a 'q'
+                    socketHandler.pid = 'q' + str(await cur.connection.get_backend_pid())
+                    socketHandler.send_response({'status':'pid', 'pid': socketHandler.pid})
+                #run the query
+                await cur.execute(sql)
+                #if the query doesnt return any records then return
+                if returnFormat == None:
+                    return
+                #get the results
+                records = []
+                records = await cur.fetchall()
+                if returnFormat == "Array":
+                    return records
+                else:
+                    #get the column names for the query
+                    columns = [desc[0] for desc in cur.description]
+                    #create a data frame
+                    df = pandas.DataFrame.from_records(records, columns = columns)
+                    if returnFormat == "DataFrame":
+                        return df
+                    #convert to a dictionary
+                    elif returnFormat == "Dict":
+                        return df.to_dict(orient="records")
+                    #output the results to a file
+                    elif returnFormat == "File":
+                        df.to_csv(filename, index=False)
+        finally:
+            await self.pool.release(conn)
 
     #imports a shapefile into PostGIS
     async def importShapefile(self, shapefile, feature_class_name, epsgCode, splitAtDateline = True):
@@ -3358,6 +3360,7 @@ async def main():
     await SHUTDOWN_EVENT.wait()
     #close the database connection
     pg.pool.close()
+    await pg.pool.wait_closed()
         
 if __name__ == "__main__":
     try:

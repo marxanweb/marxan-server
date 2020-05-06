@@ -1,1 +1,3 @@
-sudo python -W ignore -m unittest test -v
+#!/bin/bash -i
+conda activate base 
+python -W ignore -m unittest test -v

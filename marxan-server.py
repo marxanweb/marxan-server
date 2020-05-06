@@ -1530,7 +1530,8 @@ class ExtendableObject(object):
 
 class PostGIS():
     async def initialise(self):
-        self.pool = await aiopg.create_pool(CONNECTION_STRING, timeout = None, maxsize=250)        
+        #the minsize/maxsize parameters are critical otherwise you get aiopg errors (unclosed connections, GeneratorExit exceptions) - these values may not be ideal in all cases
+        self.pool = await aiopg.create_pool(CONNECTION_STRING, timeout = None, minsize=10, maxsize=250)        
             
     #executes a query and optionally returns the records or writes them to file
     async def execute(self, sql, data=None, returnFormat=None, filename=None, socketHandler=None):
@@ -1542,7 +1543,7 @@ class PostGIS():
             if ("terminating connection due to administrator command" in e.args[0]):
                 raise MarxanServicesError("The database server was shutdown")
         except Exception as e:
-            print("Error in pg.execute: " + e.args[0])
+            log("Error in pg.execute: " + e.args[0])
             raise MarxanServicesError(e.args[0])
         else:        
             async with conn.cursor() as cur:

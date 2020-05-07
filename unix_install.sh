@@ -14,7 +14,7 @@ sudo su -c "./miniconda3/bin/conda init bash"
 echo "Installing Python packages .."
 #install the python prerequisites silently
 ./miniconda3/bin/conda install -y tornado psycopg2 pandas gdal colorama psutil sqlalchemy    
-./miniconda3/bin/pip install mapbox aiopg aiohttp -q
+./miniconda3/bin/pip install mapbox aiopg aiohttp google-cloud-logging -q
 ### POSTGRESQL/POSTGIS
 echo "Installing PostGIS .."
 #install postgresql/postgis

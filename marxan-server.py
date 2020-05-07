@@ -10,7 +10,7 @@ from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent 
-# from google.cloud import logging as googlelogger
+from google.cloud import logging as googlelogger
 from colorama import Fore, Back, Style
 from datetime import timedelta, timezone
 from sqlalchemy import create_engine
@@ -3335,11 +3335,6 @@ async def initialiseApp():
     #LOGGING SECTION
     #turn on tornado logging 
     tornado.options.parse_command_line() 
-    # # Instantiates a client
-    # client = googlelogger.Client()
-    # # Connects the logger to the root logging handler; by default this captures
-    # # all logs at INFO level and higher
-    # client.setup_logging()
     # get the parent logger of all tornado loggers 
     root_logger = logging.getLogger()
     # set the logging level
@@ -3347,6 +3342,11 @@ async def initialiseApp():
     # set your format for the streaming logger
     root_streamhandler = root_logger.handlers[0]
     root_streamhandler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True))
+    # google cloud logger
+    if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ.keys():
+        client = googlelogger.Client()
+        client.setup_logging()
+        log("Logging to Google Cloud Logging", Fore.GREEN)
     # add a file logger
     if not DISABLE_FILE_LOGGING:
         file_log_handler = logging.FileHandler(MARXAN_FOLDER + MARXAN_LOG_FILE)

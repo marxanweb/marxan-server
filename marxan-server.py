@@ -3342,7 +3342,7 @@ async def initialiseApp():
     # set your format for the streaming logger
     root_streamhandler = root_logger.handlers[0]
     root_streamhandler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True))
-    # google cloud logger
+    # google cloud logger if enabled
     if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ.keys():
         client = googlelogger.Client()
         client.setup_logging()

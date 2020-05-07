@@ -14,4 +14,6 @@ git reset --hard
 git pull
 #restart marxan-server
 printf "\n"
+echo "Restarting marxan-server"
+printf "\n"
 sudo ./unix_startup.sh

@@ -1532,7 +1532,7 @@ class ExtendableObject(object):
 class PostGIS():
     async def initialise(self):
         #the minsize/maxsize parameters are critical otherwise you get aiopg errors (unclosed connections, GeneratorExit exceptions) - these values may not be ideal in all cases
-        self.pool = await aiopg.create_pool(CONNECTION_STRING, timeout = None, minsize=10, maxsize=250)        
+        self.pool = await aiopg.create_pool(CONNECTION_STRING, timeout = None, minsize=50, maxsize=250)        
             
     #executes a query and optionally returns the records or writes them to file
     async def execute(self, sql, data=None, returnFormat=None, filename=None, socketHandler=None):

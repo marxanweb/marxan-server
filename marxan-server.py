@@ -2658,7 +2658,7 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         if hasattr(self, 'pid'):
             message.update({'pid': self.pid})
         if hasattr(self, 'marxanProcess'):
-            message.update({'pid': self.marxanProcess.pid})
+            message.update({'pid': 'm' + str(self.marxanProcess.pid)})
         try:
             self.write_message(message)
         except WebSocketClosedError:

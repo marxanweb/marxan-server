@@ -1710,7 +1710,6 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
     
     #uncaught exception handling that captures any exceptions in the descendent classes and writes them back to the client 
     def write_error(self, status_code, **kwargs):
-        print("In write error")
         if "exc_info" in kwargs:
             trace = ""
             for line in traceback.format_exception(*kwargs["exc_info"]):
@@ -2322,7 +2321,7 @@ class getResults(MarxanRESTHandler):
             #set the response
             self.send_response({'info':'Results loaded', 'log': self.marxanLog, 'mvbest': self.bestSolution.to_dict(orient="split")["data"], 'summary':self.outputSummary.to_dict(orient="split")["data"], 'ssoln': self.summedSolution})
         except MarxanServicesError as e:
-            _raiseError(self, 'No results available')
+            _raiseError(self, e.args[0])
 
 #gets the data from the server.dat file as an abject
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getServerData
@@ -2822,13 +2821,10 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             #check the user has access to the specific resource, i.e. the 'User' role cannot access projects from other users
             _authoriseUser(self)
             def sendPing():
-                try:
-                    if (hasattr(self, 'ping_message')):
-                        self.send_response({"status":"Preprocessing","info": self.ping_message})
-                    else:
-                        self.send_response({"status":"WebSocketOpen"})
-                except WebSocketClosedError:
-                    pass
+                if (hasattr(self, 'ping_message')):
+                    self.send_response({"status":"Preprocessing","info": self.ping_message})
+                else:
+                    self.send_response({"status":"WebSocketOpen"})
             #start the web socket ping messages to keep the connection alive
             self.pc = PeriodicCallback(sendPing, (PING_INTERVAL))
             #send a preprocessing message
@@ -2841,28 +2837,41 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
     #sends the message with a timestamp
     def send_response(self, message):
         #add in the start time 
-        elapsedtime = str((datetime.datetime.now() - self.startTime).seconds) + "s"
+        elapsedtime = str((datetime.datetime.now() - self.startTime).seconds) + "s" 
         message.update({'elapsedtime': elapsedtime})
-        #add in messages from descendent classes
-        if hasattr(self, 'pid'):
+        #add in messages from descendent classes  
+        if hasattr(self, 'pid'): 
             message.update({'pid': self.pid})
-        if hasattr(self, 'marxanProcess'):
+        if hasattr(self, 'marxanProcess'): 
             message.update({'pid': 'm' + str(self.marxanProcess.pid)})
         try:
             self.write_message(message)
         except WebSocketClosedError:
-            pass
+            self.cleanupWebSocket()
     
     def close(self, closeMessage = {}):
-        #stop the ping messages
-        if hasattr(self, 'pc'):
-            self.pc.stop()
         #send a message
         closeMessage.update({'status': 'Finished'})
         self.send_response(closeMessage)
+        #log any errors
+        if 'error' in closeMessage.keys():
+            logging.warning(closeMessage['error'])
         #close the websocket cleanly
         super().close(1000)
+    
+    def on_close(self):
+        self.cleanupWebSocket(self.close_code)
 
+    def cleanupWebSocket(self, close_code=None):
+        #stop the ping messages
+        if hasattr(self, 'pc'):
+            #log a warning if an unclean close
+            if self.pc.is_running():
+                if (close_code != 1000):
+                    logging.warning("The client closed the connection")
+            #stop the periodic callback
+            self.pc.stop()
+        
 ####################################################################################################################################################################################################################################################################
 ## MarxanWebSocketHandler subclasses
 ####################################################################################################################################################################################################################################################################

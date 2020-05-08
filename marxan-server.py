@@ -242,6 +242,14 @@ def log(_str, _color = Fore.RESET):
             #print to file
             _writeFileUnicode(MARXAN_FOLDER + MARXAN_LOG_FILE, _str + "\n", "a")
     
+def _raiseError(obj, msg):
+    #send a response with the error message
+    if hasattr(obj, "send_response"):
+        obj.send_response({"error": msg})
+        obj.finish()
+    #log the error
+    logging.warning(msg)
+
 #gets that method part of the REST service path, e.g. /marxan-server/validateUser will return validateUser
 def _getRESTMethod(path):
     pos = path.rfind("/")
@@ -1700,8 +1708,9 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
             else:
                 self.write(content)
     
-    #uncaught exception handling that captures any exceptions in the descendent classes and writes them back to the client - RETURNING AN HTTP STATUS CODE OF 200 CAN BE CAUGHT BY JSONP
+    #uncaught exception handling that captures any exceptions in the descendent classes and writes them back to the client 
     def write_error(self, status_code, **kwargs):
+        print("In write error")
         if "exc_info" in kwargs:
             trace = ""
             for line in traceback.format_exception(*kwargs["exc_info"]):
@@ -1716,13 +1725,11 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
                 except: #so handle the exception
                     pass
             # self.set_status(status_code) #this will return an HTTP server error rather than a 200 status code
+            #returning an http status code of 200 can be caught by jsonp
             self.set_status(200)
             self.send_response({"error": lastLine, "trace" : trace})
             self.finish()
 
-    # def log_exception(self, typ, value, tb): # uncomment if unit testing
-    #     pass
-    
 ####################################################################################################################################################################################################################################################################
 ## RequestHandler subclasses
 ####################################################################################################################################################################################################################################################################
@@ -1734,478 +1741,576 @@ class methodNotFound(MarxanRESTHandler):
 #toggles whether the guest user is enabled or not on this server
 class toggleEnableGuestUser(MarxanRESTHandler):
     def get(self):
-        _getServerData(self)
-        #get the current state
-        enabled = self.serverData['ENABLE_GUEST_USER']
-        if enabled:
-            enabledString = "False"
-        else:
-            enabledString = "True"
-        _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"ENABLE_GUEST_USER": enabledString})
-        #set the response
-        self.send_response({'enabled': not enabled})
+        try:
+            _getServerData(self)
+            #get the current state
+            enabled = self.serverData['ENABLE_GUEST_USER']
+            if enabled:
+                enabledString = "False"
+            else:
+                enabledString = "True"
+            _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"ENABLE_GUEST_USER": enabledString})
+            #set the response
+            self.send_response({'enabled': not enabled})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
         
 #creates a new user
 #POST ONLY
 class createUser(MarxanRESTHandler):
     def post(self):
-        #validate the input arguments 
-        _validateArguments(self.request.arguments, ["user","password", "fullname", "email"])  
-        #create the user
-        _createUser(self, self.get_argument('user'), self.get_argument('fullname'), self.get_argument('email'), self.get_argument('password'))
-        #copy the start project into the users folder
-        _cloneProject(START_PROJECT_FOLDER, MARXAN_USERS_FOLDER + self.get_argument('user') + os.sep)
-        #copy the british columbia marine case study into the users folder
-        _cloneProject(CASE_STUDY_PROJECT_FOLDER, MARXAN_USERS_FOLDER + self.get_argument('user') + os.sep)
-        #set the response
-        self.send_response({'info': "User '" + self.get_argument('user') + "' created"})
+        try:
+            #validate the input arguments 
+            _validateArguments(self.request.arguments, ["user","password", "fullname", "email"])  
+            #create the user
+            _createUser(self, self.get_argument('user'), self.get_argument('fullname'), self.get_argument('email'), self.get_argument('password'))
+            #copy the start project into the users folder
+            _cloneProject(START_PROJECT_FOLDER, MARXAN_USERS_FOLDER + self.get_argument('user') + os.sep)
+            #copy the british columbia marine case study into the users folder
+            _cloneProject(CASE_STUDY_PROJECT_FOLDER, MARXAN_USERS_FOLDER + self.get_argument('user') + os.sep)
+            #set the response
+            self.send_response({'info': "User '" + self.get_argument('user') + "' created"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #creates a project
 #POST ONLY
 class createProject(MarxanRESTHandler):
     async def post(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project','description','planning_grid_name','interest_features','target_values','spf_values'])  
-        #create the empty project folder
-        _createProject(self, self.get_argument('project'))
-        #update the projects parameters
-        _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'DESCRIPTION': self.get_argument('description'), 'CREATEDATE': datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"), 'PLANNING_UNIT_NAME': self.get_argument('planning_grid_name')})
-        #create the spec.dat file
-        await _updateSpeciesFile(self, self.get_argument("interest_features"), self.get_argument("target_values"), self.get_argument("spf_values"), True)
-        #create the pu.dat file
-        await _createPuFile(self, self.get_argument('planning_grid_name'))
-        #set the response
-        self.send_response({'info': "Project '" + self.get_argument('project') + "' created", 'name': self.get_argument('project'), 'user': self.get_argument('user')})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','description','planning_grid_name','interest_features','target_values','spf_values'])  
+            #create the empty project folder
+            _createProject(self, self.get_argument('project'))
+            #update the projects parameters
+            _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'DESCRIPTION': self.get_argument('description'), 'CREATEDATE': datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"), 'PLANNING_UNIT_NAME': self.get_argument('planning_grid_name')})
+            #create the spec.dat file
+            await _updateSpeciesFile(self, self.get_argument("interest_features"), self.get_argument("target_values"), self.get_argument("spf_values"), True)
+            #create the pu.dat file
+            await _createPuFile(self, self.get_argument('planning_grid_name'))
+            #set the response
+            self.send_response({'info': "Project '" + self.get_argument('project') + "' created", 'name': self.get_argument('project'), 'user': self.get_argument('user')})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #creates a simple project for the import wizard
 #POST ONLY
 class createImportProject(MarxanRESTHandler):
     def post(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])  
-        #create the empty project folder
-        _createProject(self, self.get_argument('project'))
-        #set the response
-        self.send_response({'info': "Project '" + self.get_argument('project') + "' created", 'name': self.get_argument('project')})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])  
+            #create the empty project folder
+            _createProject(self, self.get_argument('project'))
+            #set the response
+            self.send_response({'info': "Project '" + self.get_argument('project') + "' created", 'name': self.get_argument('project')})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #updates a project from the Marxan old version to the new version
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/upgradeProject?user=andrew&project=test2&callback=__jp7
 class upgradeProject(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])  
-        #get the projects existing data from the input.dat file
-        old = _readFileUnicode(self.folder_project + PROJECT_DATA_FILENAME)
-        #get an empty projects data
-        new = _readFileUnicode(EMPTY_PROJECT_TEMPLATE_FOLDER + PROJECT_DATA_FILENAME)
-        #everything from the 'DESCRIPTION No description' needs to be added
-        pos = new.find("DESCRIPTION No description")
-        if pos > -1:
-            newText = new[pos:]
-            old = old + "\n" + newText
-            _writeFileUnicode(self.folder_project + PROJECT_DATA_FILENAME, old)
-        else:
-            raise MarxanServicesError("Unable to update the old version of Marxan to the new one")
-        #populate the feature_preprocessing.dat file using data in the puvspr.dat file
-        await _createFeaturePreprocessingFileFromImport(self)
-        #delete the contents of the output folder
-        _deleteAllFiles(self.folder_output)
-        #set the response
-        self.send_response({'info': "Project '" + self.get_argument("project") + "' updated", 'project': self.get_argument("project")})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])  
+            #get the projects existing data from the input.dat file
+            old = _readFileUnicode(self.folder_project + PROJECT_DATA_FILENAME)
+            #get an empty projects data
+            new = _readFileUnicode(EMPTY_PROJECT_TEMPLATE_FOLDER + PROJECT_DATA_FILENAME)
+            #everything from the 'DESCRIPTION No description' needs to be added
+            pos = new.find("DESCRIPTION No description")
+            if pos > -1:
+                newText = new[pos:]
+                old = old + "\n" + newText
+                _writeFileUnicode(self.folder_project + PROJECT_DATA_FILENAME, old)
+            else:
+                raise MarxanServicesError("Unable to update the old version of Marxan to the new one")
+            #populate the feature_preprocessing.dat file using data in the puvspr.dat file
+            await _createFeaturePreprocessingFileFromImport(self)
+            #delete the contents of the output folder
+            _deleteAllFiles(self.folder_output)
+            #set the response
+            self.send_response({'info': "Project '" + self.get_argument("project") + "' updated", 'project': self.get_argument("project")})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #deletes a project
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteProject?user=andrew&project=test2&callback=__jp7
 class deleteProject(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])  
-        #get the existing projects
-        await _getProjects(self)
-        if len(self.projects) == 1:
-            raise MarxanServicesError("You cannot delete all projects")   
-        _deleteProject(self)
-        #set the response
-        self.send_response({'info': "Project '" + self.get_argument("project") + "' deleted", 'project': self.get_argument("project")})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])  
+            #get the existing projects
+            await _getProjects(self)
+            if len(self.projects) == 1:
+                raise MarxanServicesError("You cannot delete all projects")   
+            _deleteProject(self)
+            #set the response
+            self.send_response({'info': "Project '" + self.get_argument("project") + "' deleted", 'project': self.get_argument("project")})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #clones the project
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/cloneProject?user=admin&project=Start%20project&callback=__jp15
 class cloneProject(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])  
-        #clone the folder recursively
-        clonedName = _cloneProject(self.folder_project, self.folder_user)
-        #set the response
-        self.send_response({'info': "Project '" + clonedName + "' created", 'name': clonedName})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])  
+            #clone the folder recursively
+            clonedName = _cloneProject(self.folder_project, self.folder_user)
+            #set the response
+            self.send_response({'info': "Project '" + clonedName + "' created", 'name': clonedName})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #creates n clones of the project with a range of BLM values in the _clumping folder
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createProjectGroup?user=admin&project=Start%20project&copies=5&blmValues=0.1,0.2,0.3,0.4,0.5&callback=__jp15
 class createProjectGroup(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project','copies','blmValues'])  
-        #get the BLM values as a list
-        blmValuesList = self.get_argument("blmValues").split(",")
-        #initialise the project name array
-        projects = []
-        #clone the users project folder n times
-        for i in range(int(self.get_argument("copies"))):
-            #get the project name
-            projectName = uuid.uuid4().hex
-            #add the project name to the array
-            projects.append({'projectName': projectName, 'clump': i})
-            shutil.copytree(self.folder_project, CLUMP_FOLDER + projectName)
-            #delete the contents of the output folder in that cloned project
-            _deleteAllFiles(CLUMP_FOLDER + projectName + os.sep + "output" + os.sep)
-            #update the BLM and NUMREP values in the project
-            _updateParameters(CLUMP_FOLDER + projectName + os.sep + PROJECT_DATA_FILENAME, {'BLM': blmValuesList[i], 'NUMREPS': '1'})
-        #set the response
-        self.send_response({'info': "Project group created", 'data': projects})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','copies','blmValues'])  
+            #get the BLM values as a list
+            blmValuesList = self.get_argument("blmValues").split(",")
+            #initialise the project name array
+            projects = []
+            #clone the users project folder n times
+            for i in range(int(self.get_argument("copies"))):
+                #get the project name
+                projectName = uuid.uuid4().hex
+                #add the project name to the array
+                projects.append({'projectName': projectName, 'clump': i})
+                shutil.copytree(self.folder_project, CLUMP_FOLDER + projectName)
+                #delete the contents of the output folder in that cloned project
+                _deleteAllFiles(CLUMP_FOLDER + projectName + os.sep + "output" + os.sep)
+                #update the BLM and NUMREP values in the project
+                _updateParameters(CLUMP_FOLDER + projectName + os.sep + PROJECT_DATA_FILENAME, {'BLM': blmValuesList[i], 'NUMREPS': '1'})
+            #set the response
+            self.send_response({'info': "Project group created", 'data': projects})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #deletes a project cluster
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteProjects?projectNames=2dabf1b862da4c2e87b2cd9d8b38bb73,81eda0a43a3248a8b4881caae160667a,313b0d3f733142e3949cf6129855be19,739f40f4d1c94907b2aa814470bcd7f7,15210235bec341238a816ce43eb2b341&callback=__jp15
 class deleteProjects(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['projectNames'])  
-        #get the project names
-        projectNames = self.get_argument("projectNames").split(",")
-        #delete the folders
-        for projectName in projectNames:
-            if os.path.exists(CLUMP_FOLDER + projectName):
-                shutil.rmtree(CLUMP_FOLDER + projectName)        
-        #set the response
-        self.send_response({'info': "Projects deleted"})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['projectNames'])  
+            #get the project names
+            projectNames = self.get_argument("projectNames").split(",")
+            #delete the folders
+            for projectName in projectNames:
+                if os.path.exists(CLUMP_FOLDER + projectName):
+                    shutil.rmtree(CLUMP_FOLDER + projectName)        
+            #set the response
+            self.send_response({'info': "Projects deleted"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #renames a project
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/renameProject?user=andrew&project=Tonga%20marine%2030km2&newName=Tonga%20marine%2030km&callback=__jp5
 class renameProject(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project','newName'])  
-        #rename the folder
-        os.rename(self.folder_project, self.folder_user + self.get_argument("newName"))
-        #set the new name as the users last project so it will load on login
-        _updateParameters(self.folder_user + USER_DATA_FILENAME, {'LASTPROJECT': self.get_argument("newName")})
-        #set the response
-        self.send_response({"info": "Project renamed to '" + self.get_argument("newName") + "'", 'project': self.get_argument("project")})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','newName'])  
+            #rename the folder
+            os.rename(self.folder_project, self.folder_user + self.get_argument("newName"))
+            #set the new name as the users last project so it will load on login
+            _updateParameters(self.folder_user + USER_DATA_FILENAME, {'LASTPROJECT': self.get_argument("newName")})
+            #set the response
+            self.send_response({"info": "Project renamed to '" + self.get_argument("newName") + "'", 'project': self.get_argument("project")})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getCountries?callback=__jp0
 class getCountries(MarxanRESTHandler):
     async def get(self):
-        content = await pg.execute("SELECT t.iso3, t.name_iso31, CASE WHEN m.iso3 IS NULL THEN False ELSE True END has_marine FROM marxan.gaul_2015_simplified_1km t LEFT JOIN marxan.eez_simplified_1km m on t.iso3 = m.iso3 WHERE t.iso3 NOT LIKE '%|%' ORDER BY lower(t.name_iso31);", returnFormat="Dict")
-        self.send_response({'records': content})        
+        try:
+            content = await pg.execute("SELECT t.iso3, t.name_iso31, CASE WHEN m.iso3 IS NULL THEN False ELSE True END has_marine FROM marxan.gaul_2015_simplified_1km t LEFT JOIN marxan.eez_simplified_1km m on t.iso3 = m.iso3 WHERE t.iso3 NOT LIKE '%|%' ORDER BY lower(t.name_iso31);", returnFormat="Dict")
+            self.send_response({'records': content})        
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitGrids?callback=__jp0
 class getPlanningUnitGrids(MarxanRESTHandler):
     async def get(self):
-        planningUnitGrids = await _getPlanningUnitGrids()
-        self.send_response({'info': 'Planning unit grids retrieved', 'planning_unit_grids': planningUnitGrids})        
+        try:
+            planningUnitGrids = await _getPlanningUnitGrids()
+            self.send_response({'info': 'Planning unit grids retrieved', 'planning_unit_grids': planningUnitGrids})        
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
         
 #imports a zipped planning unit shapefile which has been uploaded to the marxan root folder into PostGIS as a planning unit grid feature class
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/importPlanningUnitGrid?filename=pu_sample.zip&name=pu_test&description=wibble&callback=__jp5
 class importPlanningUnitGrid(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['filename','name','description'])   
-        #import the shapefile
-        data = await _importPlanningUnitGrid(self.get_argument('filename'), self.get_argument('name'), self.get_argument('description'), self.get_current_user())
-        #set the response
-        self.send_response({'info': "Planning grid '" + self.get_argument('name') + "' imported", 'feature_class_name': data['feature_class_name'], 'uploadId': data['uploadId'], 'alias': data['alias']})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['filename','name','description'])   
+            #import the shapefile
+            data = await _importPlanningUnitGrid(self.get_argument('filename'), self.get_argument('name'), self.get_argument('description'), self.get_current_user())
+            #set the response
+            self.send_response({'info': "Planning grid '" + self.get_argument('name') + "' imported", 'feature_class_name': data['feature_class_name'], 'uploadId': data['uploadId'], 'alias': data['alias']})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deletePlanningUnitGrid?planning_grid_name=pu_f9609f7a4cb0406e8bea4bfa00772&callback=__jp10        
 class deletePlanningUnitGrid(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['planning_grid_name'])
-        #call the internal function
-        await _deletePlanningUnitGrid(self.get_argument('planning_grid_name'))
-        #set the response
-        self.send_response({'info':'Planning grid deleted'})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['planning_grid_name'])
+            #call the internal function
+            await _deletePlanningUnitGrid(self.get_argument('planning_grid_name'))
+            #set the response
+            self.send_response({'info':'Planning grid deleted'})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #validates a user with the passed credentials
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/validateUser?user=andrew&password=thargal88&callback=__jp2
 class validateUser(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','password'])  
-        #see if the guest user is enabled
-        if ((not _guestUserEnabled(self)) and (self.get_argument("user") == GUEST_USERNAME)):
-            raise MarxanServicesError("The guest user is not enabled on this server")        
         try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','password'])  
+            #see if the guest user is enabled
+            if ((not _guestUserEnabled(self)) and (self.get_argument("user") == GUEST_USERNAME)):
+                raise MarxanServicesError("The guest user is not enabled on this server")        
             #get the user data from the user.dat file
             _getUserData(self)
-        except (MarxanServicesError) as e:
-            raise MarxanServicesError("Invalid login")
-        #compare the passed password to the one in the user.dat file
-        if self.get_argument("password") == self.userData["PASSWORD"]:
-            #if the request is secure, then set the secure response header for the cookie
-            secure = True if self.request.protocol == 'https' else False
-            #set a response cookie for the authenticated user
-            self.set_secure_cookie("user", self.get_argument("user"), httponly = True, samesite = None, secure = secure) 
-            #set a response cookie for the authenticated users role
-            self.set_secure_cookie("role", self.userData["ROLE"], httponly = True, samesite = None, secure = secure)
-            #set the response
-            self.send_response({'info': "User " + self.user + " validated"})
-        else:
-            #invalid login
-            raise MarxanServicesError("Invalid login")    
+            #compare the passed password to the one in the user.dat file
+            if self.get_argument("password") == self.userData["PASSWORD"]:
+                #if the request is secure, then set the secure response header for the cookie
+                secure = True if self.request.protocol == 'https' else False
+                #set a response cookie for the authenticated user
+                self.set_secure_cookie("user", self.get_argument("user"), httponly = True, samesite = None, secure = secure) 
+                #set a response cookie for the authenticated users role
+                self.set_secure_cookie("role", self.userData["ROLE"], httponly = True, samesite = None, secure = secure)
+                #set the response
+                self.send_response({'info': "User " + self.user + " validated"})
+            else:
+                #invalid login
+                raise MarxanServicesError("Invalid user/password")    
+        except MarxanServicesError as e:
+            _raiseError(self, "Login failed: " + e.args[0])
 
 #logs the user out and resets the cookies
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/logout?callback=__jp2
 class logout(MarxanRESTHandler):
     def get(self):
-        self.clear_cookie("user")
-        self.clear_cookie("role")
-        #set the response
-        self.send_response({'info': "User logged out"})
+        try:
+            self.clear_cookie("user")
+            self.clear_cookie("role")
+            #set the response
+            self.send_response({'info': "User logged out"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
     
 #resends the password to the passed email address (NOT CURRENTLY IMPLEMENTED)
 class resendPassword(MarxanRESTHandler):
     def get(self):
         #set the response
         self.send_response({'info': 'Not currently implemented'})
-        
 
 #gets a users information from the user folder
 #curl 'https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getUser?user=andrew&callback=__jp1' -H 'If-None-Match: "0798406453417c47c0b5ab5bd11d56a60fb4df7d"' -H 'Accept-Encoding: gzip, deflate, br' -H 'Accept-Language: en-US,en;q=0.9,fr;q=0.8' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110Safari/537.36' -H 'Accept: */*' -H 'Referer: https://marxan-client-blishten.c9users.io/' -H 'Cookie: c9.live.user.jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJjb2RlIjoiOWNBUzdEQldsdWYwU2oyU01ZaEYiLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.yJ9mPz4bM7L3htL8vXVFMCcQpTO0pkRvhNHJP9WnJo8; c9.live.user.sso=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjE2MzQxNDgiLCJuYW1lIjoiYmxpc2h0ZW4iLCJpYXQiOjE1NDgxNDg0MTQsImV4cCI6MTU0ODIzNDgxNH0.ifW5qlkpC19iyMNBgZLtGZzxuMRyHKWldGg3He-__gI; role="2|1:0|10:1548151226|4:role|8:QWRtaW4=|d703b0f18c81cf22c85f41c536f99589ce11492925d85833e78d3d66f4d7fd62"; user="2|1:0|10:1548151226|4:user|8:YW5kcmV3|e5ed3b87979273b1b8d1b8983310280507941fe05fb665847e7dd5dacf36348d"' -H 'Connection: keep-alive' --compressed
 class getUser(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user'])    
-        #get the user data from the user.dat file
-        _getUserData(self)
-        #get the notifications data from the notifications.dat file
-        ids = _getNotificationsData(self)
-        #get the permissions for the users role
-        role = self.userData["ROLE"]
-        unauthorised = ROLE_UNAUTHORISED_METHODS[role]
-        #set the response
-        self.send_response({'info': "User data received", "userData" : {k: v for k, v in self.userData.items() if k != 'PASSWORD'}, "unauthorisedMethods": unauthorised, 'dismissedNotifications': ids})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user'])    
+            #get the user data from the user.dat file
+            _getUserData(self)
+            #get the notifications data from the notifications.dat file
+            ids = _getNotificationsData(self)
+            #get the permissions for the users role
+            role = self.userData["ROLE"]
+            unauthorised = ROLE_UNAUTHORISED_METHODS[role]
+            #set the response
+            self.send_response({'info': "User data received", "userData" : {k: v for k, v in self.userData.items() if k != 'PASSWORD'}, "unauthorisedMethods": unauthorised, 'dismissedNotifications': ids})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets a list of all users
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getUsers
 class getUsers(MarxanRESTHandler):
     def get(self):
-        #get the users
-        users = _getUsers()
-        #get all the data for those users
-        usersData = _getUsersData(users)
-        #set the response
-        self.send_response({'info': 'Users data received', 'users': usersData})
+        try:        
+            #get the users
+            users = _getUsers()
+            #get all the data for those users
+            usersData = _getUsersData(users)
+            #set the response
+            self.send_response({'info': 'Users data received', 'users': usersData})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #deletes a user
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteUser?user=asd2
 class deleteUser(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user']) 
-        shutil.rmtree(self.folder_user)
-        #set the response
-        self.send_response({'info': 'User deleted'})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user']) 
+            shutil.rmtree(self.folder_user)
+            #set the response
+            self.send_response({'info': 'User deleted'})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
     
 #gets project information from the input.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProject?user=admin&project=Start%20project&callback=__jp2
 class getProject(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project']) 
-        if (self.get_argument("user") == GUEST_USERNAME):
-            self.send_response({'error': "Logged on as read-only guest user"})
-        else:
-            #see if the project exists
-            if not os.path.exists(self.folder_project):
-                raise MarxanServicesError("The project '" + self.get_argument("project") + "' does not exist")
-            #if the project name is an empty string, then get the first project for the user
-            if (self.get_argument("project") == ""):
-                self.projects = await _getProjectsForUser(self.get_argument("user"))
-                project = self.projects[0]['name']
-                #set the project argument
-                self.request.arguments['project'] = [project]
-                #and set the paths to this project
-                _setFolderPaths(self, self.request.arguments)
-            #get the project data from the input.dat file
-            await _getProjectData(self)
-            #get the species data from the spec.dat file and the PostGIS database
-            await _getSpeciesData(self)
-            #get the species preprocessing from the feature_preprocessing.dat file
-            _getSpeciesPreProcessingData(self)
-            #get the planning units information
-            await _getPlanningUnitsData(self)
-            #get the protected area intersections
-            _getProtectedAreaIntersectionsData(self)
-            #set the project as the users last project so it will load on login - but only if the current user is loading one of their own projects
-            if (self.current_user == self.get_argument("user")):
-                _updateParameters(self.folder_user + USER_DATA_FILENAME, {'LASTPROJECT': self.get_argument("project")})
-            #set the response
-            self.send_response({'user': self.get_argument("user"), 'project': self.projectData["project"], 'metadata': self.projectData["metadata"], 'files': self.projectData["files"], 'runParameters': self.projectData["runParameters"], 'renderer': self.projectData["renderer"], 'features': self.speciesData.to_dict(orient="records"), 'feature_preprocessing': self.speciesPreProcessingData.to_dict(orient="split")["data"], 'planning_units': self.planningUnitsData, 'protected_area_intersections': self.protectedAreaIntersectionsData})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project']) 
+            if (self.get_argument("user") == GUEST_USERNAME):
+                self.send_response({'error': "Logged on as read-only guest user"})
+            else:
+                #see if the project exists
+                if not os.path.exists(self.folder_project):
+                    raise MarxanServicesError("The project '" + self.get_argument("project") + "' does not exist")
+                #if the project name is an empty string, then get the first project for the user
+                if (self.get_argument("project") == ""):
+                    self.projects = await _getProjectsForUser(self.get_argument("user"))
+                    project = self.projects[0]['name']
+                    #set the project argument
+                    self.request.arguments['project'] = [project]
+                    #and set the paths to this project
+                    _setFolderPaths(self, self.request.arguments)
+                #get the project data from the input.dat file
+                await _getProjectData(self)
+                #get the species data from the spec.dat file and the PostGIS database
+                await _getSpeciesData(self)
+                #get the species preprocessing from the feature_preprocessing.dat file
+                _getSpeciesPreProcessingData(self)
+                #get the planning units information
+                await _getPlanningUnitsData(self)
+                #get the protected area intersections
+                _getProtectedAreaIntersectionsData(self)
+                #set the project as the users last project so it will load on login - but only if the current user is loading one of their own projects
+                if (self.current_user == self.get_argument("user")):
+                    _updateParameters(self.folder_user + USER_DATA_FILENAME, {'LASTPROJECT': self.get_argument("project")})
+                #set the response
+                self.send_response({'user': self.get_argument("user"), 'project': self.projectData["project"], 'metadata': self.projectData["metadata"], 'files': self.projectData["files"], 'runParameters': self.projectData["runParameters"], 'renderer': self.projectData["renderer"], 'features': self.speciesData.to_dict(orient="records"), 'feature_preprocessing': self.speciesPreProcessingData.to_dict(orient="split")["data"], 'planning_units': self.planningUnitsData, 'protected_area_intersections': self.protectedAreaIntersectionsData})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets feature information from postgis
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getFeature?oid=63407942&callback=__jp2
 class getFeature(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['oid'])    
-        #get the data
-        await _getFeature(self, self.get_argument("oid"))
-        #set the response
-        self.send_response({"data": self.data.to_dict(orient="records")})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['oid'])    
+            #get the data
+            await _getFeature(self, self.get_argument("oid"))
+            #set the response
+            self.send_response({"data": self.data.to_dict(orient="records")})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets the features planning unit ids from the puvspr.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getFeaturePlanningUnits?user=andrew&project=Tonga%20marine%2030Km2&oid=63407942&callback=__jp2
 class getFeaturePlanningUnits(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project','oid'])    
-        #get the data from the puvspr.dat file as a dataframe
-        df = await _getProjectInputData(self, "PUVSPRNAME")
-        #get the planning unit ids as a list
-        puids = df.loc[df['species'] == int(self.get_argument("oid"))]['pu'].unique().tolist()
-        #set the response
-        self.send_response({"data": puids})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','oid'])    
+            #get the data from the puvspr.dat file as a dataframe
+            df = await _getProjectInputData(self, "PUVSPRNAME")
+            #get the planning unit ids as a list
+            puids = df.loc[df['species'] == int(self.get_argument("oid"))]['pu'].unique().tolist()
+            #set the response
+            self.send_response({"data": puids})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets species information for a specific project from the spec.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getSpeciesData?user=admin&project=Start%20project&callback=__jp3
 class getSpeciesData(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the species data from the spec.dat file and PostGIS
-        await _getSpeciesData(self)
-        #set the response
-        self.send_response({"data": self.speciesData.to_dict(orient="records")})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the species data from the spec.dat file and PostGIS
+            await _getSpeciesData(self)
+            #set the response
+            self.send_response({"data": self.speciesData.to_dict(orient="records")})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets all species information from the PostGIS database
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getAllSpeciesData?callback=__jp2
 class getAllSpeciesData(MarxanRESTHandler):
     async def get(self):
-        #get all the species data
-        await _getAllSpeciesData(self)
-        #set the response
-        self.send_response({"info": "All species data received", "data": self.allSpeciesData.to_dict(orient="records")})
+        try:
+            #get all the species data
+            await _getAllSpeciesData(self)
+            #set the response
+            self.send_response({"info": "All species data received", "data": self.allSpeciesData.to_dict(orient="records")})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets the species preprocessing information from the feature_preprocessing.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getSpeciesPreProcessingData?user=admin&project=Start%20project&callback=__jp2
 class getSpeciesPreProcessingData(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the species preprocessing data
-        _getSpeciesPreProcessingData(self)
-        #set the response
-        self.send_response({"data": self.speciesPreProcessingData.to_dict(orient="split")["data"]})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the species preprocessing data
+            _getSpeciesPreProcessingData(self)
+            #set the response
+            self.send_response({"data": self.speciesPreProcessingData.to_dict(orient="split")["data"]})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets the planning units status information from the pu.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitsData?user=admin&project=Start%20project&callback=__jp2
 class getPlanningUnitsData(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the planning units information
-        _getPlanningUnitsData(self)
-        #set the response
-        self.send_response({"data": self.planningUnitsData})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the planning units information
+            _getPlanningUnitsData(self)
+            #set the response
+            self.send_response({"data": self.planningUnitsData})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets the planning units cost information from the pu.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitsCostData?user=admin&project=Start%20project&callback=__jp2
 class getPlanningUnitsCostData(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the planning units cost information
-        await _getPlanningUnitsCostData(self)
-        #set the response
-        self.send_response({"data": self.planningUnitsData})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the planning units cost information
+            await _getPlanningUnitsCostData(self)
+            #set the response
+            self.send_response({"data": self.planningUnitsData})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets the intersections of the planning units with the protected areas from the protected_area_intersections.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProtectedAreaIntersectionsData?user=admin&project=Start%20project&callback=__jp2
 class getProtectedAreaIntersectionsData(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the protected area intersections
-        _getProtectedAreaIntersectionsData(self)
-        #set the response
-        self.send_response({"data": self.protectedAreaIntersectionsData})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the protected area intersections
+            _getProtectedAreaIntersectionsData(self)
+            #set the response
+            self.send_response({"data": self.protectedAreaIntersectionsData})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets the Marxan log for the project
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getMarxanLog?user=admin&project=Start%20project&callback=__jp2
 class getMarxanLog(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the log
-        _getMarxanLog(self)
-        #set the response
-        self.send_response({"log": self.marxanLog})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the log
+            _getMarxanLog(self)
+            #set the response
+            self.send_response({"log": self.marxanLog})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets the best solution for the project
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getBestSolution?user=admin&project=Start%20project&callback=__jp2
 class getBestSolution(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the best solution
-        _getBestSolution(self)
-        #set the response
-        self.send_response({"data": self.bestSolution.to_dict(orient="split")["data"]})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the best solution
+            _getBestSolution(self)
+            #set the response
+            self.send_response({"data": self.bestSolution.to_dict(orient="split")["data"]})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets the output summary for the project
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getOutputSummary?user=admin&project=Start%20project&callback=__jp2
 class getOutputSummary(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the output sum
-        _getOutputSummary(self)
-        #set the response
-        self.send_response({"data": self.outputSummary.to_dict(orient="split")["data"]})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the output sum
+            _getOutputSummary(self)
+            #set the response
+            self.send_response({"data": self.outputSummary.to_dict(orient="split")["data"]})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets the summed solution for the project
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getSummedSolution?user=admin&project=Start%20project&callback=__jp2
 class getSummedSolution(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the summed solution
-        _getSummedSolution(self)
-        #set the response
-        self.send_response({"data": self.summedSolution})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the summed solution
+            _getSummedSolution(self)
+            #set the response
+            self.send_response({"data": self.summedSolution})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets an individual solution
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getSolution?user=admin&project=Start%20project&solution=1&callback=__jp7
 class getSolution(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project','solution'])  
-        #get the solution
-        _getSolution(self, self.get_argument("solution"))
-        #get the corresponding missing values file, e.g. output_mv00031.txt - not for clumping projects
-        if (self.get_argument("user") != '_clumping'):
-            _getMissingValues(self, self.get_argument("solution"))
-            #set the response
-            self.send_response({'solution': self.solution, 'mv': self.missingValues, 'user': self.get_argument("user"), 'project': self.get_argument("project")})
-        else:
-            self.send_response({'solution': self.solution, 'user': self.get_argument("user"), 'project': self.get_argument("project")})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','solution'])  
+            #get the solution
+            _getSolution(self, self.get_argument("solution"))
+            #get the corresponding missing values file, e.g. output_mv00031.txt - not for clumping projects
+            if (self.get_argument("user") != '_clumping'):
+                _getMissingValues(self, self.get_argument("solution"))
+                #set the response
+                self.send_response({'solution': self.solution, 'mv': self.missingValues, 'user': self.get_argument("user"), 'project': self.get_argument("project")})
+            else:
+                self.send_response({'solution': self.solution, 'user': self.get_argument("user"), 'project': self.get_argument("project")})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
  
 #gets the missing values for a single solution
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getMissingValues?user=admin&project=Start%20project&solution=1&callback=__jp7
 class getMissingValues(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project','solution'])  
-        #get the missing values file, e.g. output_mv00031.txt
-        _getMissingValues(self, self.get_argument("solution"))
-        #set the response
-        self.send_response({'missingValues': self.missingValues})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','solution'])  
+            #get the missing values file, e.g. output_mv00031.txt
+            _getMissingValues(self, self.get_argument("solution"))
+            #set the response
+            self.send_response({'missingValues': self.missingValues})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
  
 #gets the combined results for the project
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getResults?user=admin&project=Start%20project&callback=__jp2
 class getResults(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])    
         try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
             #get the log
             _getMarxanLog(self)
             #get the best solution
@@ -2216,338 +2321,416 @@ class getResults(MarxanRESTHandler):
             _getSummedSolution(self)
             #set the response
             self.send_response({'info':'Results loaded', 'log': self.marxanLog, 'mvbest': self.bestSolution.to_dict(orient="split")["data"], 'summary':self.outputSummary.to_dict(orient="split")["data"], 'ssoln': self.summedSolution})
-        except (MarxanServicesError):
-            self.send_response({'info':'No results available'})
+        except MarxanServicesError as e:
+            _raiseError(self, 'No results available')
 
 #gets the data from the server.dat file as an abject
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getServerData
 class getServerData(MarxanRESTHandler):
     def get(self):
-        #get the data from the server.dat file
-        _getServerData(self)
-        #get any shutdown timeouts if they have been set
-        shutdownTime = _readFile(MARXAN_FOLDER + SHUTDOWN_FILENAME) if (os.path.exists(MARXAN_FOLDER + SHUTDOWN_FILENAME)) else None
-        if shutdownTime:
-            self.serverData.update({'SHUTDOWNTIME': shutdownTime})
-        #delete sensitive information from the server config data
-        del self.serverData['COOKIE_RANDOM_VALUE']
-        del self.serverData['DATABASE_HOST']
-        del self.serverData['DATABASE_NAME']
-        del self.serverData['DATABASE_PASSWORD']
-        del self.serverData['DATABASE_USER']
-        #set the response
-        self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
+        try:
+            #get the data from the server.dat file
+            _getServerData(self)
+            #get any shutdown timeouts if they have been set
+            shutdownTime = _readFile(MARXAN_FOLDER + SHUTDOWN_FILENAME) if (os.path.exists(MARXAN_FOLDER + SHUTDOWN_FILENAME)) else None
+            if shutdownTime:
+                self.serverData.update({'SHUTDOWNTIME': shutdownTime})
+            #delete sensitive information from the server config data
+            del self.serverData['COOKIE_RANDOM_VALUE']
+            del self.serverData['DATABASE_HOST']
+            del self.serverData['DATABASE_NAME']
+            del self.serverData['DATABASE_PASSWORD']
+            del self.serverData['DATABASE_USER']
+            #set the response
+            self.send_response({'info':'Server data loaded', 'serverData': self.serverData})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets a list of projects for the user
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProjects?user=andrew&callback=__jp2
 class getProjects(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user'])    
-        #get the projects
-        await _getProjects(self)
-        #set the response
-        self.send_response({"projects": self.projects})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user'])    
+            #get the projects
+            await _getProjects(self)
+            #set the response
+            self.send_response({"projects": self.projects})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #gets all projects and their planning unit grids
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProjectsWithGrids?&callback=__jp2
 class getProjectsWithGrids(MarxanRESTHandler):
     async def get(self):
-        matches = []
-        for root, dirnames, filenames in os.walk(MARXAN_USERS_FOLDER):
-            for filename in fnmatch.filter(filenames, 'input.dat'):
-                matches.append(os.path.join(root, filename))
-        projects = []
-        for match in matches:
-            #get the user from the matching filename
-            user = match[len(MARXAN_USERS_FOLDER):match[len(MARXAN_USERS_FOLDER):].find(os.sep) + len(MARXAN_USERS_FOLDER)]
-            #get the project from the matching filename
-            project = match[match.find(user) + len(user) + 1:match.rfind(os.sep)]
-            #open the input file and get the key values
-            values = _getKeyValuesFromFile(match)
-            projects.append({'user': user, 'project': project, 'feature_class_name': values['PLANNING_UNIT_NAME'], 'description': values['DESCRIPTION']})
-        #make the projects dict into a dataframe so we can join it to the data from the planning grids table
-        df = pandas.DataFrame(projects)
-        #set an index on the dataframe
-        df = df.set_index("feature_class_name")
-        #get the planning unit grids
-        grids = await _getPlanningUnitGrids()
-        #make a dataframe of the planning grids records
-        df2 = pandas.DataFrame(grids)
-        #remove the duplicate description column
-        df2 = df2.drop(columns=['description','aoi_id','country_id','source'])
-        #set an index on the dataframe
-        df2 = df2.set_index("feature_class_name")
-        #join the projects to the planning grids and replace NaNs (in number fields) with None - otherwise the output json is '_area': NaN which causes some json parses to raise an error - it will be replaced with '_area': null
-        df = df.join(df2).replace({pandas.np.nan: None})
-        self.send_response({'info': "Projects data returned", 'data': df.to_dict(orient="records")})
+        try:
+            matches = []
+            for root, dirnames, filenames in os.walk(MARXAN_USERS_FOLDER):
+                for filename in fnmatch.filter(filenames, 'input.dat'):
+                    matches.append(os.path.join(root, filename))
+            projects = []
+            for match in matches:
+                #get the user from the matching filename
+                user = match[len(MARXAN_USERS_FOLDER):match[len(MARXAN_USERS_FOLDER):].find(os.sep) + len(MARXAN_USERS_FOLDER)]
+                #get the project from the matching filename
+                project = match[match.find(user) + len(user) + 1:match.rfind(os.sep)]
+                #open the input file and get the key values
+                values = _getKeyValuesFromFile(match)
+                projects.append({'user': user, 'project': project, 'feature_class_name': values['PLANNING_UNIT_NAME'], 'description': values['DESCRIPTION']})
+            #make the projects dict into a dataframe so we can join it to the data from the planning grids table
+            df = pandas.DataFrame(projects)
+            #set an index on the dataframe
+            df = df.set_index("feature_class_name")
+            #get the planning unit grids
+            grids = await _getPlanningUnitGrids()
+            #make a dataframe of the planning grids records
+            df2 = pandas.DataFrame(grids)
+            #remove the duplicate description column
+            df2 = df2.drop(columns=['description','aoi_id','country_id','source'])
+            #set an index on the dataframe
+            df2 = df2.set_index("feature_class_name")
+            #join the projects to the planning grids and replace NaNs (in number fields) with None - otherwise the output json is '_area': NaN which causes some json parses to raise an error - it will be replaced with '_area': null
+            df = df.join(df2).replace({pandas.np.nan: None})
+            self.send_response({'info': "Projects data returned", 'data': df.to_dict(orient="records")})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #updates the spec.dat file with the posted data
 class updateSpecFile(MarxanRESTHandler):
     async def post(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project','interest_features','spf_values','target_values'])    
-        #update the spec.dat file and other related files 
-        await _updateSpeciesFile(self, self.get_argument("interest_features"), self.get_argument("target_values"), self.get_argument("spf_values"))
-        #set the response
-        self.send_response({'info': "spec.dat file updated"})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','interest_features','spf_values','target_values'])    
+            #update the spec.dat file and other related files 
+            await _updateSpeciesFile(self, self.get_argument("interest_features"), self.get_argument("target_values"), self.get_argument("spf_values"))
+            #set the response
+            self.send_response({'info': "spec.dat file updated"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #updates the pu.dat file with the posted data
 class updatePUFile(MarxanRESTHandler):
     async def post(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project']) 
-        #get the ids for the different statuses
-        status1_ids = _getIntArrayFromArg(self.request.arguments, "status1")
-        status2_ids = _getIntArrayFromArg(self.request.arguments, "status2")
-        status3_ids = _getIntArrayFromArg(self.request.arguments, "status3")
-        #update the file 
-        await _updatePuFile(self, status1_ids, status2_ids, status3_ids)
-        #set the response
-        self.send_response({'info': "pu.dat file updated"})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project']) 
+            #get the ids for the different statuses
+            status1_ids = _getIntArrayFromArg(self.request.arguments, "status1")
+            status2_ids = _getIntArrayFromArg(self.request.arguments, "status2")
+            status3_ids = _getIntArrayFromArg(self.request.arguments, "status3")
+            #update the file 
+            await _updatePuFile(self, status1_ids, status2_ids, status3_ids)
+            #set the response
+            self.send_response({'info': "pu.dat file updated"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #returns data for a planning unit including a set of features if there are some
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPUData?user=admin&project=Start%20project&puid=10561&callback=__jp2
 class getPUData(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project','puid'])   
-        #get the planning unit data
-        pu_df = await _getProjectInputData(self, "PUNAME")
-        pu_data = pu_df.loc[pu_df['id']==int(self.get_argument('puid'))].iloc[0]
-        #get a set of feature IDs from the puvspr file
-        df = await _getProjectInputData(self, "PUVSPRNAME")
-        if not df.empty:
-            features = df.loc[df['pu']==int(self.get_argument('puid'))]
-        else:
-            features = []
-        #set the response
-        self.send_response({"info": 'Planning unit data returned', 'data': {'features':features.to_dict(orient="records"), 'pu_data': pu_data.to_dict()}})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','puid'])   
+            #get the planning unit data
+            pu_df = await _getProjectInputData(self, "PUNAME")
+            pu_data = pu_df.loc[pu_df['id']==int(self.get_argument('puid'))].iloc[0]
+            #get a set of feature IDs from the puvspr file
+            df = await _getProjectInputData(self, "PUVSPRNAME")
+            if not df.empty:
+                features = df.loc[df['pu']==int(self.get_argument('puid'))]
+            else:
+                features = []
+            #set the response
+            self.send_response({"info": 'Planning unit data returned', 'data': {'features':features.to_dict(orient="records"), 'pu_data': pu_data.to_dict()}})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #used to populate the feature_preprocessing.dat file from an imported puvspr.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createFeaturePreprocessingFileFromImport?user=andrew&project=test&callback=__jp2
 class createFeaturePreprocessingFileFromImport(MarxanRESTHandler): #not currently used
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project']) 
-        #run the internal routine
-        await _createFeaturePreprocessingFileFromImport(self)
-        #set the response
-        self.send_response({'info': "feature_preprocessing.dat file populated"})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project']) 
+            #run the internal routine
+            await _createFeaturePreprocessingFileFromImport(self)
+            #set the response
+            self.send_response({'info': "feature_preprocessing.dat file populated"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #creates a new parameter in the *.dat file, either user (user.dat) or project (project.dat), by iterating through all the files and adding the key/value if it doesnt already exist
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/addParameter?type=user&key=REPORTUNITS&value=Ha&callback=__jp2
 class addParameter(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments - the type parameter is one of {'user','project'}
-        _validateArguments(self.request.arguments, ['type','key','value'])
-        #add the parameter
-        results = _addParameter(self.get_argument('type'), self.get_argument('key'), self.get_argument('value'))
-        #set the response
-        self.send_response({'info': results})
+        try:
+            #validate the input arguments - the type parameter is one of {'user','project'}
+            _validateArguments(self.request.arguments, ['type','key','value'])
+            #add the parameter
+            results = _addParameter(self.get_argument('type'), self.get_argument('key'), self.get_argument('value'))
+            #set the response
+            self.send_response({'info': results})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #updates parameters in the users user.dat file       
 #POST ONLY
 class updateUserParameters(MarxanRESTHandler):
     def post(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user'])  
-        #get the parameters to update as a simple dict
-        params = _getSimpleArguments(self, ['user','callback'])
-        #update the parameters
-        _updateParameters(self.folder_user + USER_DATA_FILENAME, params)
-        #set the response
-        self.send_response({'info': ",".join(list(params.keys())) + " parameters updated"})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user'])  
+            #get the parameters to update as a simple dict
+            params = _getSimpleArguments(self, ['user','callback'])
+            #update the parameters
+            _updateParameters(self.folder_user + USER_DATA_FILENAME, params)
+            #set the response
+            self.send_response({'info': ",".join(list(params.keys())) + " parameters updated"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #updates parameters in the projects input.dat file       
 #POST ONLY
 class updateProjectParameters(MarxanRESTHandler):
     def post(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project'])  
-        #get the parameters to update as a simple dict
-        params = _getSimpleArguments(self, ['user','project','callback'])
-        #update the parameters
-        _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, params)
-        #set the response
-        self.send_response({'info': ",".join(list(params.keys())) + " parameters updated"})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])  
+            #get the parameters to update as a simple dict
+            params = _getSimpleArguments(self, ['user','project','callback'])
+            #update the parameters
+            _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, params)
+            #set the response
+            self.send_response({'info': ",".join(list(params.keys())) + " parameters updated"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #lists all of the projects that a feature is in        
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/listProjectsForFeature?feature_class_id=63407942&callback=__jp9
 class listProjectsForFeature(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['feature_class_id'])  
-        #get the projects which contain the feature
-        projects = _getProjectsForFeature(int(self.get_argument('feature_class_id')))
-        #set the response for uploading to mapbox
-        self.send_response({'info': "Projects info returned", "projects": projects})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['feature_class_id'])  
+            #get the projects which contain the feature
+            projects = _getProjectsForFeature(int(self.get_argument('feature_class_id')))
+            #set the response for uploading to mapbox
+            self.send_response({'info': "Projects info returned", "projects": projects})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
         
 #lists all of the projects that a planning grid is used in     
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/listProjectsForPlanningGrid?feature_class_name=pu_89979654c5d044baa27b6008f9d06&callback=__jp9
 class listProjectsForPlanningGrid(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['feature_class_name'])  
-        #get the projects which contain the planning grid
-        projects = _getProjectsForPlanningGrid(self.get_argument('feature_class_name'))
-        #set the response for uploading to mapbox
-        self.send_response({'info': "Projects info returned", "projects": projects})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['feature_class_name'])  
+            #get the projects which contain the planning grid
+            projects = _getProjectsForPlanningGrid(self.get_argument('feature_class_name'))
+            #set the response for uploading to mapbox
+            self.send_response({'info': "Projects info returned", "projects": projects})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
         
 #uploads a feature class with the passed feature class name to MapBox as a tileset using the MapBox Uploads API
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/uploadTilesetToMapBox?feature_class_name=pu_ton_marine_hexagon_20&mapbox_layer_name=hexagon&callback=__jp9
 class uploadTilesetToMapBox(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['feature_class_name','mapbox_layer_name'])  
-        uploadId = await _uploadTilesetToMapbox(self.get_argument('feature_class_name'),self.get_argument('mapbox_layer_name'))
-        #set the response for uploading to mapbox
-        self.send_response({'info': "Tileset '" + self.get_argument('feature_class_name') + "' uploading",'uploadid': uploadId})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['feature_class_name','mapbox_layer_name'])  
+            uploadId = await _uploadTilesetToMapbox(self.get_argument('feature_class_name'),self.get_argument('mapbox_layer_name'))
+            #set the response for uploading to mapbox
+            self.send_response({'info': "Tileset '" + self.get_argument('feature_class_name') + "' uploading",'uploadid': uploadId})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
             
 #uploads a shapefile to the marxan root folder
 #POST ONLY 
 class uploadShapefile(MarxanRESTHandler):
     def post(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['filename','name','description'])   
-        #write the file to the server
-        _writeFile(MARXAN_FOLDER + self.get_argument('filename'), self.request.files['value'][0].body)
-        #set the response
-        self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['filename','name','description'])   
+            #write the file to the server
+            _writeFile(MARXAN_FOLDER + self.get_argument('filename'), self.request.files['value'][0].body)
+            #set the response
+            self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
         
 #saves an uploaded file to the filename - 3 input parameters: user, project, filename (relative) and the file itself as a request file
 #POST ONLY 
 class uploadFile(MarxanRESTHandler):
     def post(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['user','project','filename'])   
-        #write the file to the server
-        _writeFile(self.folder_project + self.get_argument('filename'), self.request.files['value'][0].body)
-        #set the response
-        self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','filename'])   
+            #write the file to the server
+            _writeFile(self.folder_project + self.get_argument('filename'), self.request.files['value'][0].body)
+            #set the response
+            self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #unzips an already uploaded shapefile and returns the rootname
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/unzipShapefile?filename=test&callback=__jp5
 class unzipShapefile(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['filename'])   
-        #write the file to the server
-        rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, self.get_argument('filename')) 
-        #set the response
-        self.send_response({'info': "File '" + self.get_argument('filename') + "' unzipped", 'rootfilename': rootfilename})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['filename'])   
+            #write the file to the server
+            rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, self.get_argument('filename')) 
+            #set the response
+            self.send_response({'info': "File '" + self.get_argument('filename') + "' unzipped", 'rootfilename': rootfilename})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
         
 #gets a field list from a shapefile 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getShapefileFieldnames=test&callback=__jp5
 class getShapefileFieldnames(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['filename'])  
-        #get the field list
-        fields = _getShapefileFieldNames(MARXAN_FOLDER + self.get_argument('filename'))
-        #set the response
-        self.send_response({'info': "Field list returned", 'fieldnames': fields})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['filename'])  
+            #get the field list
+            fields = _getShapefileFieldNames(MARXAN_FOLDER + self.get_argument('filename'))
+            #set the response
+            self.send_response({'info': "Field list returned", 'fieldnames': fields})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
     
 #deletes a feature from the PostGIS database
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteFeature?feature_name=test_feature1&callback=__jp5
 class deleteFeature(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['feature_name'])   
-        await _deleteFeature(self.get_argument('feature_name'))
-        #set the response
-        self.send_response({'info': "Feature deleted"})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['feature_name'])   
+            await _deleteFeature(self.get_argument('feature_name'))
+            #set the response
+            self.send_response({'info': "Feature deleted"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #deletes a shapefile 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteShapefile?zipfile=test.zip&shapefile=wibble.shp&callback=__jp5
 class deleteShapefile(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['zipfile','shapefile'])   
-        _deleteZippedShapefile(MARXAN_FOLDER, self.get_argument('zipfile'), self.get_argument('shapefile')[:-4])
-        #set the response
-        self.send_response({'info': "Shapefile deleted"})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['zipfile','shapefile'])   
+            _deleteZippedShapefile(MARXAN_FOLDER, self.get_argument('zipfile'), self.get_argument('shapefile')[:-4])
+            #set the response
+            self.send_response({'info': "Shapefile deleted"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #creates a new feature from a passed linestring 
 class createFeatureFromLinestring(MarxanRESTHandler):
     async def post(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['name','description','linestring']) 
-        #create the undissolved feature class
-        #get a unique feature class name for the import
-        feature_class_name = _getUniqueFeatureclassName("f_")
-        #create the table and split the feature at the dateline
-        await pg.execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT marxan.ST_SplitAtDateLine(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326)) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
-        #add an index and a record in the metadata_interest_features table
-        id = await _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Drawn on screen", self.get_current_user())
-        #start the upload to mapbox
-        uploadId = await _uploadTilesetToMapbox(feature_class_name, feature_class_name)
-        #set the response
-        self.send_response({'info': "Feature '" + self.get_argument('name') + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['name','description','linestring']) 
+            #create the undissolved feature class
+            #get a unique feature class name for the import
+            feature_class_name = _getUniqueFeatureclassName("f_")
+            #create the table and split the feature at the dateline
+            await pg.execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT marxan.ST_SplitAtDateLine(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326)) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
+            #add an index and a record in the metadata_interest_features table
+            id = await _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Drawn on screen", self.get_current_user())
+            #start the upload to mapbox
+            uploadId = await _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+            #set the response
+            self.send_response({'info': "Feature '" + self.get_argument('name') + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
         
 #kills a running process
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/stopProcess?pid=m12345&callback=__jp5
 class stopProcess(MarxanRESTHandler):
     async def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['pid'])
-        #get the pid from the pid request parameter - this will be an identifier (m=marxan run, q=query) followed by the pid, e.g. m1234 is a marxan run process with a pid of 1234
-        pid = self.get_argument('pid')[1:]
         try:
-            #if the process is a marxan run, then update the run log
-            if (self.get_argument('pid')[:1] == 'm'):
-                #to distinguish between a process killed by the user and by the OS, we need to update the runlog.dat file to set this process as stopped and not killed
-                _updateRunLog(int(pid), None, None, None, 'Stopped')
-                #now kill the process
-                os.kill(int(pid), signal.SIGTERM)
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['pid'])
+            #get the pid from the pid request parameter - this will be an identifier (m=marxan run, q=query) followed by the pid, e.g. m1234 is a marxan run process with a pid of 1234
+            pid = self.get_argument('pid')[1:]
+            try:
+                #if the process is a marxan run, then update the run log
+                if (self.get_argument('pid')[:1] == 'm'):
+                    #to distinguish between a process killed by the user and by the OS, we need to update the runlog.dat file to set this process as stopped and not killed
+                    _updateRunLog(int(pid), None, None, None, 'Stopped')
+                    #now kill the process
+                    os.kill(int(pid), signal.SIGTERM)
+                else:
+                    #cancel the query
+                    await pg.execute("SELECT pg_cancel_backend(%s);",[pid])
+            except OSError:
+                raise MarxanServicesError("The pid does not exist")
             else:
-                #cancel the query
-                await pg.execute("SELECT pg_cancel_backend(%s);",[pid])
-        except OSError:
-            raise MarxanServicesError("The pid does not exist")
-        else:
-            self.send_response({'info': "pid '" + pid + "' terminated"})
+                self.send_response({'info': "pid '" + pid + "' terminated"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
             
 #gets the run log
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getRunLogs?
 class getRunLogs(MarxanRESTHandler):
     def get(self):
-        runlog = _getRunLogs()
-        self.send_response({'info': "Run log returned", 'data': runlog.to_dict(orient="records")})
+        try:
+            runlog = _getRunLogs()
+            self.send_response({'info': "Run log returned", 'data': runlog.to_dict(orient="records")})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #clears the run log
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/clearRunLogs?
 class clearRunLogs(MarxanRESTHandler):
     def get(self):
-        runlog = _getRunLogs()
-        runlog.loc[runlog['pid'] == -1].to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
-        self.send_response({'info': "Run log cleared"})
+        try:
+            runlog = _getRunLogs()
+            runlog.loc[runlog['pid'] == -1].to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
+            self.send_response({'info': "Run log cleared"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
         
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/dismissNotification?user=admin&notificationid=1
 class dismissNotification(MarxanRESTHandler):
     def get(self):
-        #validate the input arguments
-        _validateArguments(self.request.arguments, ['notificationid'])
-        #dismiss the notification
-        _dismissNotification(self, self.get_argument('notificationid'))
-        self.send_response({'info': "Notification dismissed"})
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['notificationid'])
+            #dismiss the notification
+            _dismissNotification(self, self.get_argument('notificationid'))
+            self.send_response({'info': "Notification dismissed"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/resetNotifications?user=admin
 class resetNotifications(MarxanRESTHandler):
     def get(self):
-        #reset the notification
-        _resetNotifications(self)
-        self.send_response({'info': "Notifications reset"})
+        try:
+            #reset the notification
+            _resetNotifications(self)
+            self.send_response({'info': "Notifications reset"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteGapAnalysis?user=admin&project=Start%20project
 class deleteGapAnalysis(MarxanRESTHandler):
     async def get(self):
-        _validateArguments(self.request.arguments, ['user','project'])  
-        #delete the gap analysis
-        project_name = _getSafeProjectName(self.get_argument("project"))
-        table_name = "gap_" + self.get_argument("user") + "_" + project_name;
-        await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(table_name.lower())))
-        self.send_response({'info': "Gap analysis deleted"})
+        try:
+            _validateArguments(self.request.arguments, ['user','project'])  
+            #delete the gap analysis
+            project_name = _getSafeProjectName(self.get_argument("project"))
+            table_name = "gap_" + self.get_argument("user") + "_" + project_name;
+            await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(table_name.lower())))
+            self.send_response({'info': "Gap analysis deleted"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #for testing role access to servivces            
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/testRoleAuthorisation&callback=__jp5
@@ -2559,28 +2742,34 @@ class testRoleAuthorisation(MarxanRESTHandler):
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/shutdown&delay=10&callback=_wibble
 class shutdown(MarxanRESTHandler):
     async def get(self):
-        if platform.system() != "Windows":
-            _validateArguments(self.request.arguments, ['delay'])  
-            minutes = int(self.get_argument("delay"))
-            #this wont be sent until the await returns
-            self.send_response({'info': "Shutting down"})
-            #if we shutdown is postponed, write the shutdown file
-            if (minutes != 0):
-                #write the shutdown file with the time in UTC isoformat
-                _writeFileUnicode(MARXAN_FOLDER + SHUTDOWN_FILENAME, (datetime.datetime.now(timezone.utc) + timedelta(minutes/1440)).isoformat())
-            #wait for so many minutes
-            await asyncio.sleep(minutes * 60)
-            #delete the shutdown file
-            _deleteShutdownFile()
-            #shutdown the os
-            os.system('sudo shutdown now')
+        try:
+            if platform.system() != "Windows":
+                _validateArguments(self.request.arguments, ['delay'])  
+                minutes = int(self.get_argument("delay"))
+                #this wont be sent until the await returns
+                self.send_response({'info': "Shutting down"})
+                #if we shutdown is postponed, write the shutdown file
+                if (minutes != 0):
+                    #write the shutdown file with the time in UTC isoformat
+                    _writeFileUnicode(MARXAN_FOLDER + SHUTDOWN_FILENAME, (datetime.datetime.now(timezone.utc) + timedelta(minutes/1440)).isoformat())
+                #wait for so many minutes
+                await asyncio.sleep(minutes * 60)
+                #delete the shutdown file
+                _deleteShutdownFile()
+                #shutdown the os
+                os.system('sudo shutdown now')
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
         
 #blocks tornado for the passed number of seconds - for testing
 class block(MarxanRESTHandler):
     def get(self):
-        _validateArguments(self.request.arguments, ['seconds'])  
-        time.sleep(int(self.get_argument("seconds")))
-        self.send_response({'info': "Blocking finished"})
+        try:
+            _validateArguments(self.request.arguments, ['seconds'])  
+            time.sleep(int(self.get_argument("seconds")))
+            self.send_response({'info': "Blocking finished"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
 
 #tests tornado is working properly
 class testTornado(MarxanRESTHandler):

@@ -12,6 +12,8 @@ echo "Pulling from GitHub.."
 cd $MARXAN_SERVER_DIRECTORY
 git reset --hard
 git pull
+#running unit tests
+sudo ./unittest.sh
 #restart marxan-server
 printf "\n"
 echo "Restarting marxan-server"

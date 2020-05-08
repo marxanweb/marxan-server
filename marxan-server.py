@@ -2320,8 +2320,8 @@ class getResults(MarxanRESTHandler):
             _getSummedSolution(self)
             #set the response
             self.send_response({'info':'Results loaded', 'log': self.marxanLog, 'mvbest': self.bestSolution.to_dict(orient="split")["data"], 'summary':self.outputSummary.to_dict(orient="split")["data"], 'ssoln': self.summedSolution})
-        except MarxanServicesError as e:
-            _raiseError(self, e.args[0])
+        except (MarxanServicesError):
+            self.send_response({'info':'No results available'})
 
 #gets the data from the server.dat file as an abject
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getServerData
@@ -2868,7 +2868,7 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             #log a warning if an unclean close
             if self.pc.is_running():
                 if (close_code != 1000):
-                    logging.warning("The client closed the connection")
+                    logging.warning("The client closed the connection: " + self.request.uri)
             #stop the periodic callback
             self.pc.stop()
         
@@ -3577,9 +3577,11 @@ async def initialiseApp():
     if platform.system() == "Windows":
         asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
     await SHUTDOWN_EVENT.wait()
+    log("Closing Postgres connections..")
     #close the database connection
     pg.pool.close()
     await pg.pool.wait_closed()
+    log("Closed")
         
 if __name__ == "__main__":
     try:

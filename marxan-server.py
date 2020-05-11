@@ -2820,6 +2820,8 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             _authoriseRole(self, method)
             #check the user has access to the specific resource, i.e. the 'User' role cannot access projects from other users
             _authoriseUser(self)
+            #send a preprocessing message
+            self.send_response({"status": "Preprocessing", "info": "Preprocessing.."})
             def sendPing():
                 if (hasattr(self, 'ping_message')):
                     self.send_response({"status":"Preprocessing","info": self.ping_message})
@@ -2827,9 +2829,9 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
                     self.send_response({"status":"WebSocketOpen"})
             #start the web socket ping messages to keep the connection alive
             self.pc = PeriodicCallback(sendPing, (PING_INTERVAL))
-            #send a preprocessing message
-            self.send_response({"status": "Preprocessing", "info": "Preprocessing.."})
             self.pc.start()
+            #flag to indicate if a client has sent a final message - sometimes the PeriodicCallback does not stop straight away and additional messages are sent when the websocket is closed
+            self.clientSentFinalMsg = False
         except (HTTPError) as e:
             error = _getExceptionLastLine(sys.exc_info())
             self.close({'error': error}) 
@@ -2847,30 +2849,28 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         try:
             self.write_message(message)
         except WebSocketClosedError:
-            self.cleanupWebSocket()
+            self.close(clean=False)
     
-    def close(self, closeMessage = {}):
-        #send a message
-        closeMessage.update({'status': 'Finished'})
-        self.send_response(closeMessage)
-        #log any errors
-        if 'error' in closeMessage.keys():
-            logging.warning(closeMessage['error'])
-        #close the websocket cleanly
-        super().close(1000)
-    
-    def on_close(self):
-        self.cleanupWebSocket(self.close_code)
-
-    def cleanupWebSocket(self, close_code=None):
+    def close(self, closeMessage = {}, clean=True):
         #stop the ping messages
         if hasattr(self, 'pc'):
-            #log a warning if an unclean close
-            if self.pc.is_running():
-                if (close_code != 1000):
-                    logging.warning("The client closed the connection: " + self.request.uri)
-            #stop the periodic callback
-            self.pc.stop()
+            if self.pc.is_running:
+                self.pc.stop()
+        #send a message if the socket is still open
+        if clean:
+            closeMessage.update({'status': 'Finished'})
+            self.send_response(closeMessage)
+            #log any errors
+            if 'error' in closeMessage.keys():
+                logging.warning(closeMessage['error'])
+            #prevent any additional messages
+            self.clientSentFinalMsg = True
+        else:
+            if not self.clientSentFinalMsg:
+                logging.warning("The client closed the connection: " + self.request.uri)
+                self.clientSentFinalMsg = True
+        #close the websocket cleanly
+        super().close(1000)
         
 ####################################################################################################################################################################################################################################################################
 ## MarxanWebSocketHandler subclasses

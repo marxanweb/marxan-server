@@ -37,7 +37,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block"],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.37"
+MARXAN_SERVER_VERSION = "v0.9.38"
 MARXAN_LOG_FILE = 'marxan-server.log'
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.js"
 GUEST_USERNAME = "guest"
@@ -210,7 +210,6 @@ async def _setGlobalVariables():
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     log(_padDict("GDAL_DATA path:", GDAL_DATA_ENVIRONMENT_VARIABLE, DICT_PAD))
     log(_padDict("Marxan executable:", MARXAN_EXECUTABLE, DICT_PAD))
-    log("Started at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S"), Fore.GREEN)
     log("\nTo test marxan-server goto " + testUrl, Fore.GREEN)
     log(stopCmd, Fore.RED)
     #get the parent folder
@@ -3584,6 +3583,7 @@ async def initialiseApp():
         if MARXAN_CLIENT_VERSION != "Not installed":
             log("Goto to " + navigateTo + " to open Marxan Web", Fore.GREEN)
             log("Or run 'python marxan-server.py " + navigateTo + "' to automatically open Marxan Web in a browser\n", Fore.GREEN)
+    logging.warning("marxan-server started")
     #otherwise subprocesses fail on windows
     if platform.system() == "Windows":
         asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
@@ -3592,7 +3592,7 @@ async def initialiseApp():
     #close the database connection
     pg.pool.close()
     await pg.pool.wait_closed()
-    log("Closed")
+    logging.warning("marxan-server stopped automatically")
         
 if __name__ == "__main__":
     try:
@@ -3603,7 +3603,7 @@ if __name__ == "__main__":
             _deleteShutdownFile()
             pass    
         finally:
-            log("Shutting down marxan-server at " + datetime.datetime.now().strftime("%d/%m/%y %H:%M:%S") + "\n", Fore.RED)
+            logging.warning("marxan-server stopped by KeyboardInterrupt")
             SHUTDOWN_EVENT.set()   
             
     except Exception as e:

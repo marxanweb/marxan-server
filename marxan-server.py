@@ -3539,18 +3539,22 @@ async def initialiseApp():
     root_logger.setLevel(LOGGING_LEVEL)
     # set your format for the streaming logger
     root_streamhandler = root_logger.handlers[0]
-    root_streamhandler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True))
+    f1 = '%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s '
+    f2 = '%(message)s'
+    root_streamhandler.setFormatter(LogFormatter(fmt=f1 + f2, datefmt='%d-%m-%y %H:%M:%S', color=True))
     # google cloud logger if enabled
     if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ.keys():
         client = googlelogger.Client()
         client.setup_logging()
         #override the handlers as Google Cloud Logging adds another stream handler which we dont need
-        root_logger.handlers = root_logger.handlers[:1]
+        root_logger.handlers = root_logger.handlers[1:]
+        root_logger.handlers[0].setFormatter(LogFormatter(fmt= f2 + " (" + SERVER_NAME + ")", datefmt='%d-%m-%y %H:%M:%S', color=False))
+        root_logger.handlers[1].setFormatter(LogFormatter(fmt=f1 + f2, datefmt='%d-%m-%y %H:%M:%S', color=True))
         log("Logging to Google Cloud Logging", Fore.GREEN)
     # add a file logger
     if not DISABLE_FILE_LOGGING:
         file_log_handler = logging.FileHandler(MARXAN_FOLDER + MARXAN_LOG_FILE)
-        file_log_handler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=False))
+        file_log_handler.setFormatter(LogFormatter(fmt=f1 + f2, datefmt='%d-%m-%y %H:%M:%S', color=False))
         root_logger.addHandler(file_log_handler)
     # logging.disable(logging.ERROR)
     #initialise the app

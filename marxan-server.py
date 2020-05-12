@@ -2440,7 +2440,7 @@ class getPUData(MarxanRESTHandler):
             if not df.empty:
                 features = df.loc[df['pu']==int(self.get_argument('puid'))]
             else:
-                features = df.empty
+                features = df.DataFrame()
             #set the response
             self.send_response({"info": 'Planning unit data returned', 'data': {'features':features.to_dict(orient="records"), 'pu_data': pu_data.to_dict()}})
         except MarxanServicesError as e:

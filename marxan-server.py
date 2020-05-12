@@ -3304,7 +3304,12 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
     
     #runs a PostGIS query asynchronously and writes the pid to the client
     async def executeQuery(self, sql, data=None, returnFormat=None):
-        return await pg.execute(sql, data=data, returnFormat=returnFormat, socketHandler=self)
+        try:
+            return await pg.execute(sql, data=data, returnFormat=returnFormat, socketHandler=self)
+        except psycopg2.OperationalError as e:
+            self.close({'error': "Preprocessing stopped by operating system" })
+        except asyncio.CancelledError:
+            self.close({'error': "Preprocessing stopped by " + self.user})
     
 ####################################################################################################################################################################################################################################################################
 ## WebSocket subclasses

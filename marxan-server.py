@@ -2440,7 +2440,7 @@ class getPUData(MarxanRESTHandler):
             if not df.empty:
                 features = df.loc[df['pu']==int(self.get_argument('puid'))]
             else:
-                features = df.empty
+                features = pandas.DataFrame()
             #set the response
             self.send_response({"info": 'Planning unit data returned', 'data': {'features':features.to_dict(orient="records"), 'pu_data': pu_data.to_dict()}})
         except MarxanServicesError as e:
@@ -3539,22 +3539,18 @@ async def initialiseApp():
     root_logger.setLevel(LOGGING_LEVEL)
     # set your format for the streaming logger
     root_streamhandler = root_logger.handlers[0]
-    f1 = '%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s '
-    f2 = '%(message)s'
-    root_streamhandler.setFormatter(LogFormatter(fmt=f1 + f2, datefmt='%d-%m-%y %H:%M:%S', color=True))
+    root_streamhandler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=True))
     # google cloud logger if enabled
     if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ.keys():
         client = googlelogger.Client()
         client.setup_logging()
         #override the handlers as Google Cloud Logging adds another stream handler which we dont need
-        root_logger.handlers = root_logger.handlers[1:]
-        root_logger.handlers[0].setFormatter(LogFormatter(fmt= f2 + " (" + SERVER_NAME + ")", datefmt='%d-%m-%y %H:%M:%S', color=False))
-        root_logger.handlers[1].setFormatter(LogFormatter(fmt=f1 + f2, datefmt='%d-%m-%y %H:%M:%S', color=True))
+        root_logger.handlers = root_logger.handlers[:1]
         log("Logging to Google Cloud Logging", Fore.GREEN)
     # add a file logger
     if not DISABLE_FILE_LOGGING:
         file_log_handler = logging.FileHandler(MARXAN_FOLDER + MARXAN_LOG_FILE)
-        file_log_handler.setFormatter(LogFormatter(fmt=f1 + f2, datefmt='%d-%m-%y %H:%M:%S', color=False))
+        file_log_handler.setFormatter(LogFormatter(fmt='%(color)s[%(levelname)1.1s %(asctime)s.%(msecs)03d]%(end_color)s %(message)s', datefmt='%d-%m-%y %H:%M:%S', color=False))
         root_logger.addHandler(file_log_handler)
     # logging.disable(logging.ERROR)
     #initialise the app

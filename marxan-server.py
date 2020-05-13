@@ -1,5 +1,5 @@
 #!/home/ubuntu/miniconda2/envs/python36/bin/python3.6 
-import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp, monkeypatch
+import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp, monkeypatch, owslib
 from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
 from tornado.process import Subprocess
@@ -11,8 +11,9 @@ from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent 
 from google.cloud import logging as googlelogger
-from colorama import Fore, Back, Style
+from owslib.wfs import WebFeatureService
 from datetime import timedelta, timezone
+from colorama import Fore, Back, Style
 from sqlalchemy import create_engine
 from collections import OrderedDict
 from subprocess import Popen, PIPE, CalledProcessError
@@ -1144,6 +1145,14 @@ async def _deleteFeatureClass(feature_class_name):
 def _getUniqueFeatureclassName(prefix):
     return prefix + uuid.uuid4().hex[:(32 - len(prefix))] #mapbox tileset ids are limited to 32 characters
     
+#finishes the db creation and uploads the feature to mapbox
+async def _finishCreatingFeature(feature_class_name, name, description, source, user):
+    #add an index and a record in the metadata_interest_features table
+    id = await _finishImportingFeature(feature_class_name, name, description, source, user)
+    #start the upload to mapbox
+    uploadId = await _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+    return id, uploadId
+    
 #finishes a feature import by adding a spatial index and a record in the metadata_interest_features table
 async def _finishImportingFeature(feature_class_name, name, description, source, user):
     #get the Mapbox tilesetId 
@@ -1151,7 +1160,15 @@ async def _finishImportingFeature(feature_class_name, name, description, source,
     #create an index on the geometry column
     await pg.execute(sql.SQL("CREATE INDEX idx_" + uuid.uuid4().hex + " ON marxan.{} USING GIST (geometry);").format(sql.Identifier(feature_class_name)))
     #create a primary key
-    await pg.execute(sql.SQL("ALTER TABLE marxan.{} ADD COLUMN id SERIAL PRIMARY KEY;").format(sql.Identifier(feature_class_name)))
+    try:
+        #drop any existing id columns (including the automatically created ogc_fid column)
+        await pg.execute(sql.SQL("ALTER TABLE marxan.{} DROP COLUMN IF EXISTS id;").format(sql.Identifier(feature_class_name)))
+        await pg.execute(sql.SQL("ALTER TABLE marxan.{} DROP COLUMN IF EXISTS ogc_fid;").format(sql.Identifier(feature_class_name)))
+        await pg.execute(sql.SQL("ALTER TABLE marxan.{} ADD COLUMN id SERIAL PRIMARY KEY;").format(sql.Identifier(feature_class_name)))
+    #primary key already exists
+    except psycopg2.errors.InvalidTableDefinition:
+        logging.warning("primary key already exists")
+        pass
     try:    
         #create a record for this new feature in the metadata_interest_features table
         id = await pg.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT ST_Area(ST_Transform(geom, 3410)) _area, box2d(geom) extent FROM (SELECT ST_Union(geometry) geom FROM marxan.{}) AS sub2) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), data=[feature_class_name, name, description, tilesetId, source, user], returnFormat="Array")
@@ -1177,7 +1194,7 @@ async def _importPlanningUnitGrid(filename, name, description, user):
         #create a record for this new feature in the metadata_planning_units table
         await pg.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by,tilesetid) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s,%s);", [feature_class_name, name, description,user,MAPBOX_USER + "." + feature_class_name])
         #import the shapefile
-        await pg.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326")
+        await pg.importShapefile(rootfilename + ".shp", feature_class_name)
         #check the geometry
         await pg.isValid(feature_class_name)
         #make sure the puid column is an integer
@@ -1294,6 +1311,14 @@ async def _createFeaturePreprocessingFileFromImport(obj):
     pivotted.columns = ['id','pu_area','pu_count']
     #output the file
     pivotted.to_csv(obj.folder_input + FEATURE_PREPROCESSING_FILENAME, index = False)
+    
+#retrieves the gml data from the WFS endpoint and feature type
+def _getGML(wfsendpoint, featuretype):
+    #load the get capabilities
+    wfs = WebFeatureService(url=wfsendpoint, version='2.0.0')
+    #get the feature
+    response = wfs.getfeature(typename=featuretype, outputFormat='gml3')
+    return response.read()
     
 #detects whether the request is for a websocket from a tornado.httputil.HTTPServerRequest
 def _requestIsWebSocket(request):
@@ -1590,15 +1615,13 @@ class PostGIS():
         finally:
             await self.pool.release(conn)
 
-    #imports a shapefile into PostGIS
-    async def importShapefile(self, shapefile, feature_class_name, epsgCode, splitAtDateline = True):
+    #uses ogr2ogr to import a file into PostGIS (shapefile or gml file)
+    async def importFile(self, filename, feature_class_name, sEpsgCode, tEpsgCode, splitAtDateline = True):
         try:
-            #check that all the required files are present for the shapefile
-            _checkZippedShapefile(MARXAN_FOLDER + shapefile)
             #drop the feature class if it already exists
             await self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
-            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + shapefile + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -t_srs ' + epsgCode + ' -lco precision=NO'
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + filename + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -s_srs ' + sEpsgCode + ' -t_srs ' + tEpsgCode + ' -lco precision=NO'
             logging.debug(cmd)
             if platform.system() != "Windows":
                 #run the import as an asyncronous subprocess
@@ -1618,7 +1641,19 @@ class PostGIS():
             raise 
         except CalledProcessError as e: # ogr2ogr error
             raise MarxanServicesError(e.args[0])
+        
+    #imports a shapefile into PostGIS (sEpsgCode is the source SRS and tEpsgCode is the target SRS)
+    async def importShapefile(self, shapefile, feature_class_name, sEpsgCode = "EPSG:4326", tEpsgCode = "EPSG:4326", splitAtDateline = True):
+        #check that all the required files are present for the shapefile
+        _checkZippedShapefile(MARXAN_FOLDER + shapefile)
+        #import the file
+        await self.importFile(shapefile, feature_class_name, sEpsgCode, tEpsgCode, splitAtDateline)
 
+    #imports a gml file (sEpsgCode is the source SRS and tEpsgCode is the target SRS)
+    async def importGml(self, gmlfilename, feature_class_name, sEpsgCode = "EPSG:4326", tEpsgCode = "EPSG:4326", splitAtDateline = True):
+        #import the file
+        await self.importFile(gmlfilename, feature_class_name, sEpsgCode, tEpsgCode, splitAtDateline)
+        
     #tests to see if a feature class is valid - raises an error if not
     async def isValid(self, feature_class_name):
         _isValid = await self.execute(sql.SQL("SELECT DISTINCT ST_IsValid(geometry) FROM marxan.{} LIMIT 1;").format(sql.Identifier(feature_class_name)), returnFormat="Array") # will return [false],[false,true] or [true] - so the first row will be [false] or [false,true]
@@ -2639,10 +2674,8 @@ class createFeatureFromLinestring(MarxanRESTHandler):
             feature_class_name = _getUniqueFeatureclassName("f_")
             #create the table and split the feature at the dateline
             await pg.execute(sql.SQL("CREATE TABLE marxan.{} AS SELECT marxan.ST_SplitAtDateLine(ST_SetSRID(ST_MakePolygon(%s)::geometry, 4326)) AS geometry;").format(sql.Identifier(feature_class_name)), [self.get_argument('linestring')])
-            #add an index and a record in the metadata_interest_features table
-            id = await _finishImportingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Drawn on screen", self.get_current_user())
-            #start the upload to mapbox
-            uploadId = await _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+            #add an index and a record in the metadata_interest_features table and start the upload to mapbox
+            id, uploadId = await _finishCreatingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Drawn on screen", self.get_current_user())            
             #set the response
             self.send_response({'info': "Feature '" + self.get_argument('name') + "' created", 'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId})
         except MarxanServicesError as e:
@@ -3026,7 +3059,7 @@ class updateWDPA(MarxanWebSocketHandler):
                     feature_class_name = _getUniqueFeatureclassName("wdpa_")
                     self.send_response({'status': "Preprocessing", 'info': "Importing '" + rootfilename + "' into PostGIS.."})
                     #import the wdpa to a tmp feature class
-                    await pg.importShapefile(rootfilename + ".shp", feature_class_name, "EPSG:4326", False)
+                    await pg.importShapefile(rootfilename + ".shp", feature_class_name, splitAtDateline = False)
                     self.send_response({'status': "Preprocessing", 'info': "Imported into '" + feature_class_name + "'"})
                     #rename the existing wdpa feature class
                     await pg.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
@@ -3114,7 +3147,7 @@ class importFeatures(MarxanWebSocketHandler):
                 #get a scratch name for the import
                 scratch_name = _getUniqueFeatureclassName("scratch_")
                 #first, import the shapefile into a PostGIS feature class in EPSG:4326
-                await pg.importShapefile(shapefile, scratch_name, "EPSG:4326")
+                await pg.importShapefile(shapefile, scratch_name)
                 #check the geometry
                 self.send_response({'status':'Preprocessing', 'info': "Checking the geometry.."})
                 await pg.isValid(scratch_name)
@@ -3139,10 +3172,8 @@ class importFeatures(MarxanWebSocketHandler):
                         feature_class_name = _getUniqueFeatureclassName("fs_")
                         await pg.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable} WHERE {splitField} = %s;").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name),splitField=sql.Identifier(splitfield)),[feature_name])
                         description = "Imported from '" + shapefile + "' and split by '" + splitfield + "' field"
-                    #finish the import by adding a record in the metadata table
-                    id = await _finishImportingFeature(feature_class_name, feature_name, description, "Imported shapefile", self.get_current_user())
-                    #upload the feature class to Mapbox
-                    uploadId = await _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+                    #add an index and a record in the metadata_interest_features table and start the upload to mapbox
+                    id, uploadId = await _finishCreatingFeature(feature_class_name, feature_name, description, "Imported shapefile", self.get_current_user())            
                     #append the uploadId to the uploadIds array
                     uploadIds.append(uploadId)
                     self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
@@ -3185,10 +3216,8 @@ class importGBIFData(MarxanWebSocketHandler):
                     feature_name = self.get_argument('scientificName')
                     vernacularNames = self.getVernacularNames(taxonKey)
                     description = self.getCommonName(vernacularNames)
-                    #finish the import by adding a record in the metadata table
-                    id = await _finishImportingFeature(feature_class_name, feature_name, description, "Imported from GBIF", self.get_current_user())
-                    #upload the feature class to Mapbox
-                    uploadId = await _uploadTilesetToMapbox(feature_class_name, feature_class_name)
+                    #add an index and a record in the metadata_interest_features table and start the upload to mapbox
+                    id, uploadId = await _finishCreatingFeature(feature_class_name, feature_name, description, "Imported from GBIF", self.get_current_user())            
                     self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
                     #complete
                     self.close({'info': "Features imported", 'uploadId':uploadId})
@@ -3295,6 +3324,43 @@ class importGBIFData(MarxanWebSocketHandler):
         else:
             return 'No common name'
             
+#creates a new feature (or set of features) from a WFS endpoint
+class createFeaturesFromWFS(MarxanWebSocketHandler):
+    async def open(self):
+        try:
+            await super().open({'info': "Importing features.."})
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['wfsendpoint','featuretype','name','description'])   
+        except (MarxanServicesError) as e:
+            self.close({'error': e.args[0], 'info': 'Failed to import features'})
+        else:
+            try:
+                #get a unique feature class name for the import
+                feature_class_name = _getUniqueFeatureclassName("f_")
+                #get the WFS data as GML
+                gml = await IOLoop.current().run_in_executor(None, _getGML, self.get_argument('wfsendpoint'), self.get_argument('featuretype')) 
+                #write it to file
+                _writeFileUnicode(MARXAN_FOLDER + feature_class_name + ".gml", gml)
+                #import the GML into a PostGIS feature class in EPSG:4326
+                await pg.importGml(feature_class_name + ".gml", feature_class_name, sEpsgCode = "EPSG:3857")
+                #check the geometry
+                self.send_response({'status':'Preprocessing', 'info': "Checking the geometry.."})
+                await pg.isValid(feature_class_name)
+                #add an index and a record in the metadata_interest_features table and start the upload to mapbox
+                id, uploadId = await _finishCreatingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Imported from web service", self.get_current_user())            
+                self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + self.get_argument('name') + "' imported", 'status': 'FeatureCreated'})
+                # complete
+                self.close({'info': "Features imported",'uploadIds':[uploadId]})
+            except (MarxanServicesError) as e:
+                if "already exists" in e.args[0]:
+                    self.close({'error':"The feature '" + self.get_argument('name') + "' already exists", 'info': 'Failed to import features'})
+                else:
+                    self.close({'error': e.args[0], 'info': 'Failed to import features'})
+            finally:
+                #delete the gml file
+                if os.path.exists(MARXAN_FOLDER + feature_class_name + ".gml"):
+                    os.remove(MARXAN_FOLDER + feature_class_name + ".gml")
+
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
 ####################################################################################################################################################################################################################################################################
@@ -3515,6 +3581,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/updateWDPA", updateWDPA),
             ("/marxan-server/runGapAnalysis", runGapAnalysis),
             ("/marxan-server/importGBIFData", importGBIFData),
+            ("/marxan-server/createFeaturesFromWFS", createFeaturesFromWFS),
             ("/marxan-server/dismissNotification", dismissNotification),
             ("/marxan-server/resetNotifications", resetNotifications),
             ("/marxan-server/deleteGapAnalysis", deleteGapAnalysis),

@@ -1766,7 +1766,12 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
 
 class methodNotFound(MarxanRESTHandler):
     def prepare(self):
-        raise tornado.web.HTTPError(501, "The method is not supported or the parameters are wrong on this Marxan Server " + MARXAN_SERVER_VERSION) # return a 501 - Not implemented
+        if 'Upgrade' in self.request.headers:
+            #websocket unsupported method - but we cant send back a WebSocket response so raise a 501
+            raise tornado.web.HTTPError(500, "The method is not supported or the parameters are wrong on this Marxan Server " + MARXAN_SERVER_VERSION)            
+        else:
+            #GET/POST unsupported method
+            _raiseError(self, "The method is not supported or the parameters are wrong on this Marxan Server " + MARXAN_SERVER_VERSION)
     
 #toggles whether the guest user is enabled or not on this server
 class toggleEnableGuestUser(MarxanRESTHandler):

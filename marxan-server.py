@@ -11,7 +11,6 @@ from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado import concurrent
 from tornado import gen, queues, httpclient, concurrent 
 from google.cloud import logging as googlelogger
-from owslib.wfs import WebFeatureService
 from datetime import timedelta, timezone
 from colorama import Fore, Back, Style
 from sqlalchemy import create_engine

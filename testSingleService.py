@@ -217,7 +217,7 @@ class TestClass(AsyncHTTPTestCase):
         self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
 
     def test_1080_createFeaturesFromWFS(self):
-        features = self.makeWebSocketRequest('/createFeaturesFromWFS?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test&description=wibble&srs=EPSG:3857', False)
+        features = self.makeWebSocketRequest('/createFeaturesFromWFS2?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test&description=wibble&srs=EPSG:3857', False)
         #get the feature class names of those that have been imported
         fcns = [feature['feature_class_name'] for feature in features if feature['status'] == 'FeatureCreated']
         for f in fcns:

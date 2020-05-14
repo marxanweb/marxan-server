@@ -1312,13 +1312,10 @@ async def _createFeaturePreprocessingFileFromImport(obj):
     #output the file
     pivotted.to_csv(obj.folder_input + FEATURE_PREPROCESSING_FILENAME, index = False)
     
-#retrieves the gml data from the WFS endpoint and feature type
-def _getGML(wfsendpoint, featuretype):
-    #load the get capabilities
-    wfs = WebFeatureService(url=wfsendpoint, version='2.0.0')
-    #get the feature
-    response = wfs.getfeature(typename=featuretype, outputFormat='gml3')
-    return response.read()
+#retrieves the gml data using the WFS endpoint and feature type
+def _getGML(endpoint, featuretype):
+    response = requests.get(endpoint + "&request=getfeature&typeNames=" + featuretype)    
+    return response.text
     
 #detects whether the request is for a websocket from a tornado.httputil.HTTPServerRequest
 def _requestIsWebSocket(request):
@@ -3330,7 +3327,7 @@ class createFeaturesFromWFS(MarxanWebSocketHandler):
         try:
             await super().open({'info': "Importing features.."})
             #validate the input arguments
-            _validateArguments(self.request.arguments, ['wfsendpoint','featuretype','name','description'])   
+            _validateArguments(self.request.arguments, ['srs','endpoint','name','description','featuretype'])   
         except (MarxanServicesError) as e:
             self.close({'error': e.args[0], 'info': 'Failed to import features'})
         else:
@@ -3338,11 +3335,11 @@ class createFeaturesFromWFS(MarxanWebSocketHandler):
                 #get a unique feature class name for the import
                 feature_class_name = _getUniqueFeatureclassName("f_")
                 #get the WFS data as GML
-                gml = await IOLoop.current().run_in_executor(None, _getGML, self.get_argument('wfsendpoint'), self.get_argument('featuretype')) 
+                gml = await IOLoop.current().run_in_executor(None, _getGML, self.get_argument('endpoint'), self.get_argument('featuretype')) 
                 #write it to file
                 _writeFileUnicode(MARXAN_FOLDER + feature_class_name + ".gml", gml)
                 #import the GML into a PostGIS feature class in EPSG:4326
-                await pg.importGml(feature_class_name + ".gml", feature_class_name, sEpsgCode = "EPSG:3857")
+                await pg.importGml(feature_class_name + ".gml", feature_class_name, sEpsgCode = self.get_argument('srs'))
                 #check the geometry
                 self.send_response({'status':'Preprocessing', 'info': "Checking the geometry.."})
                 await pg.isValid(feature_class_name)
@@ -3350,7 +3347,7 @@ class createFeaturesFromWFS(MarxanWebSocketHandler):
                 id, uploadId = await _finishCreatingFeature(feature_class_name, self.get_argument('name'), self.get_argument('description'), "Imported from web service", self.get_current_user())            
                 self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + self.get_argument('name') + "' imported", 'status': 'FeatureCreated'})
                 # complete
-                self.close({'info': "Features imported",'uploadIds':[uploadId]})
+                self.close({'info': "Features imported",'uploadId': uploadId})
             except (MarxanServicesError) as e:
                 if "already exists" in e.args[0]:
                     self.close({'error':"The feature '" + self.get_argument('name') + "' already exists", 'info': 'Failed to import features'})
@@ -3360,6 +3357,9 @@ class createFeaturesFromWFS(MarxanWebSocketHandler):
                 #delete the gml file
                 if os.path.exists(MARXAN_FOLDER + feature_class_name + ".gml"):
                     os.remove(MARXAN_FOLDER + feature_class_name + ".gml")
+                #delete the gfs file
+                if os.path.exists(MARXAN_FOLDER + feature_class_name + ".gfs"):
+                    os.remove(MARXAN_FOLDER + feature_class_name + ".gfs")
 
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
@@ -3554,6 +3554,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/importFeatures", importFeatures),
             ("/marxan-server/deleteFeature", deleteFeature),
             ("/marxan-server/createFeatureFromLinestring", createFeatureFromLinestring),
+            ("/marxan-server/createFeaturesFromWFS", createFeaturesFromWFS),
             ("/marxan-server/getFeaturePlanningUnits", getFeaturePlanningUnits),
             ("/marxan-server/getPlanningUnitsData", getPlanningUnitsData), #currently not used
             ("/marxan-server/getPlanningUnitsCostData", getPlanningUnitsCostData), 
@@ -3581,7 +3582,6 @@ class Application(tornado.web.Application):
             ("/marxan-server/updateWDPA", updateWDPA),
             ("/marxan-server/runGapAnalysis", runGapAnalysis),
             ("/marxan-server/importGBIFData", importGBIFData),
-            ("/marxan-server/createFeaturesFromWFS", createFeaturesFromWFS),
             ("/marxan-server/dismissNotification", dismissNotification),
             ("/marxan-server/resetNotifications", resetNotifications),
             ("/marxan-server/deleteGapAnalysis", deleteGapAnalysis),

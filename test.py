@@ -395,6 +395,13 @@ class TestClass(AsyncHTTPTestCase):
         for f in fcns:
             self.makeRequest('/deleteFeature?feature_name=' + f, False)
 
+    def test_3750_createFeaturesFromWFS(self):
+        features = self.makeWebSocketRequest('/createFeaturesFromWFS?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test&description=wibble&srs=EPSG:3857', False)
+        #get the feature class names of those that have been imported
+        fcns = [feature['feature_class_name'] for feature in features if feature['status'] == 'FeatureCreated']
+        for f in fcns:
+            self.makeRequest('/deleteFeature?feature_name=' + f, False)
+
     def test_3800_createFeatureFromLinestring(self):
         body = urllib.parse.urlencode({"name": "wibble","description":"wibble2","linestring":"Linestring(-175.3421006344285 -20.69048933878365,-175.4011153142698 -20.86450796169632,-175.001631327652 -20.868749810194487,-174.98801255538095 -20.60977871499442,-175.3421006344285 -20.69048933878365)"})
         f = self.makeRequest('/createFeatureFromLinestring', False, method="POST", body=body)

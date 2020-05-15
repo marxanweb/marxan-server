@@ -3540,7 +3540,7 @@ class resetDatabase(QueryWebSocketHandler):
         #run git reset --hard
         cmd = "git reset --hard"
         self.send_response({'status':'Preprocessing', 'info': "Running git reset --hard"})
-        # result = await _runCmd(cmd)
+        result = await _runCmd(cmd)
         #delete the features that are not in use
         specDatFiles = _getFilesInFolderRecursive(CASE_STUDIES_FOLDER, SPEC_FILENAME)
         #iterate through the spec.dat files and get a unique list of feature ids
@@ -3553,13 +3553,12 @@ class resetDatabase(QueryWebSocketHandler):
             #merge these ids into the featureIds array
             featureIdsToKeep.extend(ids)
         #delete the features that are not in use
-        df = await pg.execute("SELECT oid,* FROM marxan.metadata_interest_features WHERE NOT oid = ANY (ARRAY[%s]);", data=[featureIdsToKeep], returnFormat="DataFrame")
+        df = await pg.execute("DELETE FROM marxan.metadata_interest_features WHERE NOT oid = ANY (ARRAY[%s]);", data=[featureIdsToKeep], returnFormat="DataFrame")
         self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " features"})
         #delete the planning grids that are not in use
         planningGridFiles = _getFilesInFolderRecursive(CASE_STUDIES_FOLDER, PROJECT_DATA_FILENAME)
         #iterate through the input.dat files and get a unique list of planning grids
         planningGridsToKeep = []
-        print()
         for file in planningGridFiles:
             #get the input.dat file data
             tmpObj = ExtendableObject()
@@ -3568,7 +3567,7 @@ class resetDatabase(QueryWebSocketHandler):
             await _getProjectData(tmpObj)
             #get the planning grid
             planningGridsToKeep.append(tmpObj.projectData["metadata"]['PLANNING_UNIT_NAME'])
-        df = await pg.execute("SELECT oid,* FROM marxan.metadata_planning_units WHERE NOT feature_class_name = ANY (ARRAY[%s]);", data=[planningGridsToKeep], returnFormat="DataFrame")
+        df = await pg.execute("DELETE FROM marxan.metadata_planning_units WHERE NOT feature_class_name = ANY (ARRAY[%s]);", data=[planningGridsToKeep], returnFormat="DataFrame")
         self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " planning grids"})
         #run a cleanup
         self.send_response({'status':'Preprocessing', 'info': "Cleaning up.."})

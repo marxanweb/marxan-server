@@ -258,7 +258,7 @@ def _getRESTMethod(path):
 #creates a new user
 def _createUser(obj, user, fullname, email, password):
     #get the list of users
-    users = _getUsers()
+    users = _getUsers() 
     if user in users:
         raise MarxanServicesError("User '" + user + "' already exists")
     #create the user folder
@@ -3591,6 +3591,11 @@ class resetDatabase(QueryWebSocketHandler):
                 cmd = "git reset --hard"
                 self.send_response({'status':'Preprocessing', 'info': "Running git reset --hard"})
                 result = await _runCmd(cmd)
+                #delete all users other than admin, guest and _clumping
+                user_folders = glob.glob(MARXAN_USERS_FOLDER + "*/")
+                for user_folder in user_folders:
+                    if os.path.split(user_folder[:-1])[1] not in ['admin','_clumping','guest']:
+                        shutil.rmtree(user_folder)
                 #delete the features that are not in use
                 specDatFiles = _getFilesInFolderRecursive(CASE_STUDIES_FOLDER, SPEC_FILENAME)
                 #iterate through the spec.dat files and get a unique list of feature ids

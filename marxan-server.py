@@ -89,8 +89,7 @@ async def _setGlobalVariables():
     global CLUMP_FOLDER 
     global MARXAN_EXECUTABLE 
     global MARXAN_WEB_RESOURCES_FOLDER
-    global START_PROJECT_FOLDER
-    global CASE_STUDY_PROJECT_FOLDER 
+    global CASE_STUDIES_FOLDER
     global EMPTY_PROJECT_TEMPLATE_FOLDER 
     global OGR2OGR_EXECUTABLE
     global GDAL_DATA_ENVIRONMENT_VARIABLE
@@ -205,8 +204,7 @@ async def _setGlobalVariables():
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
     MARXAN_EXECUTABLE = MARXAN_FOLDER + marxan_executable
     MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources" + os.sep
-    START_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "Start project" + os.sep
-    CASE_STUDY_PROJECT_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "British Columbia Marine Case Study" + os.sep
+    CASE_STUDIES_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "case_studies" + os.sep
     EMPTY_PROJECT_TEMPLATE_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "empty_project" + os.sep
     log(_padDict("GDAL_DATA path:", GDAL_DATA_ENVIRONMENT_VARIABLE, DICT_PAD))
     log(_padDict("Marxan executable:", MARXAN_EXECUTABLE, DICT_PAD))
@@ -1801,10 +1799,11 @@ class createUser(MarxanRESTHandler):
             _validateArguments(self.request.arguments, ["user","password", "fullname", "email"])  
             #create the user
             _createUser(self, self.get_argument('user'), self.get_argument('fullname'), self.get_argument('email'), self.get_argument('password'))
-            #copy the start project into the users folder
-            _cloneProject(START_PROJECT_FOLDER, MARXAN_USERS_FOLDER + self.get_argument('user') + os.sep)
-            #copy the british columbia marine case study into the users folder
-            _cloneProject(CASE_STUDY_PROJECT_FOLDER, MARXAN_USERS_FOLDER + self.get_argument('user') + os.sep)
+            #copy each case study into the users folder
+            folders = glob.glob(CASE_STUDIES_FOLDER + "*/")
+            #iterate through the case studies
+            for folder in folders:
+                _cloneProject(folder, MARXAN_USERS_FOLDER + self.get_argument('user') + os.sep)
             #set the response
             self.send_response({'info': "User '" + self.get_argument('user') + "' created"})
         except MarxanServicesError as e:
@@ -3514,6 +3513,12 @@ class runGapAnalysis(QueryWebSocketHandler):
         #return the results
         self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
 
+class resetDatabase(QueryWebSocketHandler):
+    async def open(self):
+        await super().open({'info': "Resetting database.."})
+        #
+        self.close({'info':"Reset complete"})
+
 ####################################################################################################################################################################################################################################################################
 ## tornado functions
 ####################################################################################################################################################################################################################################################################
@@ -3594,6 +3599,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/deleteGapAnalysis", deleteGapAnalysis),
             ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
             ("/marxan-server/addParameter", addParameter),
+            ("/marxan-server/resetDatabase", resetDatabase),
             ("/marxan-server/shutdown", shutdown),
             ("/marxan-server/block", block),
             ("/marxan-server/testTornado", testTornado),

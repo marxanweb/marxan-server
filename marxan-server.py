@@ -1260,7 +1260,7 @@ def _dataFrameContainsValue(df, column_name, value):
 
 #returns a list of projects that contain the feature with the passed featureId
 def _getProjectsForFeature(featureId):
-    specDatFiles = _getFilesInFolderRecursive(MARXAN_USERS_FOLDER, "spec.dat")
+    specDatFiles = _getFilesInFolderRecursive(MARXAN_USERS_FOLDER, SPEC_FILENAME)
     projects = []
     for file in specDatFiles:
         #get the values from the spec.dat file
@@ -3513,6 +3513,7 @@ class runGapAnalysis(QueryWebSocketHandler):
         #return the results
         self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
 
+#resets the database and files to their original state
 class resetDatabase(QueryWebSocketHandler):
     async def open(self):
         await super().open({'info': "Resetting database.."})

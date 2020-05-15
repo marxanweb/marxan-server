@@ -33,8 +33,8 @@ from osgeo import ogr
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block"],
-    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup"],
+    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup"],
     "Admin": []
 }
 MARXAN_SERVER_VERSION = "v0.9.38"
@@ -2792,6 +2792,16 @@ class testRoleAuthorisation(MarxanRESTHandler):
     def get(self):
         self.send_response({'info': "Service successful"})
 
+#cleans up the database and clumping files
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/cleanup
+class cleanup(MarxanRESTHandler):
+    async def get(self):
+        try:
+            _cleanup()
+            self.send_response({'info': "Cleanup succesful"})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
+
 #shuts down the marxan-server and computer after a period of time - currently only on Unix
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/shutdown&delay=10&callback=_wibble
 class shutdown(MarxanRESTHandler):
@@ -2889,7 +2899,10 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             self.clientSentFinalMsg = False
         except (HTTPError) as e:
             error = _getExceptionLastLine(sys.exc_info())
+            #close the websocket
             self.close({'error': error}) 
+            #raise an error
+            raise MarxanServicesError("Request denied")
 
     #sends the message with a timestamp
     def send_response(self, message):
@@ -2936,50 +2949,54 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
 class runMarxan(MarxanWebSocketHandler):
     #authenticate and get the user folder and project folders
     async def open(self):
-        await super().open({'info': "Running Marxan.."})
-        #see if the project is already running - if it is then return an error
-        if _isProjectRunning(self.get_argument("user"), self.get_argument("project")):
-            self.close({'error': "The project is already running. See <a href='" + ERRORS_PAGE + "#the-project-is-already-running' target='blank'>here</a>", 'info':''})            
+        try:
+            await super().open({'info': "Running Marxan.."})
+        except MarxanServicesError:
+            pass
         else:
-            #set the current folder to the project folder so files can be found in the input.dat file
-            if (os.path.exists(self.folder_project)):
-                os.chdir(self.folder_project)
-                #delete all of the current output files
-                _deleteAllFiles(self.folder_output)
-                #run marxan 
-                #the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) instead of the tornado process - see here: https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
-                try:
-                    if platform.system() != "Windows":
-                        #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM - the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) 
-                        self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=PIPE, shell=True)
-                        #add a callback when the process finishes
-                        self.marxanProcess.set_exit_callback(self.finishOutput)
-                    else:
-                        #custom class as the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
-                        self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdout=PIPE, stdin=PIPE)
-                        self.marxanProcess.stdout.close() #to ensure that the child process is stopped when it ends on windows
-                        #add a callback when the process finishes on windows
-                        self.marxanProcess.set_exit_callback_windows(self.finishOutput)
-                    #make sure that the marxan process will end by sending ENTER to the stdin
-                    self.marxanProcess.stdin.write('\n'.encode("utf-8")) 
-                    self.marxanProcess.stdin.close()
-                except (WindowsError) as e: # pylint:disable=undefined-variable
-                    if (e.winerror == 1260):
-                        self.close({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator."})
-                else: #no errors
-                    #get the number of runs that were in the input.dat file
-                    self.numRunsRequired = await _getNumberOfRunsRequired(self)
-                    #log the run to the run log file
-                    if (self.user != '_clumping'): #dont log any clumping runs
-                        self.logRun()
-                    #print the details of the run out to the tornado log stream
-                    #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
-                    #return the pid so that the process can be stopped - prefix with an 'm' indicating that the pid is for a marxan run
-                    self.send_response({'pid': 'm' + str(self.marxanProcess.pid), 'status':'pid'})
-                    #callback on the next I/O loop
-                    IOLoop.current().spawn_callback(self.stream_marxan_output)
-            else: #project does not exist
-                self.close({'error': "Project '" + self.get_argument("project") + "' does not exist", 'project': self.get_argument("project"), 'user': self.get_argument("user")})
+            #see if the project is already running - if it is then return an error
+            if _isProjectRunning(self.get_argument("user"), self.get_argument("project")):
+                self.close({'error': "The project is already running. See <a href='" + ERRORS_PAGE + "#the-project-is-already-running' target='blank'>here</a>", 'info':''})            
+            else:
+                #set the current folder to the project folder so files can be found in the input.dat file
+                if (os.path.exists(self.folder_project)):
+                    os.chdir(self.folder_project)
+                    #delete all of the current output files
+                    _deleteAllFiles(self.folder_output)
+                    #run marxan 
+                    #the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) instead of the tornado process - see here: https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
+                    try:
+                        if platform.system() != "Windows":
+                            #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM - the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) 
+                            self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=PIPE, shell=True)
+                            #add a callback when the process finishes
+                            self.marxanProcess.set_exit_callback(self.finishOutput)
+                        else:
+                            #custom class as the Subprocess.STREAM option does not work on Windows - see here: https://www.tornadoweb.org/en/stable/process.html?highlight=Subprocess#tornado.process.Subprocess
+                            self.marxanProcess = MarxanSubprocess([MARXAN_EXECUTABLE], stdout=PIPE, stdin=PIPE)
+                            self.marxanProcess.stdout.close() #to ensure that the child process is stopped when it ends on windows
+                            #add a callback when the process finishes on windows
+                            self.marxanProcess.set_exit_callback_windows(self.finishOutput)
+                        #make sure that the marxan process will end by sending ENTER to the stdin
+                        self.marxanProcess.stdin.write('\n'.encode("utf-8")) 
+                        self.marxanProcess.stdin.close()
+                    except (WindowsError) as e: # pylint:disable=undefined-variable
+                        if (e.winerror == 1260):
+                            self.close({'error': "The executable '" + MARXAN_EXECUTABLE + "' is blocked by group policy. For more information, contact your system administrator."})
+                    else: #no errors
+                        #get the number of runs that were in the input.dat file
+                        self.numRunsRequired = await _getNumberOfRunsRequired(self)
+                        #log the run to the run log file
+                        if (self.user != '_clumping'): #dont log any clumping runs
+                            self.logRun()
+                        #print the details of the run out to the tornado log stream
+                        #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
+                        #return the pid so that the process can be stopped - prefix with an 'm' indicating that the pid is for a marxan run
+                        self.send_response({'pid': 'm' + str(self.marxanProcess.pid), 'status':'pid'})
+                        #callback on the next I/O loop
+                        IOLoop.current().spawn_callback(self.stream_marxan_output)
+                else: #project does not exist
+                    self.close({'error': "Project '" + self.get_argument("project") + "' does not exist", 'project': self.get_argument("project"), 'user': self.get_argument("user")})
 
     #called on the first IOLoop callback and then streams the marxan output back to the client
     async def stream_marxan_output(self):
@@ -3055,64 +3072,68 @@ class runMarxan(MarxanWebSocketHandler):
 class updateWDPA(MarxanWebSocketHandler):
     #authenticate and get the user folder and project folders
     async def open(self):
-        await super().open({'info': "Updating WDPA.."})
         try:
-            #download the new wdpa zip
-            self.send_response({'status':'Preprocessing','info': "Downloading " + self.get_argument("downloadUrl")})
-            await self.asyncDownload(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
-        except (MarxanServicesError) as e: #download failed
-            self.close({'error': e.args[0], 'info': 'WDPA not updated'})
+            await super().open({'info': "Updating WDPA.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
         else:
-            self.send_response({'status':'Preprocessing', 'info': "Downloaded"})
             try:
-                #download finished - upzip the polygons shapefile
-                self.send_response({'status':'Preprocessing', 'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'"})
-                rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, WDPA_DOWNLOAD_FILE, False, "polygons") 
-            except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
-                #delete the zip file
-                os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                #download the new wdpa zip
+                self.send_response({'status':'Preprocessing','info': "Downloading " + self.get_argument("downloadUrl")})
+                await self.asyncDownload(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+            except (MarxanServicesError) as e: #download failed
                 self.close({'error': e.args[0], 'info': 'WDPA not updated'})
             else:
-                self.send_response({'status':'Preprocessing', 'info': "Unzipped shapefile"})
-                #delete the zip file
-                os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                self.send_response({'status':'Preprocessing', 'info': "Downloaded"})
                 try:
-                    #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
-                    #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
-                    feature_class_name = _getUniqueFeatureclassName("wdpa_")
-                    self.send_response({'status': "Preprocessing", 'info': "Importing '" + rootfilename + "' into PostGIS.."})
-                    #import the wdpa to a tmp feature class
-                    await pg.importShapefile(rootfilename + ".shp", feature_class_name, splitAtDateline = False)
-                    self.send_response({'status': "Preprocessing", 'info': "Imported into '" + feature_class_name + "'"})
-                    #rename the existing wdpa feature class
-                    await pg.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
-                    self.send_response({'status': "Preprocessing", 'info': "Renamed 'wdpa' to 'wdpa_old'"})
-                    #rename the tmp feature class
-                    await pg.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
-                    self.send_response({'status': "Preprocessing", 'info': "Renamed '" + feature_class_name + "' to 'wdpa'"})
-                    #drop the columns that are not needed
-                    await pg.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso;")
-                    self.send_response({'status': "Preprocessing", 'info': "Removed unneccesary columns"})
-                    #delete the old wdpa feature class
-                    await pg.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
-                    self.send_response({'status': "Preprocessing", 'info': "Deleted 'wdpa_old' table"})
-                    #delete all of the existing dissolved country wdpa feature classes
-                    await pg.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
-                    self.send_response({'status': "Preprocessing", 'info': "Deleted dissolved country WDPAP feature classes"})
-                except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
-                    self.close({'error': 'No space left on device importing the WDPA into PostGIS', 'info': 'WDPA not updated'})
-                else: 
-                    #update the WDPA_VERSION variable in the server.dat file
-                    _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
-                    #delete all of the existing intersections between planning units and the old version of the WDPA
-                    self.send_response({'status': "Preprocessing", 'info': 'Invalidating existing WDPA intersections'})
-                    _invalidateProtectedAreaIntersections()
-                    #send the response
-                    self.close({'info': 'WDPA update completed succesfully'})
-                finally:
-                    #delete the shapefile
-                    _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
-
+                    #download finished - upzip the polygons shapefile
+                    self.send_response({'status':'Preprocessing', 'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'"})
+                    rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, WDPA_DOWNLOAD_FILE, False, "polygons") 
+                except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
+                    #delete the zip file
+                    os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                    self.close({'error': e.args[0], 'info': 'WDPA not updated'})
+                else:
+                    self.send_response({'status':'Preprocessing', 'info': "Unzipped shapefile"})
+                    #delete the zip file
+                    os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                    try:
+                        #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
+                        #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
+                        feature_class_name = _getUniqueFeatureclassName("wdpa_")
+                        self.send_response({'status': "Preprocessing", 'info': "Importing '" + rootfilename + "' into PostGIS.."})
+                        #import the wdpa to a tmp feature class
+                        await pg.importShapefile(rootfilename + ".shp", feature_class_name, splitAtDateline = False)
+                        self.send_response({'status': "Preprocessing", 'info': "Imported into '" + feature_class_name + "'"})
+                        #rename the existing wdpa feature class
+                        await pg.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
+                        self.send_response({'status': "Preprocessing", 'info': "Renamed 'wdpa' to 'wdpa_old'"})
+                        #rename the tmp feature class
+                        await pg.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
+                        self.send_response({'status': "Preprocessing", 'info': "Renamed '" + feature_class_name + "' to 'wdpa'"})
+                        #drop the columns that are not needed
+                        await pg.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso;")
+                        self.send_response({'status': "Preprocessing", 'info': "Removed unneccesary columns"})
+                        #delete the old wdpa feature class
+                        await pg.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
+                        self.send_response({'status': "Preprocessing", 'info': "Deleted 'wdpa_old' table"})
+                        #delete all of the existing dissolved country wdpa feature classes
+                        await pg.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
+                        self.send_response({'status': "Preprocessing", 'info': "Deleted dissolved country WDPAP feature classes"})
+                    except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
+                        self.close({'error': 'No space left on device importing the WDPA into PostGIS', 'info': 'WDPA not updated'})
+                    else: 
+                        #update the WDPA_VERSION variable in the server.dat file
+                        _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
+                        #delete all of the existing intersections between planning units and the old version of the WDPA
+                        self.send_response({'status': "Preprocessing", 'info': 'Invalidating existing WDPA intersections'})
+                        _invalidateProtectedAreaIntersections()
+                        #send the response
+                        self.close({'info': 'WDPA update completed succesfully'})
+                    finally:
+                        #delete the shapefile
+                        _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
+    
     async def asyncDownload(self,url, file):
         #initialise a variable to hold the size downloaded
         file_size_dl = 0
@@ -3152,11 +3173,11 @@ class importFeatures(MarxanWebSocketHandler):
     async def open(self):
         try:
             await super().open({'info': "Importing features.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
             #validate the input arguments
             _validateArguments(self.request.arguments, ['shapefile'])   
-        except (MarxanServicesError) as e:
-            self.close({'error': e.args[0], 'info': 'Failed to import features'})
-        else:
             #initiate the mapbox upload ids array
             uploadIds = []
             #get the name of the shapefile that has already been unzipped on the server
@@ -3216,11 +3237,11 @@ class importGBIFData(MarxanWebSocketHandler):
     async def open(self):
         try:
             await super().open({'info': "Importing features from GBIF.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
             #validate the input arguments
             _validateArguments(self.request.arguments, ['taxonKey','scientificName'])   
-        except (MarxanServicesError) as e:
-            self.close({'error': e.args[0], 'info': 'Failed to import features'})
-        else:
             try:
                 taxonKey = self.get_argument('taxonKey')
                 #get the occurrences using asynchronous parallel requests
@@ -3352,11 +3373,11 @@ class createFeaturesFromWFS(MarxanWebSocketHandler):
     async def open(self):
         try:
             await super().open({'info': "Importing features.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
             #validate the input arguments
             _validateArguments(self.request.arguments, ['srs','endpoint','name','description','featuretype'])   
-        except (MarxanServicesError) as e:
-            self.close({'error': e.args[0], 'info': 'Failed to import features'})
-        else:
             try:
                 #get a unique feature class name for the import
                 feature_class_name = _getUniqueFeatureclassName("f_")
@@ -3410,169 +3431,198 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessFeature?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30&feature_class_name=volcano&alias=volcano&id=63408475
 class preprocessFeature(QueryWebSocketHandler):
     async def open(self):
-        await super().open({'info': "Preprocessing '" + self.get_argument('alias') + "'.."})
-        _validateArguments(self.request.arguments, ['user','project','id','feature_class_name','alias','planning_grid_name'])    
-        #run the query asynchronously and wait for the results
-        intersectionData = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))), data=[self.get_argument('feature_class_name')], returnFormat="DataFrame")
-        #get the existing data
         try:
-            #load the existing preprocessing data
-            df = await _getProjectInputData(self, "PUVSPRNAME", True)
-        except:
-            #no existing preprocessing data so use the empty data frame
-            d = {'amount':pandas.Series([], dtype='float64'), 'species':pandas.Series([], dtype='int64'), 'pu':pandas.Series([], dtype='int64')}
-            df = pandas.DataFrame(data=d)[['species', 'pu', 'amount']] #reorder the columns
-        #get the species id from the arguments
-        speciesId = int(self.get_argument('id'))
-        #make sure there are not existing records for this feature - otherwise we will get duplicates
-        df = df[~df.species.isin([speciesId])]
-        #append the intersection data to the existing data
-        df = df.append(intersectionData)
-        #sort the values by the pu column then the species column 
-        df = df.sort_values(by=['pu','species'])
-        try: 
-            #write the data to the PUVSPR.dat file
-            await _writeCSV(self, "PUVSPRNAME", df)
-            #get the summary information and write it to the feature preprocessing file
-            record = _getPuvsprStats(df, speciesId)
-            _writeToDatFile(self.folder_input + FEATURE_PREPROCESSING_FILENAME, record)
-        except (MarxanServicesError) as e:
-            self.close({'error': e.args[1] })
+            await super().open({'info': "Preprocessing '" + self.get_argument('alias') + "'.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
         else:
-            #update the input.dat file
-            _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'PUVSPRNAME': PUVSPR_FILENAME})
-            #set the response
-            self.close({'info': "Feature '" + self.get_argument('alias') + "' preprocessed", "feature_class_name": self.get_argument('feature_class_name'), "pu_area" : str(record.iloc[0]['pu_area']),"pu_count" : str(record.iloc[0]['pu_count']), "id":str(speciesId)})
+            _validateArguments(self.request.arguments, ['user','project','id','feature_class_name','alias','planning_grid_name'])    
+            #run the query asynchronously and wait for the results
+            intersectionData = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))), data=[self.get_argument('feature_class_name')], returnFormat="DataFrame")
+            #get the existing data
+            try:
+                #load the existing preprocessing data
+                df = await _getProjectInputData(self, "PUVSPRNAME", True)
+            except:
+                #no existing preprocessing data so use the empty data frame
+                d = {'amount':pandas.Series([], dtype='float64'), 'species':pandas.Series([], dtype='int64'), 'pu':pandas.Series([], dtype='int64')}
+                df = pandas.DataFrame(data=d)[['species', 'pu', 'amount']] #reorder the columns
+            #get the species id from the arguments
+            speciesId = int(self.get_argument('id'))
+            #make sure there are not existing records for this feature - otherwise we will get duplicates
+            df = df[~df.species.isin([speciesId])]
+            #append the intersection data to the existing data
+            df = df.append(intersectionData)
+            #sort the values by the pu column then the species column 
+            df = df.sort_values(by=['pu','species'])
+            try: 
+                #write the data to the PUVSPR.dat file
+                await _writeCSV(self, "PUVSPRNAME", df)
+                #get the summary information and write it to the feature preprocessing file
+                record = _getPuvsprStats(df, speciesId)
+                _writeToDatFile(self.folder_input + FEATURE_PREPROCESSING_FILENAME, record)
+            except (MarxanServicesError) as e:
+                self.close({'error': e.args[1] })
+            else:
+                #update the input.dat file
+                _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'PUVSPRNAME': PUVSPR_FILENAME})
+                #set the response
+                self.close({'info': "Feature '" + self.get_argument('alias') + "' preprocessed", "feature_class_name": self.get_argument('feature_class_name'), "pu_area" : str(record.iloc[0]['pu_area']),"pu_count" : str(record.iloc[0]['pu_count']), "id":str(speciesId)})
 
 #preprocesses the protected areas by intersecting them with the planning units
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30
 class preprocessProtectedAreas(QueryWebSocketHandler):
     async def open(self):
-        await super().open({'info': "Preprocessing protected areas"})
-        _validateArguments(self.request.arguments, ['user','project','planning_grid_name'])    
-        #do the intersection with the protected areas
-        intersectionData = await self.executeQuery(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))), data=[self.get_argument('planning_grid_name')], returnFormat="DataFrame")
-        #write the intersections to file
-        intersectionData.to_csv(self.folder_input + PROTECTED_AREA_INTERSECTIONS_FILENAME, index=False)
-        #get the data
-        _getProtectedAreaIntersectionsData(self)
-        #set the response
-        self.close({'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData })
+        try:
+            await super().open({'info': "Preprocessing protected areas"})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
+            _validateArguments(self.request.arguments, ['user','project','planning_grid_name'])    
+            #do the intersection with the protected areas
+            intersectionData = await self.executeQuery(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))), data=[self.get_argument('planning_grid_name')], returnFormat="DataFrame")
+            #write the intersections to file
+            intersectionData.to_csv(self.folder_input + PROTECTED_AREA_INTERSECTIONS_FILENAME, index=False)
+            #get the data
+            _getProtectedAreaIntersectionsData(self)
+            #set the response
+            self.close({'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData })
     
 #preprocesses the planning units to get the boundary lengths where they intersect - produces the bounds.dat file
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessPlanningUnits?user=admin&project=Start%20project
 class preprocessPlanningUnits(QueryWebSocketHandler):
     async def open(self):
-        await super().open({'info': "Calculating boundary lengths"})
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the project data
-        await _getProjectData(self)
-        if (not self.projectData["metadata"]["OLDVERSION"]):
-            #new version of marxan - get the boundary lengths
-            feature_class_name = _getUniqueFeatureclassName("tmp_")
-            await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
-            #do the intersection
-            results = await self.executeQuery(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(ST_Transform(a.geometry, 3410), ST_Transform(b.geometry, 3410)), 2))/1000 boundary  FROM marxan.{planning_unit_name} a, marxan.{planning_unit_name} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(feature_class_name=sql.Identifier(feature_class_name), planning_unit_name=sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])))
-            #delete the file if it already exists
-            if (os.path.exists(self.folder_input + BOUNDARY_LENGTH_FILENAME)):
-                os.remove(self.folder_input + BOUNDARY_LENGTH_FILENAME)
-            #write the boundary lengths to file
-            await pg.execute(sql.SQL("SELECT * FROM marxan.{};").format(sql.Identifier(feature_class_name)), returnFormat="File", filename=self.folder_input + BOUNDARY_LENGTH_FILENAME)
-            #delete the tmp table
-            await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
-            #update the input.dat file
-            _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'BOUNDNAME': 'bounds.dat'})
-        #set the response
-        self.close({'info': 'Boundary lengths calculated'})
-    
+        try:
+            await super().open({'info': "Calculating boundary lengths"})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the project data
+            await _getProjectData(self)
+            if (not self.projectData["metadata"]["OLDVERSION"]):
+                #new version of marxan - get the boundary lengths
+                feature_class_name = _getUniqueFeatureclassName("tmp_")
+                await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
+                #do the intersection
+                results = await self.executeQuery(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT DISTINCT a.puid id1, b.puid id2, ST_Length(ST_CollectionExtract(ST_Intersection(ST_Transform(a.geometry, 3410), ST_Transform(b.geometry, 3410)), 2))/1000 boundary  FROM marxan.{planning_unit_name} a, marxan.{planning_unit_name} b  WHERE a.puid < b.puid AND ST_Touches(a.geometry, b.geometry);").format(feature_class_name=sql.Identifier(feature_class_name), planning_unit_name=sql.Identifier(self.projectData["metadata"]["PLANNING_UNIT_NAME"])))
+                #delete the file if it already exists
+                if (os.path.exists(self.folder_input + BOUNDARY_LENGTH_FILENAME)):
+                    os.remove(self.folder_input + BOUNDARY_LENGTH_FILENAME)
+                #write the boundary lengths to file
+                await pg.execute(sql.SQL("SELECT * FROM marxan.{};").format(sql.Identifier(feature_class_name)), returnFormat="File", filename=self.folder_input + BOUNDARY_LENGTH_FILENAME)
+                #delete the tmp table
+                await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name))) 
+                #update the input.dat file
+                _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'BOUNDNAME': 'bounds.dat'})
+            #set the response
+            self.close({'info': 'Boundary lengths calculated'})
+        
 #creates a new planning grid
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=hexagon   
 class createPlanningUnitGrid(QueryWebSocketHandler):
     async def open(self):
-        await super().open({'info': "Creating planning grid.."})
-        _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
-        #get the feature class name
-        fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
-        #see if the planning grid already exists
-        records = await pg.execute("SELECT * FROM marxan.metadata_planning_units WHERE feature_class_name =(%s);", data=[fc],returnFormat="Array")            
-        if len(records):
-            self.close({'error':"That item already exists"})
+        try:
+            await super().open({'info': "Creating planning grid.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
         else:
-            #estimate how many planning units are in the grid that will be created
-            unitCount = await _estimatePlanningUnitCount(self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'))
-            #see if the unit count is above the PLANNING_GRID_UNITS_LIMIT
-            if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
-                self.close({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + " (=" + str(int(unitCount)) + "). See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
+            _validateArguments(self.request.arguments, ['iso3','domain','areakm2','shape'])    
+            #get the feature class name
+            fc = "pu_" + self.get_argument('iso3').lower() + "_" + self.get_argument('domain').lower() + "_" + self.get_argument('shape').lower() + "_" + self.get_argument('areakm2')
+            #see if the planning grid already exists
+            records = await pg.execute("SELECT * FROM marxan.metadata_planning_units WHERE feature_class_name =(%s);", data=[fc],returnFormat="Array")            
+            if len(records):
+                self.close({'error':"That item already exists"})
             else:
-                results = await self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], returnFormat="Array")
-                if results:
-                    #get the planning grid alias
-                    alias = results[0][0]
-                    #create a primary key so the feature class can be used in ArcGIS
-                    await pg.createPrimaryKey(fc, "puid")    
-                    #start the upload to Mapbox
-                    uploadId = await _uploadTilesetToMapbox(fc, fc)
-                    #set the response
-                    self.close({'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId})
-
+                #estimate how many planning units are in the grid that will be created
+                unitCount = await _estimatePlanningUnitCount(self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'))
+                #see if the unit count is above the PLANNING_GRID_UNITS_LIMIT
+                if (int(unitCount) > PLANNING_GRID_UNITS_LIMIT):
+                    self.close({'error': "Number of planning units &gt; " + str(PLANNING_GRID_UNITS_LIMIT) + " (=" + str(int(unitCount)) + "). See <a href='" + ERRORS_PAGE + "#number-of-planning-units-exceeds-the-threshold' target='blank'>here</a>"})
+                else:
+                    results = await self.executeQuery("SELECT * FROM marxan.planning_grid(%s,%s,%s,%s,%s);", [self.get_argument('areakm2'), self.get_argument('iso3'), self.get_argument('domain'), self.get_argument('shape'),self.get_current_user()], returnFormat="Array")
+                    if results:
+                        #get the planning grid alias
+                        alias = results[0][0]
+                        #create a primary key so the feature class can be used in ArcGIS
+                        await pg.createPrimaryKey(fc, "puid")    
+                        #start the upload to Mapbox
+                        uploadId = await _uploadTilesetToMapbox(fc, fc)
+                        #set the response
+                        self.close({'info':"Planning grid '" + alias + "' created", 'feature_class_name': fc, 'alias':alias, 'uploadId': uploadId})
+    
 #runs a gap analysis
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/runGapAnalysis?user=admin&project=British%20Columbia%20Marine%20Case%20Study
 class runGapAnalysis(QueryWebSocketHandler):
     async def open(self):
-        await super().open({'info': "Running gap analysis.."})
-        _validateArguments(self.request.arguments, ['user','project'])    
-        #get the identifiers of the features for the project
-        df = await _getProjectInputData(self, "SPECNAME")
-        featureIds = df['id'].to_numpy().tolist()
-        #get the planning grid name
-        await _getProjectData(self)
-        #get a safe project name to use in the name of the table that will be produced
-        project_name = _getSafeProjectName(self.get_argument("project"))
-        #run the gap analysis
-        df = await self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s,%s,%s)", data=[self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds, self.get_argument("user"), project_name], returnFormat="DataFrame")
-        #return the results
-        self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
+        try:
+            await super().open({'info': "Running gap analysis.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the identifiers of the features for the project
+            df = await _getProjectInputData(self, "SPECNAME")
+            featureIds = df['id'].to_numpy().tolist()
+            #get the planning grid name
+            await _getProjectData(self)
+            #get a safe project name to use in the name of the table that will be produced
+            project_name = _getSafeProjectName(self.get_argument("project"))
+            #run the gap analysis
+            df = await self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s,%s,%s)", data=[self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds, self.get_argument("user"), project_name], returnFormat="DataFrame")
+            #return the results
+            self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
 
 #resets the database and files to their original state
+#DONT CALL THIS DIRECTLY
 class resetDatabase(QueryWebSocketHandler):
     async def open(self):
-        await super().open({'info': "Resetting database.."})
-        #run git reset --hard
-        cmd = "git reset --hard"
-        self.send_response({'status':'Preprocessing', 'info': "Running git reset --hard"})
-        result = await _runCmd(cmd)
-        #delete the features that are not in use
-        specDatFiles = _getFilesInFolderRecursive(CASE_STUDIES_FOLDER, SPEC_FILENAME)
-        #iterate through the spec.dat files and get a unique list of feature ids
-        featureIdsToKeep = []
-        for file in specDatFiles:
-            #load the spec.dat file
-            df = _loadCSV(file)
-            #get the unique feature ids
-            ids = df.id.unique().tolist()
-            #merge these ids into the featureIds array
-            featureIdsToKeep.extend(ids)
-        #delete the features that are not in use
-        df = await pg.execute("DELETE FROM marxan.metadata_interest_features WHERE NOT oid = ANY (ARRAY[%s]);", data=[featureIdsToKeep], returnFormat="DataFrame")
-        self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " features"})
-        #delete the planning grids that are not in use
-        planningGridFiles = _getFilesInFolderRecursive(CASE_STUDIES_FOLDER, PROJECT_DATA_FILENAME)
-        #iterate through the input.dat files and get a unique list of planning grids
-        planningGridsToKeep = []
-        for file in planningGridFiles:
-            #get the input.dat file data
-            tmpObj = ExtendableObject()
-            tmpObj.project = "unimportant"
-            tmpObj.folder_project = os.path.dirname(file) + os.sep
-            await _getProjectData(tmpObj)
-            #get the planning grid
-            planningGridsToKeep.append(tmpObj.projectData["metadata"]['PLANNING_UNIT_NAME'])
-        df = await pg.execute("DELETE FROM marxan.metadata_planning_units WHERE NOT feature_class_name = ANY (ARRAY[%s]);", data=[planningGridsToKeep], returnFormat="DataFrame")
-        self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " planning grids"})
-        #run a cleanup
-        self.send_response({'status':'Preprocessing', 'info': "Cleaning up.."})
-        await _cleanup()
-        self.close({'info':"Reset complete"})
+        try:
+            await super().open({'info': "Resetting database.."})
+        except MarxanServicesError:
+            pass
+        else:
+            #check the request is not coming from the local machine, i.e. being run directly and not from a web client which is safer
+            if self.request.remote_ip == "127.0.0.1":
+                self.close({'error':"Unable to run from localhost"})
+            else:
+                #run git reset --hard
+                cmd = "git reset --hard"
+                self.send_response({'status':'Preprocessing', 'info': "Running git reset --hard"})
+                # result = await _runCmd(cmd)
+                #delete the features that are not in use
+                specDatFiles = _getFilesInFolderRecursive(CASE_STUDIES_FOLDER, SPEC_FILENAME)
+                #iterate through the spec.dat files and get a unique list of feature ids
+                featureIdsToKeep = []
+                for file in specDatFiles:
+                    #load the spec.dat file
+                    df = _loadCSV(file)
+                    #get the unique feature ids
+                    ids = df.id.unique().tolist()
+                    #merge these ids into the featureIds array
+                    featureIdsToKeep.extend(ids)
+                #delete the features that are not in use
+                # df = await pg.execute("DELETE FROM marxan.metadata_interest_features WHERE NOT oid = ANY (ARRAY[%s]);", data=[featureIdsToKeep], returnFormat="DataFrame")
+                # self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " features"})
+                #delete the planning grids that are not in use
+                planningGridFiles = _getFilesInFolderRecursive(CASE_STUDIES_FOLDER, PROJECT_DATA_FILENAME)
+                #iterate through the input.dat files and get a unique list of planning grids
+                planningGridsToKeep = []
+                for file in planningGridFiles:
+                    #get the input.dat file data
+                    tmpObj = ExtendableObject()
+                    tmpObj.project = "unimportant"
+                    tmpObj.folder_project = os.path.dirname(file) + os.sep
+                    await _getProjectData(tmpObj)
+                    #get the planning grid
+                    planningGridsToKeep.append(tmpObj.projectData["metadata"]['PLANNING_UNIT_NAME'])
+                # df = await pg.execute("DELETE FROM marxan.metadata_planning_units WHERE NOT feature_class_name = ANY (ARRAY[%s]);", data=[planningGridsToKeep], returnFormat="DataFrame")
+                # self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " planning grids"})
+                #run a cleanup
+                self.send_response({'status':'Preprocessing', 'info': "Cleaning up.."})
+                await _cleanup()
+                self.close({'info':"Reset complete"})
 
 ####################################################################################################################################################################################################################################################################
 ## tornado functions
@@ -3655,6 +3705,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
             ("/marxan-server/addParameter", addParameter),
             ("/marxan-server/resetDatabase", resetDatabase),
+            ("/marxan-server/cleanup", cleanup),
             ("/marxan-server/shutdown", shutdown),
             ("/marxan-server/block", block),
             ("/marxan-server/testTornado", testTornado),

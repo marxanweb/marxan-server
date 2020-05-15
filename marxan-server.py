@@ -1552,9 +1552,9 @@ async def _runCmd(cmd):
 #runs a set of maintenance tasks to remove orphaned tables, tmp tables and clumping projects that may remain on the server
 async def _cleanup():
     #database cleanup
-    await pg.execute("SELECT * FROM marxan.deletedissolvedwdpafeatureclasses")
-    await pg.execute("SELECT * FROM marxan.deleteorphanedfeatures")
-    await pg.execute("SELECT * FROM marxan.deletescratchfeatureclasses")
+    await pg.execute("SELECT marxan.deletedissolvedwdpafeatureclasses()")
+    await pg.execute("SELECT marxan.deleteorphanedfeatures()")
+    await pg.execute("SELECT marxan.deletescratchfeatureclasses()")
     #file cleanup
     files = glob.glob(CLUMP_FOLDER + "*")
     for file in files:
@@ -3572,7 +3572,7 @@ class resetDatabase(QueryWebSocketHandler):
         self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " planning grids"})
         #run a cleanup
         self.send_response({'status':'Preprocessing', 'info': "Cleaning up.."})
-        _cleanup()
+        await _cleanup()
         self.close({'info':"Reset complete"})
 
 ####################################################################################################################################################################################################################################################################

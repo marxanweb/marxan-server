@@ -594,7 +594,7 @@ def _getProtectedAreaIntersectionsData(obj):
 #resets all of the protected area intersections information - for example when a new version of the wdpa is installed 
 def _invalidateProtectedAreaIntersections():
     #get all of the existing protected area intersection files
-    files = _getFilesInFolderRecursive(MARXAN_FOLDER, PROTECTED_AREA_INTERSECTIONS_FILENAME)
+    files = _getFilesInFolderRecursive(MARXAN_USERS_FOLDER, PROTECTED_AREA_INTERSECTIONS_FILENAME)
     #iterate through all of these files and replace them with an empty file
     for file in files:
         shutil.copyfile(EMPTY_PROJECT_TEMPLATE_FOLDER + "input" + os.sep + PROTECTED_AREA_INTERSECTIONS_FILENAME, file)    
@@ -1239,7 +1239,7 @@ async def _deletePlanningUnitGrid(planning_grid):
 #searches the folder recursively for the filename and returns an array of full filenames, e.g. ['/home/ubuntu/environment/marxan-server/users/admin/British Columbia Marine Case Study/input/spec.dat', etc]
 def _getFilesInFolderRecursive(folder, filename):
     foundFiles = []
-    for root, dirs, files in os.walk(MARXAN_USERS_FOLDER):
+    for root, dirs, files in os.walk(folder):
         _files = [root + os.sep + f for f in files if (f == filename)]
         if len(_files)>0:
             foundFiles.append(_files[0])
@@ -1548,6 +1548,23 @@ async def _runCmd(cmd):
         resultBytes = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
         result = 0 if (resultBytes.decode("utf-8") == '') else -1
     return result
+    
+#runs a set of maintenance tasks to remove orphaned tables, tmp tables and clumping projects that may remain on the server
+async def _cleanup():
+    #database cleanup
+    await pg.execute("SELECT * FROM marxan.deletedissolvedwdpafeatureclasses")
+    await pg.execute("SELECT * FROM marxan.deleteorphanedfeatures")
+    await pg.execute("SELECT * FROM marxan.deletescratchfeatureclasses")
+    #file cleanup
+    files = glob.glob(CLUMP_FOLDER + "*")
+    for file in files:
+        #get the file date
+        fileDate = datetime.datetime.fromtimestamp(os.path.getmtime(file))
+        #get the timedelta from now
+        td = datetime.datetime.now() - fileDate
+        if td.days > 1:
+            #if the file is older than 1 day, then delete it 
+            os.remove(file)
     
 ####################################################################################################################################################################################################################################################################
 ## generic classes
@@ -3523,8 +3540,39 @@ class resetDatabase(QueryWebSocketHandler):
         #run git reset --hard
         cmd = "git reset --hard"
         self.send_response({'status':'Preprocessing', 'info': "Running git reset --hard"})
-        result = await _runCmd(cmd)
-        self.send_response({'status':'Preprocessing', 'info': result})
+        # result = await _runCmd(cmd)
+        #delete the features that are not in use
+        specDatFiles = _getFilesInFolderRecursive(CASE_STUDIES_FOLDER, SPEC_FILENAME)
+        #iterate through the spec.dat files and get a unique list of feature ids
+        featureIdsToKeep = []
+        for file in specDatFiles:
+            #load the spec.dat file
+            df = _loadCSV(file)
+            #get the unique feature ids
+            ids = df.id.unique().tolist()
+            #merge these ids into the featureIds array
+            featureIdsToKeep.extend(ids)
+        #delete the features that are not in use
+        df = await pg.execute("SELECT oid,* FROM marxan.metadata_interest_features WHERE NOT oid = ANY (ARRAY[%s]);", data=[featureIdsToKeep], returnFormat="DataFrame")
+        self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " features"})
+        #delete the planning grids that are not in use
+        planningGridFiles = _getFilesInFolderRecursive(CASE_STUDIES_FOLDER, PROJECT_DATA_FILENAME)
+        #iterate through the input.dat files and get a unique list of planning grids
+        planningGridsToKeep = []
+        print()
+        for file in planningGridFiles:
+            #get the input.dat file data
+            tmpObj = ExtendableObject()
+            tmpObj.project = "unimportant"
+            tmpObj.folder_project = os.path.dirname(file) + os.sep
+            await _getProjectData(tmpObj)
+            #get the planning grid
+            planningGridsToKeep.append(tmpObj.projectData["metadata"]['PLANNING_UNIT_NAME'])
+        df = await pg.execute("SELECT oid,* FROM marxan.metadata_planning_units WHERE NOT feature_class_name = ANY (ARRAY[%s]);", data=[planningGridsToKeep], returnFormat="DataFrame")
+        self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " planning grids"})
+        #run a cleanup
+        self.send_response({'status':'Preprocessing', 'info': "Cleaning up.."})
+        _cleanup()
         self.close({'info':"Reset complete"})
 
 ####################################################################################################################################################################################################################################################################

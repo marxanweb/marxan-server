@@ -1076,14 +1076,8 @@ async def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -t_srs EPSG:3857'
     logging.debug(cmd)
     try:
-        #run the export
-        if platform.system() != "Windows":
-            process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT) # asynchronous on unix
-            #await the results
-            result = await process.wait()
-        else:
-            #run the import using the python subprocess module 
-            subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT) # synchronous on windows
+        #run the command
+        result = await _runCmd(cmd)
     #catch any unforeseen circumstances
     except CalledProcessError as e:
         raise MarxanServicesError("Error exporting shapefile. " + e.output.decode("utf-8"))
@@ -1543,6 +1537,18 @@ def _deleteShutdownFile():
         print("Deleting the shutdown file")
         os.remove(MARXAN_FOLDER + SHUTDOWN_FILENAME)
 
+#runs a command in a separate process
+async def _runCmd(cmd):
+    if platform.system() != "Windows":
+        #run the import as an asyncronous subprocess
+        process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT)
+        result = await process.wait()
+    else:
+        #run the import using the python subprocess module 
+        resultBytes = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+        result = 0 if (resultBytes.decode("utf-8") == '') else -1
+    return result
+    
 ####################################################################################################################################################################################################################################################################
 ## generic classes
 ####################################################################################################################################################################################################################################################################
@@ -1587,7 +1593,10 @@ class PostGIS():
                     socketHandler.pid = 'q' + str(await cur.connection.get_backend_pid())
                     socketHandler.send_response({'status':'pid', 'pid': socketHandler.pid})
                 #run the query
-                await cur.execute(sql)
+                try:
+                    await cur.execute(sql)
+                except psycopg2.errors.UniqueViolation as e:
+                    raise MarxanServicesError("That item already exists")
                 #if the query doesnt return any records then return
                 if returnFormat == None:
                     return
@@ -1620,14 +1629,8 @@ class PostGIS():
             #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
             cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + filename + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -s_srs ' + sEpsgCode + ' -t_srs ' + tEpsgCode + ' -lco precision=NO'
             logging.debug(cmd)
-            if platform.system() != "Windows":
-                #run the import as an asyncronous subprocess
-                process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT)
-                result = await process.wait()
-            else:
-                #run the import using the python subprocess module 
-                resultBytes = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-                result = 0 if (resultBytes.decode("utf-8") == '') else -1
+            #run the command
+            result = await _runCmd(cmd)
             if result == 0:
                 #split the feature class at the dateline
                 if (splitAtDateline):
@@ -3517,7 +3520,8 @@ class runGapAnalysis(QueryWebSocketHandler):
 class resetDatabase(QueryWebSocketHandler):
     async def open(self):
         await super().open({'info': "Resetting database.."})
-        #
+        #run git reset --hard
+        
         self.close({'info':"Reset complete"})
 
 ####################################################################################################################################################################################################################################################################

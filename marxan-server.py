@@ -3609,7 +3609,7 @@ class resetDatabase(QueryWebSocketHandler):
                     featureIdsToKeep.extend(ids)
                 #delete the features that are not in use
                 df = await pg.execute("DELETE FROM marxan.metadata_interest_features WHERE NOT oid = ANY (ARRAY[%s]);", data=[featureIdsToKeep], returnFormat="DataFrame")
-                self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " features"})
+                self.send_response({'status':'Preprocessing', 'info': "Deleted features"})
                 #delete the planning grids that are not in use
                 planningGridFiles = _getFilesInFolderRecursive(CASE_STUDIES_FOLDER, PROJECT_DATA_FILENAME)
                 #iterate through the input.dat files and get a unique list of planning grids
@@ -3623,7 +3623,7 @@ class resetDatabase(QueryWebSocketHandler):
                     #get the planning grid
                     planningGridsToKeep.append(tmpObj.projectData["metadata"]['PLANNING_UNIT_NAME'])
                 df = await pg.execute("DELETE FROM marxan.metadata_planning_units WHERE NOT feature_class_name = ANY (ARRAY[%s]);", data=[planningGridsToKeep], returnFormat="DataFrame")
-                self.send_response({'status':'Preprocessing', 'info': "Deleted " + str(df.shape[0]) + " planning grids"})
+                self.send_response({'status':'Preprocessing', 'info': "Deleted planning grids"})
                 #run a cleanup
                 self.send_response({'status':'Preprocessing', 'info': "Cleaning up.."})
                 await _cleanup()

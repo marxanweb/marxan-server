@@ -828,15 +828,18 @@ def _copyDirectory(src, dest):
     except OSError as e:
         raise MarxanServicesError('Directory not copied. Error: %s' % e)
         
-#creates a new parameter in the *.dat file, either user (user.dat) or project (project.dat), by iterating through all the files and adding the key/value if it doesnt already exist
+#creates a new parameter in the *.dat file, either user (user.dat), project (input.dat) or server (server.dat), by iterating through all the files and adding the key/value if it doesnt already exist
 def _addParameter(_type, key, value):
     results = []
     if (_type == 'user'):
         #get all of the user.dat files on the server
-        _files = glob.glob(MARXAN_USERS_FOLDER  + os.sep + "*"  + os.sep + "user.dat")
-    else:
+        _files = glob.glob(MARXAN_USERS_FOLDER  + "*"  + os.sep + "user.dat")
+    elif (_type == 'project'):
         #get all of the input.dat files on the server
-        _files = glob.glob(MARXAN_USERS_FOLDER  + os.sep + "*"  + os.sep  + "*"  + os.sep + "input.dat")
+        _files = glob.glob(MARXAN_USERS_FOLDER  + "*"  + os.sep  + "*"  + os.sep + "input.dat")
+    elif (_type == 'server'):
+        #get all of the input.dat files on the server
+        _files = glob.glob(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
     #iterate through the files and add the keys if necessary
     for file in _files:
         #get the file contents
@@ -848,12 +851,12 @@ def _addParameter(_type, key, value):
             #add the key
             s = s + key + " " + value + "\n"
             _writeFileUnicode(file, s)
-            log("Key '" + key + "' added to " + file)
+            logging.warning("Key '" + key + "' added to " + file)
             results.append("Key " + key + " added to " + file)
         else:
             #update the existing value
             _updateParameters(file, {key:value})
-            log("Key '" + key + "' updated to '" + value + "' in file " + file)
+            logging.warning("Key '" + key + "' updated to '" + value + "' in file " + file)
             results.append("Key '" + key + "' updated to '" + value + "' in file " + file)
     return results
             

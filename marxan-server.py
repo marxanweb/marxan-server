@@ -3521,7 +3521,9 @@ class resetDatabase(QueryWebSocketHandler):
     async def open(self):
         await super().open({'info': "Resetting database.."})
         #run git reset --hard
-        
+        cmd = "git reset --hard"
+        result = await _runCmd(cmd)
+        print(result)
         self.close({'info':"Reset complete"})
 
 ####################################################################################################################################################################################################################################################################

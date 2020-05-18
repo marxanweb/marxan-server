@@ -33,7 +33,7 @@ from osgeo import ogr
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject"],
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup"],
     "Admin": []
 }
@@ -2896,7 +2896,10 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             if "user" in self.request.arguments.keys():
                 _setFolderPaths(self, self.request.arguments)
                 #get the project data
-                await _getProjectData(self)
+                try:
+                    await _getProjectData(self)
+                except FileNotFoundError: #the input.dat file may not exist
+                    pass
             #check the request is authenticated
             _authenticate(self)
             #get the requested method
@@ -3603,25 +3606,76 @@ class exportProject(QueryWebSocketHandler):
             pass
         else:
             _validateArguments(self.request.arguments, ['user','project'])    
-            self.send_response({'status':'Preprocessing', 'info': "Zipping project folder.."})
+            self.send_response({'status':'Preprocessing', 'info': "Copying project folder.."})
             #create a folder in the export folder to hold all the files
             exportFolder = EXPORT_FOLDER + self.get_argument('user') + "_" + self.get_argument('project')
             #remote the folder if it already exists
             if os.path.exists(exportFolder):
                 shutil.rmtree(exportFolder)
-            os.mkdir(exportFolder)
-            #zip up project folder
-            await IOLoop.current().run_in_executor(None, _zipfolder, self.folder_project, exportFolder + os.sep + "project_files") 
+            #copy the project folder
+            shutil.copytree(self.folder_project, exportFolder)
             #get the species data from the spec.dat file and the PostGIS database
             await _getSpeciesData(self)
             #get the feature class names that must be exported from postgis
             feature_class_names = self.speciesData['feature_class_name'].tolist()
             #export all of the feature classes as shapefiles
+            self.send_response({'status':'Preprocessing', 'info': "Exporting features.."})
             cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + os.sep + 'shapefiles' + os.sep + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" ' + " ".join(feature_class_names)
             result = await _runCmd(cmd)
+            #export the features metadata
+            self.send_response({'status':'Preprocessing', 'info': "Exporting metadata.."})
+            escapedFeatureNames = "\'" + "\',\'".join(feature_class_names) + "\'"
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "CSV" "' + exportFolder + os.sep + 'features.csv" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT oid, feature_class_name, alias, description FROM metadata_interest_features WHERE feature_class_name = ANY (ARRAY[' + escapedFeatureNames + ']);" -lco SEPARATOR=TAB'
+            result = await _runCmd(cmd)
+            #zip the whole folder
+            self.send_response({'status':'Preprocessing', 'info': "Zipping project.."})
+            await IOLoop.current().run_in_executor(None, _zipfolder, exportFolder, exportFolder) 
+            #rename with a mxw extension
+            os.rename(exportFolder + ".zip", exportFolder + ".mxw")
+            #delete the folder
+            shutil.rmtree(exportFolder)
             #return the results
-            self.close({'info':"Export project complete"})
+            self.close({'info':"Export project complete", 'filename': self.get_argument('user') + "_" + self.get_argument('project') + ".mxw"})
     
+#imports a project that has already been uploaded to the imports folder
+class importProject(QueryWebSocketHandler):
+    async def open(self):
+        try:
+            await super().open({'info': "Importing project.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
+            _validateArguments(self.request.arguments, ['user','project','filename'])    
+            user = self.get_argument('user')
+            project = self.get_argument('project')
+            #unzip the file 
+            zip_ref = zipfile.ZipFile(IMPORT_FOLDER + self.get_argument('filename'), 'r')
+            projectFolder = IMPORT_FOLDER + os.path.basename(self.get_argument('filename'))[:-4] + os.sep
+            zip_ref.extractall(projectFolder)
+            #import all of the shapefiles - those that already exist are skipped
+            self.send_response({'status':'Preprocessing', 'info': "Importing features.."})
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + projectFolder + 'shapefiles' + os.sep + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -t_srs EPSG:4326 -lco precision=NO -skipfailures'
+            result = await _runCmd(cmd)
+            #load the metadata
+            df = pandas.read_csv(projectFolder + 'features.csv', sep='\t')
+            #iterate throught the features and if there is no record in the metadata_interest_features table then add it
+            for index, row in df.iterrows():
+                results = await pg.execute("SELECT * FROM marxan.metadata_interest_features WHERE feature_class_name = %s;", data=[row['feature_class_name']], returnFormat="Array")
+                if len(results) == 0:
+                    #add the new feature
+                    await _finishImportingFeature(row['feature_class_name'], row['alias'], row['description'], 'Imported with project ' + user + '/' + project, user)
+            #get the ids of the features so we can remap them in the spec.dat and the puvspr.dat files
+            feature_class_names = df['feature_class_name'].tolist()
+            df2 = await pg.execute("SELECT oid, feature_class_name FROM marxan.metadata_interest_features WHERE feature_class_name = ANY (ARRAY[%s]);", data=[feature_class_names], returnFormat="DataFrame")
+            #join the source dataframe and the new data
+            df = df[['feature_class_name','oid']].rename(columns={'feature_class_name':'fcn','oid':'old_oid'}).set_index('fcn')
+            df2 = df2[['feature_class_name','oid']].rename(columns={'feature_class_name':'fcn','oid':'new_oid'}).set_index('fcn')
+            #create a data frame with the old oid and the new old for the feature class
+            mapping = df.join(df2)
+            print(mapping)
+            #return the results
+            self.close({'info':"Import project complete"})
+
 #resets the database and files to their original state
 #DONT CALL THIS DIRECTLY
 class resetDatabase(QueryWebSocketHandler):
@@ -3694,6 +3748,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/deleteProject", deleteProject),
             ("/marxan-server/cloneProject", cloneProject),
             ("/marxan-server/exportProject", exportProject),
+            ("/marxan-server/importProject", importProject),
             ("/marxan-server/createProjectGroup", createProjectGroup),
             ("/marxan-server/deleteProjects", deleteProjects),
             ("/marxan-server/renameProject", renameProject),

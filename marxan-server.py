@@ -33,7 +33,7 @@ from osgeo import ogr
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject"],
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup"],
     "Admin": []
 }
@@ -87,6 +87,8 @@ async def _setGlobalVariables():
     global MARXAN_USERS_FOLDER
     global MARXAN_CLIENT_BUILD_FOLDER
     global CLUMP_FOLDER 
+    global EXPORT_FOLDER
+    global IMPORT_FOLDER
     global MARXAN_EXECUTABLE 
     global MARXAN_WEB_RESOURCES_FOLDER
     global CASE_STUDIES_FOLDER
@@ -202,6 +204,8 @@ async def _setGlobalVariables():
     #set the various folder paths
     MARXAN_USERS_FOLDER = MARXAN_FOLDER + "users" + os.sep
     CLUMP_FOLDER = MARXAN_USERS_FOLDER + "_clumping" + os.sep
+    EXPORT_FOLDER = MARXAN_FOLDER + "exports" + os.sep
+    IMPORT_FOLDER = MARXAN_FOLDER + "imports" + os.sep
     MARXAN_EXECUTABLE = MARXAN_FOLDER + marxan_executable
     MARXAN_WEB_RESOURCES_FOLDER = MARXAN_FOLDER + "_marxan_web_resources" + os.sep
     CASE_STUDIES_FOLDER = MARXAN_WEB_RESOURCES_FOLDER + "case_studies" + os.sep
@@ -1018,6 +1022,22 @@ def _deleteZippedShapefile(folder, zipfile, archivename):
     if (zipfile !="" and os.path.exists(folder + zipfile)):
         os.remove(folder + zipfile)
 
+#zips a folder and all of its subfolders and puts the file into the target_dir folder - archive names are relative to foldername
+def _zipfolder(foldername, zipFile):            
+    zipobj = zipfile.ZipFile(zipFile + '.zip', 'w', zipfile.ZIP_DEFLATED)
+    #get the length of the folder
+    folder_length = len(foldername) + 1 
+    for base, dirs, files in os.walk(foldername):
+        for file in files:
+            #get the archive name
+            if base == foldername:
+                arcname = file
+            else:
+                arcname = base[folder_length:] + os.sep + file
+            filename = os.path.join(base, file)
+            #add the file to the zip
+            zipobj.write(filename, arcname)
+            
 #unzips a zip file and returns the rootname - if rejectMultipleShapefiles is True then an exception will be thrown if the zip file contains multiple shapefiles -  if searchTerm is specified then only the files that match the searchTerm will be extracted 
 def _unzipFile(filename, rejectMultipleShapefiles = True, searchTerm = None):
     #unzip the shapefile
@@ -3574,6 +3594,34 @@ class runGapAnalysis(QueryWebSocketHandler):
             #return the results
             self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
 
+#exports a project
+class exportProject(QueryWebSocketHandler):
+    async def open(self):
+        try:
+            await super().open({'info': "Exporting project.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
+            _validateArguments(self.request.arguments, ['user','project'])    
+            self.send_response({'status':'Preprocessing', 'info': "Zipping project folder.."})
+            #create a folder in the export folder to hold all the files
+            exportFolder = EXPORT_FOLDER + self.get_argument('user') + "_" + self.get_argument('project')
+            #remote the folder if it already exists
+            if os.path.exists(exportFolder):
+                shutil.rmtree(exportFolder)
+            os.mkdir(exportFolder)
+            #zip up project folder
+            await IOLoop.current().run_in_executor(None, _zipfolder, self.folder_project, exportFolder + os.sep + "project_files") 
+            #get the species data from the spec.dat file and the PostGIS database
+            await _getSpeciesData(self)
+            #get the feature class names that must be exported from postgis
+            feature_class_names = self.speciesData['feature_class_name'].tolist()
+            #export all of the feature classes as shapefiles
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + os.sep + 'shapefiles' + os.sep + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" ' + " ".join(feature_class_names)
+            result = await _runCmd(cmd)
+            #return the results
+            self.close({'info':"Export project complete"})
+    
 #resets the database and files to their original state
 #DONT CALL THIS DIRECTLY
 class resetDatabase(QueryWebSocketHandler):
@@ -3645,6 +3693,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/upgradeProject", upgradeProject),
             ("/marxan-server/deleteProject", deleteProject),
             ("/marxan-server/cloneProject", cloneProject),
+            ("/marxan-server/exportProject", exportProject),
             ("/marxan-server/createProjectGroup", createProjectGroup),
             ("/marxan-server/deleteProjects", deleteProjects),
             ("/marxan-server/renameProject", renameProject),

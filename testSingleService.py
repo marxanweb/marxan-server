@@ -217,8 +217,11 @@ class TestClass(AsyncHTTPTestCase):
         self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
 
     #WebSocket request
-    def test_2300_resetDatabase(self):
-        self.makeWebSocketRequest('/resetDatabase', False)
+    # def test_2300_exportProject(self):
+    #     self.makeWebSocketRequest('/exportProject?user=admin&project=Start%20project', False)
+
+    def test_2400_importProject(self):
+        self.makeWebSocketRequest('/importProject?user=admin&project=Start%20project2&filename=admin_Start%20project.mxw', False)
 
     # def test_1080_createFeaturesFromWFS(self):
     #     features = self.makeWebSocketRequest('/createFeaturesFromWFS2?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test&description=wibble&srs=EPSG:3857', False)

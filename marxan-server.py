@@ -1,5 +1,6 @@
 #!/home/ubuntu/miniconda2/envs/python36/bin/python3.6 
-import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp, monkeypatch
+import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp, monkeypatch, numpy
+from psycopg2.extensions import register_adapter, AsIs
 from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
 from tornado.process import Subprocess
@@ -63,6 +64,10 @@ SHUTDOWN_FILENAME = "shutdown.dat"
 SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
 WDPA_DOWNLOAD_FILE = "wdpa.zip"
+EXPORT_F_SHP_FOLDER = "f_shps"
+EXPORT_PU_SHP_FOLDER = "pu_shps"
+EXPORT_F_METADATA = 'features.csv'
+EXPORT_PU_METADATA = 'planning_grid.csv'
 GBIF_API_ROOT = "https://api.gbif.org/v1/"
 GBIF_CONCURRENCY = 10
 GBIF_PAGE_SIZE = 300
@@ -119,6 +124,8 @@ async def _setGlobalVariables():
     MBAT = _getMBAT()
     #initialise colorama to be able to show log messages on windows in color
     colorama.init()
+    #register numpy int64 with psycopg2
+    psycopg2.extensions.register_adapter(numpy.int64, psycopg2._psycopg.AsIs)
     #get the folder from this files path
     MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + os.sep
     #get the data in the server configuration file
@@ -956,6 +963,28 @@ def _normaliseDataFrame(df, columnToNormaliseBy, puidColumnName, classes = None)
         #build the response, e.g. a normal data frame with repeated values in the columnToNormaliseBy -> [["VI", [7, 8, 9]], ["IV", [0, 1, 2, 3, 4]], ["V", [5, 6]]]
         response = [[g, df[puidColumnName][groups[g]].values.tolist()] for g in groups if g not in [0]]
     return response
+
+#updates the values in a dataframe using a mapping dataframe - the values in the df_join_field are replaced by those in new_values_field
+def _updateDataFrame(df, mapping, df_join_field, mapping_join_field, new_values_field):
+    #set the index on the df
+    df.set_index(df_join_field,inplace=True)
+    #get a copy of the mapping df
+    _mapping = mapping.copy()
+    #rename the join field to match the join field in the df
+    _mapping = _mapping.rename(columns={mapping_join_field: df_join_field})
+    #set the index on the mapping DF
+    _mapping.set_index(df_join_field,inplace=True)
+    #get the column names from the df
+    column_names = df.columns.to_list()
+    #join the two data frames
+    df = df.join(_mapping) 
+    #remove the index from the df
+    df = df.reset_index()
+    df = df.drop(df_join_field,axis=1)
+    #rename the field which contains the new values
+    df = df.rename(columns={new_values_field: df_join_field})
+    column_names.insert(0, df_join_field)
+    return df[column_names]
 
 #gets the statistics for a species from the puvspr.dat file, i.e. count and area, as a dataframe record
 def _getPuvsprStats(df, speciesId):
@@ -2896,10 +2925,7 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             if "user" in self.request.arguments.keys():
                 _setFolderPaths(self, self.request.arguments)
                 #get the project data
-                try:
-                    await _getProjectData(self)
-                except FileNotFoundError: #the input.dat file may not exist
-                    pass
+                await _getProjectData(self)
             #check the request is authenticated
             _authenticate(self)
             #get the requested method
@@ -3431,13 +3457,150 @@ class createFeaturesFromWFS(MarxanWebSocketHandler):
                 if os.path.exists(MARXAN_FOLDER + feature_class_name + ".gfs"):
                     os.remove(MARXAN_FOLDER + feature_class_name + ".gfs")
 
+#exports a project
+class exportProject(MarxanWebSocketHandler):
+    async def open(self):
+        try:
+            await super().open({'info': "Exporting project.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
+            _validateArguments(self.request.arguments, ['user','project'])    
+            self.send_response({'status':'Preprocessing', 'info': "Copying project folder.."})
+            #create a folder in the export folder to hold all the files
+            exportFolder = EXPORT_FOLDER + self.get_argument('user') + "_" + self.get_argument('project')
+            #remote the folder if it already exists
+            if os.path.exists(exportFolder):
+                shutil.rmtree(exportFolder)
+            #copy the project folder
+            shutil.copytree(self.folder_project, exportFolder)
+            #FEATURES
+            #get the species data from the spec.dat file and the PostGIS database
+            await _getSpeciesData(self)
+            #get the feature class names that must be exported from postgis
+            feature_class_names = self.speciesData['feature_class_name'].tolist()
+            #export all of the feature classes as shapefiles
+            self.send_response({'status':'Preprocessing', 'info': "Exporting features.."})
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + os.sep + EXPORT_F_SHP_FOLDER + os.sep + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" ' + " ".join(feature_class_names)
+            await _runCmd(cmd)
+            #export the features metadata
+            self.send_response({'status':'Preprocessing', 'info': "Exporting feature metadata.."})
+            escapedFeatureNames = "\'" + "\',\'".join(feature_class_names) + "\'"
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "CSV" "' + exportFolder + os.sep + EXPORT_F_METADATA + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT oid, feature_class_name, alias, description FROM metadata_interest_features WHERE feature_class_name = ANY (ARRAY[' + escapedFeatureNames + ']);" -lco SEPARATOR=TAB'
+            await _runCmd(cmd)
+            #PLANNING GRIDS
+            #export the planning unit grid
+            pu_name = self.projectData['metadata']['PLANNING_UNIT_NAME']
+            self.send_response({'status':'Preprocessing', 'info': "Exporting planning grid.."})
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + os.sep + EXPORT_PU_SHP_FOLDER + os.sep + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" ' + pu_name
+            await _runCmd(cmd)
+            #export the planning grid metadata - convert the envelope geometry field to text
+            self.send_response({'status':'Preprocessing', 'info': "Exporting planning grid metadata.."})
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "CSV" "' + exportFolder + os.sep + EXPORT_PU_METADATA + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT feature_class_name, alias, description, country_id, aoi_id, domain, _area, ST_AsText(envelope) envelope, creation_date, source, created_by, tilesetid, planning_unit_count FROM marxan.metadata_planning_units WHERE feature_class_name = \'' + pu_name + '\';" -lco SEPARATOR=TAB'
+            await _runCmd(cmd)
+            #zip the whole folder
+            self.send_response({'status':'Preprocessing', 'info': "Zipping project.."})
+            await IOLoop.current().run_in_executor(None, _zipfolder, exportFolder, exportFolder) 
+            #rename with a mxw extension
+            os.rename(exportFolder + ".zip", exportFolder + ".mxw")
+            #delete the folder
+            shutil.rmtree(exportFolder)
+            #return the results
+            self.close({'info':"Export project complete", 'filename': self.get_argument('user') + "_" + self.get_argument('project') + ".mxw"})
+    
+#imports a project that has already been uploaded to the imports folder
+class importProject(MarxanWebSocketHandler):
+    async def open(self):
+        try:
+            _validateArguments(self.request.arguments, ['user','project','filename'])    
+            user = self.get_argument('user')
+            project = self.get_argument('project')
+            projectFolder = MARXAN_USERS_FOLDER + user + os.sep + project + os.sep
+            if os.path.exists(projectFolder):
+                shutil.rmtree(projectFolder)
+            #create the project folder
+            os.mkdir(projectFolder)
+            #unzip the files to the project folder
+            zip_ref = zipfile.ZipFile(IMPORT_FOLDER + self.get_argument('filename'), 'r')
+            zip_ref.extractall(projectFolder)
+            await super().open({'info': "Importing project.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
+            #FEATURES
+            #import all of the shapefiles - those that already exist are skipped
+            self.send_response({'status':'Preprocessing', 'info': "Importing features.."})
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + projectFolder + EXPORT_F_SHP_FOLDER + os.sep + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -t_srs EPSG:4326 -lco precision=NO -skipfailures'
+            result = await _runCmd(cmd)
+            #load the metadata
+            df = pandas.read_csv(projectFolder + EXPORT_F_METADATA, sep='\t')
+            #iterate throught the features and if there is no record in the metadata_interest_features table then add it
+            for index, row in df.iterrows():
+                results = await pg.execute("SELECT * FROM marxan.metadata_interest_features WHERE feature_class_name = %s;", data=[row['feature_class_name']], returnFormat="Array")
+                if len(results) == 0:
+                    #add the new feature
+                    self.send_response({'status':'Preprocessing', 'info': "Importing " + row['alias']})
+                    await _finishImportingFeature(row['feature_class_name'], row['alias'], row['description'], 'Imported with project ' + user + '/' + project, user)
+                else:
+                    self.send_response({'status':'Preprocessing', 'info': row['alias'] + ' already exists - skipping'})
+            #get the ids of the features so we can remap them in the spec.dat and the puvspr.dat files
+            self.send_response({'status':'Preprocessing', 'info':'Updating feature id values..'})
+            feature_class_names = df['feature_class_name'].tolist()
+            df2 = await pg.execute("SELECT oid, feature_class_name FROM marxan.metadata_interest_features WHERE feature_class_name = ANY (ARRAY[%s]);", data=[feature_class_names], returnFormat="DataFrame")
+            #join the source dataframe and the new data
+            df = df[['feature_class_name','oid']].rename(columns={'feature_class_name':'fcn','oid':'id'}).set_index('fcn')
+            df2 = df2[['feature_class_name','oid']].rename(columns={'feature_class_name':'fcn','oid':'new_id'}).set_index('fcn')
+            #create a data frame with the old oid and the new old for the feature class
+            mapping = df.join(df2)
+            #update the values in the feature_preprocessing.dat file
+            _getSpeciesPreProcessingData(self)
+            df = _updateDataFrame(self.speciesPreProcessingData, mapping, 'id', 'id', 'new_id')
+            df.to_csv(self.folder_input + FEATURE_PREPROCESSING_FILENAME, index = False)
+            #update the values in the spec.dat file
+            df = await _getProjectInputData(self, "SPECNAME")
+            df = _updateDataFrame(df, mapping, 'id', 'id', 'new_id')
+            await _writeCSV(self, "SPECNAME", df)
+            #update the values in the puvsrp.dat file
+            df = await _getProjectInputData(self, "PUVSPRNAME")
+            df = _updateDataFrame(df, mapping, 'species', 'id', 'new_id')
+            df = df.sort_values(by=['pu','species'])
+            await _writeCSV(self, "PUVSPRNAME", df)
+            #clear the output so we dont have to update the feature ids in any other file
+            _deleteAllFiles(self.folder_output)
+            #PLANNING GRID
+            #import the planning grid shapefile
+            self.send_response({'status':'Preprocessing', 'info': "Importing planning grid.."})
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + projectFolder + EXPORT_PU_SHP_FOLDER + os.sep + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -t_srs EPSG:4326 -lco precision=NO -skipfailures'
+            await _runCmd(cmd)
+            #load the metadata
+            df = pandas.read_csv(projectFolder + EXPORT_PU_METADATA, sep='\t')
+            #replace NaN with None
+            df = df.where(pandas.notnull(df), None)
+            #get the row from the dataframe
+            row = df.iloc[0]
+            #see if the planning grid already exists
+            results = await pg.execute("SELECT * FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", data=[row['feature_class_name']], returnFormat="Array")
+            if len(results) == 0:
+                #add the new planning grid
+                self.send_response({'status':'Preprocessing', 'info': "Importing " + row['alias'] + ' metadata'})
+                await pg.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name, alias, description, country_id, aoi_id, domain, _area, envelope, creation_date, source, created_by, tilesetid, planning_unit_count) VALUES (%s,%s,%s,%s,%s,%s,%s,ST_SetSRID(ST_GeomFromText(%s),'4326'),now(),'Imported from .mxw file',%s,%s,%s);", data=[row['feature_class_name'], row['alias'], row['description'], row['country_id'], row['aoi_id'], row['domain'], row['_area'], row['envelope'], user, row['tilesetid'], row['planning_unit_count']])
+            else:
+                self.send_response({'status':'Preprocessing', 'info': row['alias'] + ' metadata already exists - skipping'})
+            #cleanup
+            shutil.rmtree(projectFolder + EXPORT_F_SHP_FOLDER)
+            shutil.rmtree(projectFolder + EXPORT_PU_SHP_FOLDER)
+            os.remove(projectFolder + EXPORT_F_METADATA)
+            os.remove(projectFolder + EXPORT_PU_METADATA)
+            #return the results
+            self.close({'info':"Import project complete"})
+
 ####################################################################################################################################################################################################################################################################
 ## baseclass for handling long-running PostGIS queries using WebSockets
 ####################################################################################################################################################################################################################################################################
 
 class QueryWebSocketHandler(MarxanWebSocketHandler):
     
-    #runs a PostGIS query asynchronously and writes the pid to the client
+    #runs a PostGIS query asynchronously and writes the pid to the client so the query can be stopped
     async def executeQuery(self, sql, data=None, returnFormat=None):
         try:
             return await pg.execute(sql, data=data, returnFormat=returnFormat, socketHandler=self)
@@ -3596,85 +3759,6 @@ class runGapAnalysis(QueryWebSocketHandler):
             df = await self.executeQuery("SELECT * FROM marxan.gap_analysis(%s,%s,%s,%s)", data=[self.projectData["metadata"]["PLANNING_UNIT_NAME"], featureIds, self.get_argument("user"), project_name], returnFormat="DataFrame")
             #return the results
             self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
-
-#exports a project
-class exportProject(QueryWebSocketHandler):
-    async def open(self):
-        try:
-            await super().open({'info': "Exporting project.."})
-        except MarxanServicesError: #authentication/authorisation error
-            pass
-        else:
-            _validateArguments(self.request.arguments, ['user','project'])    
-            self.send_response({'status':'Preprocessing', 'info': "Copying project folder.."})
-            #create a folder in the export folder to hold all the files
-            exportFolder = EXPORT_FOLDER + self.get_argument('user') + "_" + self.get_argument('project')
-            #remote the folder if it already exists
-            if os.path.exists(exportFolder):
-                shutil.rmtree(exportFolder)
-            #copy the project folder
-            shutil.copytree(self.folder_project, exportFolder)
-            #get the species data from the spec.dat file and the PostGIS database
-            await _getSpeciesData(self)
-            #get the feature class names that must be exported from postgis
-            feature_class_names = self.speciesData['feature_class_name'].tolist()
-            #export all of the feature classes as shapefiles
-            self.send_response({'status':'Preprocessing', 'info': "Exporting features.."})
-            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + os.sep + 'shapefiles' + os.sep + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" ' + " ".join(feature_class_names)
-            result = await _runCmd(cmd)
-            #export the features metadata
-            self.send_response({'status':'Preprocessing', 'info': "Exporting metadata.."})
-            escapedFeatureNames = "\'" + "\',\'".join(feature_class_names) + "\'"
-            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "CSV" "' + exportFolder + os.sep + 'features.csv" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT oid, feature_class_name, alias, description FROM metadata_interest_features WHERE feature_class_name = ANY (ARRAY[' + escapedFeatureNames + ']);" -lco SEPARATOR=TAB'
-            result = await _runCmd(cmd)
-            #zip the whole folder
-            self.send_response({'status':'Preprocessing', 'info': "Zipping project.."})
-            await IOLoop.current().run_in_executor(None, _zipfolder, exportFolder, exportFolder) 
-            #rename with a mxw extension
-            os.rename(exportFolder + ".zip", exportFolder + ".mxw")
-            #delete the folder
-            shutil.rmtree(exportFolder)
-            #return the results
-            self.close({'info':"Export project complete", 'filename': self.get_argument('user') + "_" + self.get_argument('project') + ".mxw"})
-    
-#imports a project that has already been uploaded to the imports folder
-class importProject(QueryWebSocketHandler):
-    async def open(self):
-        try:
-            await super().open({'info': "Importing project.."})
-        except MarxanServicesError: #authentication/authorisation error
-            pass
-        else:
-            _validateArguments(self.request.arguments, ['user','project','filename'])    
-            user = self.get_argument('user')
-            project = self.get_argument('project')
-            #unzip the file 
-            zip_ref = zipfile.ZipFile(IMPORT_FOLDER + self.get_argument('filename'), 'r')
-            projectFolder = IMPORT_FOLDER + os.path.basename(self.get_argument('filename'))[:-4] + os.sep
-            zip_ref.extractall(projectFolder)
-            #import all of the shapefiles - those that already exist are skipped
-            self.send_response({'status':'Preprocessing', 'info': "Importing features.."})
-            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + projectFolder + 'shapefiles' + os.sep + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -t_srs EPSG:4326 -lco precision=NO -skipfailures'
-            result = await _runCmd(cmd)
-            #load the metadata
-            df = pandas.read_csv(projectFolder + 'features.csv', sep='\t')
-            #iterate throught the features and if there is no record in the metadata_interest_features table then add it
-            for index, row in df.iterrows():
-                results = await pg.execute("SELECT * FROM marxan.metadata_interest_features WHERE feature_class_name = %s;", data=[row['feature_class_name']], returnFormat="Array")
-                if len(results) == 0:
-                    #add the new feature
-                    await _finishImportingFeature(row['feature_class_name'], row['alias'], row['description'], 'Imported with project ' + user + '/' + project, user)
-            #get the ids of the features so we can remap them in the spec.dat and the puvspr.dat files
-            feature_class_names = df['feature_class_name'].tolist()
-            df2 = await pg.execute("SELECT oid, feature_class_name FROM marxan.metadata_interest_features WHERE feature_class_name = ANY (ARRAY[%s]);", data=[feature_class_names], returnFormat="DataFrame")
-            #join the source dataframe and the new data
-            df = df[['feature_class_name','oid']].rename(columns={'feature_class_name':'fcn','oid':'old_oid'}).set_index('fcn')
-            df2 = df2[['feature_class_name','oid']].rename(columns={'feature_class_name':'fcn','oid':'new_oid'}).set_index('fcn')
-            #create a data frame with the old oid and the new old for the feature class
-            mapping = df.join(df2)
-            print(mapping)
-            #return the results
-            self.close({'info':"Import project complete"})
 
 #resets the database and files to their original state
 #DONT CALL THIS DIRECTLY

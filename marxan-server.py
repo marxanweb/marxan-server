@@ -2659,9 +2659,9 @@ class uploadShapefile(MarxanRESTHandler):
     def post(self):
         try:
             #validate the input arguments
-            _validateArguments(self.request.arguments, ['filename','name','description'])   
+            _validateArguments(self.request.arguments, ['filename','name','description','destFolder'])   
             #write the file to the server
-            _writeFile(MARXAN_FOLDER + self.get_argument('filename'), self.request.files['value'][0].body)
+            _writeFile(MARXAN_FOLDER + self.get_argument('destFolder') + self.get_argument('filename'), self.request.files['value'][0].body)
             #set the response
             self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
         except MarxanServicesError as e:

@@ -1692,7 +1692,7 @@ class PostGIS():
         try:
             #drop the feature class if it already exists
             await self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
-            #using ogr2ogr produces an additional field - the ogc_fid field which is an autonumbering oid. Here we import into the marxan schema and rename the geometry field from the default (wkb_geometry) to geometry
+            #using ogr2ogr - rename the geometry field from the default (wkb_geometry) to geometry
             cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + filename + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -s_srs ' + sEpsgCode + ' -t_srs ' + tEpsgCode + ' -lco precision=NO'
             logging.debug(cmd)
             #run the command
@@ -3903,11 +3903,13 @@ class Application(tornado.web.Application):
             ("/marxan-server/shutdown", shutdown),
             ("/marxan-server/block", block),
             ("/marxan-server/testTornado", testTornado),
+            ("/marxan-server/exports/(.*)", tornado.web.StaticFileHandler,dict(path=EXPORT_FOLDER)),
             ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
             (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
         ]
         settings = dict(
-            cookie_secret=COOKIE_RANDOM_VALUE
+            cookie_secret=COOKIE_RANDOM_VALUE,
+            static_path=EXPORT_FOLDER
         )
         super(Application, self).__init__(handlers, **settings)
 

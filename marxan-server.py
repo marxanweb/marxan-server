@@ -3568,10 +3568,6 @@ class importProject(MarxanWebSocketHandler):
             #clear the output so we dont have to update the feature ids in any other file
             _deleteAllFiles(self.folder_output)
             #PLANNING GRID
-            #import the planning grid shapefile
-            self.send_response({'status':'Preprocessing', 'info': "Importing planning grid.."})
-            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + projectFolder + EXPORT_PU_SHP_FOLDER + os.sep + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -t_srs EPSG:4326 -lco precision=NO -skipfailures'
-            await _runCmd(cmd)
             #load the metadata
             df = pandas.read_csv(projectFolder + EXPORT_PU_METADATA, sep='\t')
             #replace NaN with None
@@ -3579,11 +3575,15 @@ class importProject(MarxanWebSocketHandler):
             #get the row from the dataframe
             row = df.iloc[0]
             #see if the planning grid already exists
+            self.send_response({'status':'Preprocessing', 'info': 'Importing planning grid..'})
             results = await pg.execute("SELECT * FROM marxan.metadata_planning_units WHERE feature_class_name = %s;", data=[row['feature_class_name']], returnFormat="Array")
             if len(results) == 0:
-                #add the new planning grid
-                self.send_response({'status':'Preprocessing', 'info': "Importing " + row['alias'] + ' metadata'})
+                #add the new planning grid metadata
                 await pg.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name, alias, description, country_id, aoi_id, domain, _area, envelope, creation_date, source, created_by, tilesetid, planning_unit_count) VALUES (%s,%s,%s,%s,%s,%s,%s,ST_SetSRID(ST_GeomFromText(%s),'4326'),now(),'Imported from .mxw file',%s,%s,%s);", data=[row['feature_class_name'], row['alias'], row['description'], row['country_id'], row['aoi_id'], row['domain'], row['_area'], row['envelope'], user, row['tilesetid'], row['planning_unit_count']])
+                #import the planning grid shapefile
+                self.send_response({'status':'Preprocessing', 'info': 'Importing planning grid ' + row['alias']})
+                cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + projectFolder + EXPORT_PU_SHP_FOLDER + os.sep + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -t_srs EPSG:4326 -lco precision=NO -lco FID=puid -skipfailures'
+                await _runCmd(cmd)
             else:
                 self.send_response({'status':'Preprocessing', 'info': row['alias'] + ' metadata already exists - skipping'})
             #cleanup
@@ -3591,7 +3591,7 @@ class importProject(MarxanWebSocketHandler):
             shutil.rmtree(projectFolder + EXPORT_PU_SHP_FOLDER)
             os.remove(projectFolder + EXPORT_F_METADATA)
             os.remove(projectFolder + EXPORT_PU_METADATA)
-            os.remove(IMPORT_FOLDER + self.get_argument('filename'))
+            # os.remove(IMPORT_FOLDER + self.get_argument('filename'))
             #return the results
             self.close({'info':"Import project complete"})
 

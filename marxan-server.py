@@ -3591,7 +3591,7 @@ class importProject(MarxanWebSocketHandler):
             shutil.rmtree(projectFolder + EXPORT_PU_SHP_FOLDER)
             os.remove(projectFolder + EXPORT_F_METADATA)
             os.remove(projectFolder + EXPORT_PU_METADATA)
-            # os.remove(IMPORT_FOLDER + self.get_argument('filename'))
+            os.remove(IMPORT_FOLDER + self.get_argument('filename'))
             #return the results
             self.close({'info':"Import project complete"})
 

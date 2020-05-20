@@ -7,7 +7,7 @@
 # To test against an SSL localhost:
 # 1. Replace all AsyncHTTPTestCase with AsyncHTTPSTestCase
 # 2. Set TEST_HTTP, TEST_WS and TEST_REFERER to point to secure endpoints, e.g. https and wss
-import unittest, importlib, tornado, aiopg, json, urllib, os, sys
+import unittest, importlib, tornado, aiopg, json, urllib, os, sys, shutil
 from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.ioloop import IOLoop
 from tornado.httpclient import HTTPRequest
@@ -292,6 +292,15 @@ class TestClass(AsyncHTTPTestCase):
 
     def test_1400_deleteProjects(self): 
         self.makeRequest('/deleteProjects?projectNames=' + projects, False)
+
+    def test_1430_exportProject(self):
+        self.makeWebSocketRequest('/exportProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+        shutil.copy(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw", m.IMPORT_FOLDER)
+        os.remove(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw")
+        
+    def test_1460_importProject(self):
+        self.makeWebSocketRequest('/importProject?user=' + TEST_USER + '&project=wibble&filename=' + TEST_USER + "_" + TEST_PROJECT + ".mxw", False)
+        self.makeRequest('/deleteProject?user=' + TEST_USER + '&project=wibble', False)
 
     def test_1500_renameProject(self):
         self.makeRequest('/renameProject?user=' + TEST_USER + '&project=' + TEST_PROJECT + "&newName=wibble", False)

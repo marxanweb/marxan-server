@@ -3492,7 +3492,7 @@ class exportProject(MarxanWebSocketHandler):
             #export the planning unit grid
             pu_name = self.projectData['metadata']['PLANNING_UNIT_NAME']
             self.send_response({'status':'Preprocessing', 'info': "Exporting planning grid.."})
-            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + os.sep + EXPORT_PU_SHP_FOLDER + os.sep + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" ' + pu_name
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + os.sep + EXPORT_PU_SHP_FOLDER + os.sep + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT * FROM ' + pu_name + ';" -nln ' + pu_name
             await _runCmd(cmd)
             #export the planning grid metadata - convert the envelope geometry field to text
             self.send_response({'status':'Preprocessing', 'info': "Exporting planning grid metadata.."})
@@ -3591,6 +3591,7 @@ class importProject(MarxanWebSocketHandler):
             shutil.rmtree(projectFolder + EXPORT_PU_SHP_FOLDER)
             os.remove(projectFolder + EXPORT_F_METADATA)
             os.remove(projectFolder + EXPORT_PU_METADATA)
+            os.remove(IMPORT_FOLDER + self.get_argument('filename'))
             #return the results
             self.close({'info':"Import project complete"})
 

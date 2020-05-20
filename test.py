@@ -351,7 +351,7 @@ class TestClass(AsyncHTTPTestCase):
     def test_2900_uploadShapefile(self):
         #get the path to the file to upload
         testFile = TEST_DATA_FOLDER + TEST_ZIP_SHP_MULTIPLE
-        self.uploadShapefile(testFile, {'name': 'whatever', 'description': 'whatever2', 'filename': TEST_ZIP_SHP_MULTIPLE}, False)
+        self.uploadShapefile(testFile, {'name': 'whatever', 'description': 'whatever2', 'filename': TEST_ZIP_SHP_MULTIPLE,'destFolder':''}, False)
         # TODO The following is a hack as I cant upload a zip file as a binary file through the API, so all subsequent operations on the zip shapefile fail
         copyTestData(TEST_ZIP_SHP_MULTIPLE)
 

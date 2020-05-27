@@ -34,7 +34,7 @@ from osgeo import ogr
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadShapefile","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadFileToFolder","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject"],
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup"],
     "Admin": []
 }
@@ -332,9 +332,9 @@ def _dismissNotification(obj, notificationid):
 def _resetNotifications(obj):
     _writeFileUnicode(obj.folder_user + NOTIFICATIONS_FILENAME, "")    
     
-#returns the project name without spaces or other invalid characters
+#returns the project name without internal spaces or other invalid characters
 def _getSafeProjectName(project_name):
-    return project_name.replace(" ", "_")
+    return project_name.strip().replace(" ", "_")
     
 #gets the projects for the specified user
 async def _getProjectsForUser(user):
@@ -2653,13 +2653,13 @@ class uploadTilesetToMapBox(MarxanRESTHandler):
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])
             
-#uploads a shapefile to the marxan root folder
+#uploads a file to a specific folder
 #POST ONLY 
-class uploadShapefile(MarxanRESTHandler):
+class uploadFileToFolder(MarxanRESTHandler):
     def post(self):
         try:
             #validate the input arguments
-            _validateArguments(self.request.arguments, ['filename','name','description','destFolder'])   
+            _validateArguments(self.request.arguments, ['filename','destFolder'])   
             #write the file to the server
             _writeFile(MARXAN_FOLDER + self.get_argument('destFolder') + self.get_argument('filename'), self.request.files['value'][0].body)
             #set the response
@@ -2667,7 +2667,7 @@ class uploadShapefile(MarxanRESTHandler):
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])
         
-#saves an uploaded file to the filename - 3 input parameters: user, project, filename (relative) and the file itself as a request file
+#uploads a file to the project folder - 3 input parameters: user, project, filename (relative) and the file itself as a request file
 #POST ONLY 
 class uploadFile(MarxanRESTHandler):
     def post(self):
@@ -3512,9 +3512,9 @@ class exportProject(MarxanWebSocketHandler):
 class importProject(MarxanWebSocketHandler):
     async def open(self):
         try:
-            _validateArguments(self.request.arguments, ['user','project','filename'])    
+            _validateArguments(self.request.arguments, ['user','project','filename','description'])    
             user = self.get_argument('user')
-            project = self.get_argument('project')
+            project = self.get_argument('project').strip()
             projectFolder = MARXAN_USERS_FOLDER + user + os.sep + project + os.sep
             if os.path.exists(projectFolder):
                 shutil.rmtree(projectFolder)
@@ -3586,6 +3586,8 @@ class importProject(MarxanWebSocketHandler):
                 await _runCmd(cmd)
             else:
                 self.send_response({'status':'Preprocessing', 'info': row['alias'] + ' metadata already exists - skipping'})
+            #update the project description
+            _updateParameters(projectFolder + PROJECT_DATA_FILENAME, {'DESCRIPTION': self.get_argument('description')})
             #cleanup
             shutil.rmtree(projectFolder + EXPORT_F_SHP_FOLDER)
             shutil.rmtree(projectFolder + EXPORT_PU_SHP_FOLDER)
@@ -3845,7 +3847,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/createPlanningUnitGrid", createPlanningUnitGrid),
             ("/marxan-server/deletePlanningUnitGrid", deletePlanningUnitGrid),
             ("/marxan-server/uploadTilesetToMapBox", uploadTilesetToMapBox),
-            ("/marxan-server/uploadShapefile", uploadShapefile),
+            ("/marxan-server/uploadFileToFolder", uploadFileToFolder),
             ("/marxan-server/unzipShapefile", unzipShapefile),
             ("/marxan-server/deleteShapefile", deleteShapefile),
             ("/marxan-server/getShapefileFieldnames", getShapefileFieldnames),

@@ -174,9 +174,9 @@ class TestClass(AsyncHTTPTestCase):
         headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
         self.makeRequest('/uploadFile', mustReturnError, method='POST', headers=headers, body=body)
 
-    def uploadShapefile(self, fullPath, formData, mustReturnError):
+    def uploadFileToFolder(self, fullPath, formData, mustReturnError):
         headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
-        self.makeRequest('/uploadShapefile', mustReturnError, method='POST', headers=headers, body=body)
+        self.makeRequest('/uploadFileToFolder', mustReturnError, method='POST', headers=headers, body=body)
     
     def getRequestHeaders(self, fullPath, formData, mustReturnError):
         #get the filename from the full path
@@ -299,7 +299,7 @@ class TestClass(AsyncHTTPTestCase):
         os.remove(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw")
         
     def test_1460_importProject(self):
-        self.makeWebSocketRequest('/importProject?user=' + TEST_USER + '&project=wibble&filename=' + TEST_USER + "_" + TEST_PROJECT + ".mxw", False)
+        self.makeWebSocketRequest('/importProject?user=' + TEST_USER + '&project=wibble&filename=' + TEST_USER + "_" + TEST_PROJECT + ".mxw&description=wibble%20description", False)
         self.makeRequest('/deleteProject?user=' + TEST_USER + '&project=wibble', False)
 
     def test_1500_renameProject(self):
@@ -348,10 +348,10 @@ class TestClass(AsyncHTTPTestCase):
     def test_2800_getFeature(self):
         self.makeRequest('/getFeature?oid=63407942', False)
         
-    def test_2900_uploadShapefile(self):
+    def test_2900_uploadFileToFolder(self):
         #get the path to the file to upload
         testFile = TEST_DATA_FOLDER + TEST_ZIP_SHP_MULTIPLE
-        self.uploadShapefile(testFile, {'name': 'whatever', 'description': 'whatever2', 'filename': TEST_ZIP_SHP_MULTIPLE,'destFolder':''}, False)
+        self.uploadFileToFolder(testFile, {'filename': TEST_ZIP_SHP_MULTIPLE,'destFolder':''}, False)
         # TODO The following is a hack as I cant upload a zip file as a binary file through the API, so all subsequent operations on the zip shapefile fail
         copyTestData(TEST_ZIP_SHP_MULTIPLE)
 

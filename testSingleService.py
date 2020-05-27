@@ -184,9 +184,9 @@ class TestClass(AsyncHTTPTestCase):
         headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
         self.makeRequest('/uploadFile', mustReturnError, method='POST', headers=headers, body=body)
 
-    def uploadShapefile(self, fullPath, formData, mustReturnError):
+    def uploadFileToFolder(self, fullPath, formData, mustReturnError):
         headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
-        self.makeRequest('/uploadShapefile', mustReturnError, method='POST', headers=headers, body=body)
+        self.makeRequest('/uploadFileToFolder', mustReturnError, method='POST', headers=headers, body=body)
     
     def getRequestHeaders(self, fullPath, formData, mustReturnError):
         #get the filename from the full path
@@ -221,7 +221,7 @@ class TestClass(AsyncHTTPTestCase):
     #     self.makeWebSocketRequest('/exportProject?user=admin&project=Start%20project', False)
 
     def test_2400_importProject(self):
-        self.makeWebSocketRequest('/importProject?user=admin&project=Start%20project2&filename=admin_Start%20project.mxw', False)
+        self.makeWebSocketRequest('/importProject?user=admin&project=Start%20project2&filename=admin_Start%20project.mxw&description=wibble%20description', False)
 
     # def test_1080_createFeaturesFromWFS(self):
     #     features = self.makeWebSocketRequest('/createFeaturesFromWFS2?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test&description=wibble&srs=EPSG:3857', False)

@@ -34,7 +34,7 @@ from osgeo import ogr
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadFileToFolder","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject",'getCosts','updateCosts'],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadFileToFolder","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject",'getCosts','updateCosts','deleteCost'],
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup"],
     "Admin": []
 }
@@ -615,6 +615,15 @@ async def _updateCosts(obj, costname):
     #update the input.dat file
     _updateParameters(obj.folder_project + PROJECT_DATA_FILENAME, {'COSTS': costname})
     await _writeCSV(obj, "PUNAME", df)
+    
+#deletes a cost profile
+def _deleteCost(obj, costname):
+    filename = obj.folder_input + costname + ".cost"
+    #check the cost file exists
+    if not os.path.exists(filename):
+        raise MarxanServicesError("The cost file '" + costname + "' does not exist")
+    else:
+        os.remove(filename)
     
 #gets the data for the planning grids
 async def _getPlanningUnitGrids():
@@ -2370,6 +2379,20 @@ class updateCosts(MarxanRESTHandler):
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])
 
+#deletes a cost profile
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deleteCosts?user=admin&project=Start%20project&costname=wibble&callback=__jp2
+class deleteCost(MarxanRESTHandler):
+    def get(self):
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','costname'])    
+            #delete the cost
+            _deleteCost(self, self.get_argument("costname"))
+            #set the response
+            self.send_response({"info": 'Cost deleted'})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
+
 #gets the intersections of the planning units with the protected areas from the protected_area_intersections.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getProtectedAreaIntersectionsData?user=admin&project=Start%20project&callback=__jp2
 class getProtectedAreaIntersectionsData(MarxanRESTHandler):
@@ -3961,6 +3984,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/deleteGapAnalysis", deleteGapAnalysis),
             ("/marxan-server/getCosts", getCosts),
             ("/marxan-server/updateCosts", updateCosts),
+            ("/marxan-server/deleteCost", deleteCost),
             ("/marxan-server/importGBIFData", importGBIFData),
             ("/marxan-server/dismissNotification", dismissNotification),
             ("/marxan-server/resetNotifications", resetNotifications),

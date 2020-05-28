@@ -233,8 +233,8 @@ class TestClass(AsyncHTTPTestCase):
     # def test_1450_updateCosts(self):
     #     self.makeRequest('/updateCosts?user=admin&project=Start%20project&costname=Uniform', False)
     
-    def test_1450_getCosts(self):
-        self.makeRequest('/getCosts?user=admin&project=Start%20project', False)
+    def test_1450_deleteCost(self):
+        self.makeRequest('/deleteCost?user=admin&project=Start%20project&costname=wibble2', False)
 
     # def test_3000_unzipShapefile(self):
     #     copyTestData(TEST_ZIP_SHP_MULTIPLE)

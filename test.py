@@ -286,6 +286,9 @@ class TestClass(AsyncHTTPTestCase):
 
     def test_1170_updateCosts(self):
         self.makeRequest('/updateCosts?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&costname=Uniform', False)
+    
+    def test_1180_deleteCost(self):
+        self.makeRequest('/deleteCost?user=admin&project=Start%20project&costname=wibble2', True)
 
     def test_1200_cloneProject(self):
         self.makeRequest('/cloneProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)

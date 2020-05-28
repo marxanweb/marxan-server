@@ -281,6 +281,12 @@ class TestClass(AsyncHTTPTestCase):
     def test_1150_getProject(self):
         self.makeRequest('/getProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
+    def test_1160_getCosts(self):
+        self.makeRequest('/getCosts?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+
+    def test_1170_updateCosts(self):
+        self.makeRequest('/updateCosts?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&costname=Uniform', False)
+
     def test_1200_cloneProject(self):
         self.makeRequest('/cloneProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 

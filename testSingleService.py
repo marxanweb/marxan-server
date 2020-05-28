@@ -220,8 +220,8 @@ class TestClass(AsyncHTTPTestCase):
     # def test_2300_exportProject(self):
     #     self.makeWebSocketRequest('/exportProject?user=admin&project=Start%20project', False)
 
-    def test_2400_importProject(self):
-        self.makeWebSocketRequest('/importProject?user=admin&project=Start%20project2&filename=admin_Start%20project.mxw&description=wibble%20description', False)
+    # def test_2400_importProject(self):
+    #     self.makeWebSocketRequest('/importProject?user=admin&project=Start%20project2&filename=admin_Start%20project.mxw&description=wibble%20description', False)
 
     # def test_1080_createFeaturesFromWFS(self):
     #     features = self.makeWebSocketRequest('/createFeaturesFromWFS2?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test&description=wibble&srs=EPSG:3857', False)
@@ -230,9 +230,11 @@ class TestClass(AsyncHTTPTestCase):
     #     for f in fcns:
     #         self.makeRequest('/deleteFeature?feature_name=' + f, False)
 
-    #this needs some data to be in the puvspr.dat file
-    # def test_1450_createFeaturePreprocessingFileFromImport(self):
-    #     self.makeRequest('/createFeaturePreprocessingFileFromImport?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+    # def test_1450_updateCosts(self):
+    #     self.makeRequest('/updateCosts?user=admin&project=Start%20project&costname=Uniform', False)
+    
+    def test_1450_getCosts(self):
+        self.makeRequest('/getCosts?user=admin&project=Start%20project', False)
 
     # def test_3000_unzipShapefile(self):
     #     copyTestData(TEST_ZIP_SHP_MULTIPLE)

@@ -34,7 +34,7 @@ from osgeo import ogr
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadFileToFolder","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadFileToFolder","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject",'getCosts','updateCosts'],
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup"],
     "Admin": []
 }
@@ -73,6 +73,7 @@ GBIF_CONCURRENCY = 10
 GBIF_PAGE_SIZE = 300
 GBIF_POINT_BUFFER_RADIUS = 1000
 GBIF_OCCURRENCE_LIMIT = 200000 # from the GBIF docs here: https://www.gbif.org/developer/occurrence#search
+UNIFORM_COSTS_NAME = "Uniform"
 DOCS_ROOT = "https://docs.marxanweb.org/"
 ERRORS_PAGE = DOCS_ROOT + "errors.html"
 SHUTDOWN_EVENT = tornado.locks.Event() #to allow Tornado to exit gracefully
@@ -442,7 +443,7 @@ async def _getProjectData(obj):
         elif k in ['BLM', 'PROP', 'RANDSEED', 'NUMREPS', 'NUMITNS', 'STARTTEMP', 'NUMTEMP', 'COSTTHRESH', 'THRESHPEN1', 'THRESHPEN2', 'SAVERUN', 'SAVEBEST', 'SAVESUMMARY', 'SAVESCEN', 'SAVETARGMET', 'SAVESUMSOLN', 'SAVEPENALTY', 'SAVELOG', 'RUNMODE', 'MISSLEVEL', 'ITIMPTYPE', 'HEURTYPE', 'CLUMPTYPE', 'VERBOSITY', 'SAVESOLUTIONSMATRIX']:
             key, value = _getKeyValue(s, k) #run parameters 
             paramsArray.append({'key': key, 'value': value})
-        elif k in ['DESCRIPTION','CREATEDATE','PLANNING_UNIT_NAME','OLDVERSION','IUCN_CATEGORY','PRIVATE']: # metadata section of the input.dat file
+        elif k in ['DESCRIPTION','CREATEDATE','PLANNING_UNIT_NAME','OLDVERSION','IUCN_CATEGORY','PRIVATE','COSTS']: # metadata section of the input.dat file
             key, value = _getKeyValue(s, k)
             metadataDict.update({key: value})
             if k=='PLANNING_UNIT_NAME':
@@ -583,6 +584,38 @@ async def _getPlanningUnitsCostData(obj):
     #normalise the planning unit cost data to make the payload smaller    
     obj.planningUnitsData = _normaliseDataFrame(df, "cost", "id", 9)
 
+#gets a list of the custom cost profiles for a project - these are defined in the input/*.cost files
+def _getCosts(obj):
+    #get all files that end in .cost
+    costFiles = glob.glob(obj.folder_input + "*.cost")
+    #get the names of the files
+    costNames = [os.path.basename(f)[:-5] for f in costFiles]
+    #add the default cost profile
+    costNames.append(UNIFORM_COSTS_NAME)
+    costNames.sort()
+    #return the costNames
+    obj.costNames = costNames
+
+#updates the costs in the pu.dat file using the costname file
+async def _updateCosts(obj, costname):
+    filename = obj.folder_input + costname + ".cost"
+    #load the pu.dat file
+    df = await _getProjectInputData(obj, "PUNAME")
+    #default costs are uniform
+    if costname==UNIFORM_COSTS_NAME:
+        df['cost'] = 1
+    else:
+        #check the cost file exists
+        if not os.path.exists(filename):
+            raise MarxanServicesError("The cost file '" + costname + "' does not exist")
+        #load the costs file
+        df2 = _loadCSV(filename)
+        #join the costs file (which has id,cost) to the pu.dat file (which has status)
+        df = df2.join(df[['status']])
+    #update the input.dat file
+    _updateParameters(obj.folder_project + PROJECT_DATA_FILENAME, {'COSTS': costname})
+    await _writeCSV(obj, "PUNAME", df)
+    
 #gets the data for the planning grids
 async def _getPlanningUnitGrids():
     return await pg.execute("SELECT feature_class_name ,alias ,description ,to_char(creation_date, 'DD/MM/YY HH24:MI:SS')::text AS creation_date ,country_id ,aoi_id,domain,_area,ST_AsText(envelope) envelope, pu.source, original_n country, created_by,tilesetid, planning_unit_count FROM marxan.metadata_planning_units pu LEFT OUTER JOIN marxan.gaul_2015_simplified_1km ON id_country = country_id order by lower(alias);", returnFormat="Dict")
@@ -964,7 +997,8 @@ def _normaliseDataFrame(df, columnToNormaliseBy, puidColumnName, classes = None)
         response = [[g, df[puidColumnName][groups[g]].values.tolist()] for g in groups if g not in [0]]
     return response
 
-#updates the values in a dataframe using a mapping dataframe - the values in the df_join_field are replaced by those in new_values_field
+#updates the values in the dataframe df using a mapping dataframe - the values in the df_join_field are replaced by those in new_values_field
+# e.g. df has id,prop,spf; mapping has id,new_id; calling _updateDataFrame(df, mapping, 'id', 'id', 'new_id') will update the df.id field with mapping.new_id
 def _updateDataFrame(df, mapping, df_join_field, mapping_join_field, new_values_field):
     #set the index on the df
     df.set_index(df_join_field,inplace=True)
@@ -2200,11 +2234,13 @@ class getProject(MarxanRESTHandler):
                 await _getPlanningUnitsData(self)
                 #get the protected area intersections
                 _getProtectedAreaIntersectionsData(self)
+                #get the costs data
+                _getCosts(self)
                 #set the project as the users last project so it will load on login - but only if the current user is loading one of their own projects
                 if (self.current_user == self.get_argument("user")):
                     _updateParameters(self.folder_user + USER_DATA_FILENAME, {'LASTPROJECT': self.get_argument("project")})
                 #set the response
-                self.send_response({'user': self.get_argument("user"), 'project': self.projectData["project"], 'metadata': self.projectData["metadata"], 'files': self.projectData["files"], 'runParameters': self.projectData["runParameters"], 'renderer': self.projectData["renderer"], 'features': self.speciesData.to_dict(orient="records"), 'feature_preprocessing': self.speciesPreProcessingData.to_dict(orient="split")["data"], 'planning_units': self.planningUnitsData, 'protected_area_intersections': self.protectedAreaIntersectionsData})
+                self.send_response({'user': self.get_argument("user"), 'project': self.projectData["project"], 'metadata': self.projectData["metadata"], 'files': self.projectData["files"], 'runParameters': self.projectData["runParameters"], 'renderer': self.projectData["renderer"], 'features': self.speciesData.to_dict(orient="records"), 'feature_preprocessing': self.speciesPreProcessingData.to_dict(orient="split")["data"], 'planning_units': self.planningUnitsData, 'protected_area_intersections': self.protectedAreaIntersectionsData, 'costnames':self.costNames})
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])
 
@@ -2281,12 +2317,12 @@ class getSpeciesPreProcessingData(MarxanRESTHandler):
 #gets the planning units status information from the pu.dat file
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getPlanningUnitsData?user=admin&project=Start%20project&callback=__jp2
 class getPlanningUnitsData(MarxanRESTHandler):
-    def get(self):
+    async def get(self):
         try:
             #validate the input arguments
             _validateArguments(self.request.arguments, ['user','project'])    
             #get the planning units information
-            _getPlanningUnitsData(self)
+            await _getPlanningUnitsData(self)
             #set the response
             self.send_response({"data": self.planningUnitsData})
         except MarxanServicesError as e:
@@ -2303,6 +2339,34 @@ class getPlanningUnitsCostData(MarxanRESTHandler):
             await _getPlanningUnitsCostData(self)
             #set the response
             self.send_response({"data": self.planningUnitsData})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
+
+#gets a list of the custom cost profiles for a project
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/getCosts?user=admin&project=Start%20project&callback=__jp2
+class getCosts(MarxanRESTHandler):
+    def get(self):
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project'])    
+            #get the list of cost files for the project
+            _getCosts(self)
+            #set the response
+            self.send_response({"data": self.costNames})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
+
+#updates a projects costs in the pu.dat file using the named cost profile
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/updateCosts?user=admin&project=Start%20project&costname=wibble&callback=__jp2
+class updateCosts(MarxanRESTHandler):
+    async def get(self):
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['user','project','costname'])    
+            #update the costs
+            await _updateCosts(self, self.get_argument("costname"))
+            #set the response
+            self.send_response({"info": 'Costs updated'})
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])
 
@@ -3894,10 +3958,12 @@ class Application(tornado.web.Application):
             ("/marxan-server/clearRunLogs", clearRunLogs),
             ("/marxan-server/updateWDPA", updateWDPA),
             ("/marxan-server/runGapAnalysis", runGapAnalysis),
+            ("/marxan-server/deleteGapAnalysis", deleteGapAnalysis),
+            ("/marxan-server/getCosts", getCosts),
+            ("/marxan-server/updateCosts", updateCosts),
             ("/marxan-server/importGBIFData", importGBIFData),
             ("/marxan-server/dismissNotification", dismissNotification),
             ("/marxan-server/resetNotifications", resetNotifications),
-            ("/marxan-server/deleteGapAnalysis", deleteGapAnalysis),
             ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
             ("/marxan-server/addParameter", addParameter),
             ("/marxan-server/resetDatabase", resetDatabase),

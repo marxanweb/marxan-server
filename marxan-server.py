@@ -2187,7 +2187,7 @@ class getProject(MarxanRESTHandler):
                     self.projects = await _getProjectsForUser(self.get_argument("user"))
                     project = self.projects[0]['name']
                     #set the project argument
-                    self.request.arguments['project'] = [project]
+                    self.request.arguments['project'] = [project.encode("utf-8")]
                     #and set the paths to this project
                     _setFolderPaths(self, self.request.arguments)
                 #get the project data from the input.dat file

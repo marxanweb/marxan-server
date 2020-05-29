@@ -449,6 +449,9 @@ class TestClass(AsyncHTTPTestCase):
         self.makeRequest('/deleteFeature?feature_name=gbif_2486629', False)
         self.makeWebSocketRequest('/importGBIFData?taxonKey=2486629&scientificName=Clytorhynchus%20nigrogularis', False)
 
+    def test_4550_runSQLFile(self):
+        self.makeRequest('/runSQLFile?filename=test.sql', False)
+
     def test_4600_dismissNotification(self):
         self.makeRequest('/dismissNotification?user=admin&notificationid=1', False)
 

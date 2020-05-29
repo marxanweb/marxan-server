@@ -34,11 +34,11 @@ from osgeo import ogr
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadFileToFolder","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject",'getCosts','updateCosts','deleteCost'],
-    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup"],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadFileToFolder","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject",'getCosts','updateCosts','deleteCost','runSQLFile'],
+    "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup",'runSQLFile'],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.38"
+MARXAN_SERVER_VERSION = "v0.9.4"
 MARXAN_LOG_FILE = 'marxan-server.log'
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.js"
 GUEST_USERNAME = "guest"
@@ -120,6 +120,7 @@ async def _setGlobalVariables():
     global PLANNING_GRID_UNITS_LIMIT
     global DISABLE_SECURITY
     global DISABLE_FILE_LOGGING
+    global ENABLE_RESET
     global pg
     #get data from the marxan registry
     MBAT = _getMBAT()
@@ -144,6 +145,7 @@ async def _setGlobalVariables():
     KEYFILE = _getDictValue(serverData,'KEYFILE')
     DISABLE_SECURITY = _getDictValue(serverData,'DISABLE_SECURITY')
     DISABLE_FILE_LOGGING = _getDictValue(serverData,'DISABLE_FILE_LOGGING')
+    ENABLE_RESET = _getDictValue(serverData,'ENABLE_RESET')
     CONNECTION_STRING = "host='" + DATABASE_HOST + "' dbname='" + DATABASE_NAME + "' user='" + DATABASE_USER + "' password='" + DATABASE_PASSWORD + "'"
     #initialise the connection pool
     pg = PostGIS()
@@ -189,6 +191,7 @@ async def _setGlobalVariables():
     log(_padDict("Planning grid limit:", str(PLANNING_GRID_UNITS_LIMIT), DICT_PAD))
     log(_padDict("Disable security:", str(DISABLE_SECURITY), DICT_PAD))
     log(_padDict("Disable file logging:", str(DISABLE_FILE_LOGGING), DICT_PAD))
+    log(_padDict("Enable reset:", str(ENABLE_RESET), DICT_PAD))
     log(_padDict("Conda environment:", CONDA_DEFAULT_ENV_ENVIRONMENT_VARIABLE, DICT_PAD))
     log(_padDict("Python executable:", sys.executable, DICT_PAD))
     #get the path to the ogr2ogr file - it should be in the miniconda bin folder 
@@ -2927,7 +2930,23 @@ class deleteGapAnalysis(MarxanRESTHandler):
 class testRoleAuthorisation(MarxanRESTHandler):
     def get(self):
         self.send_response({'info': "Service successful"})
-
+            
+#runs an already uploaded sql script - only called from client applications
+class runSQLFile(MarxanRESTHandler):
+    async def get(self):
+        try:
+            _validateArguments(self.request.arguments, ['filename'])  
+            #check the SQL file exists
+            if not os.path.exists(MARXAN_FOLDER + self.get_argument("filename")):
+                raise MarxanServicesError("File '" + self.get_argument("filename") + "' does not exist")
+            #set the command
+            cmd = 'sudo -u postgres psql -f ' + MARXAN_FOLDER + self.get_argument("filename") + ' postgresql://' + DATABASE_USER + ':' + DATABASE_PASSWORD + '@localhost:5432/marxanserver'
+            #run the command
+            result = await _runCmd(cmd)
+            self.send_response({'info': result})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
+        
 #cleans up the database and clumping files
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/cleanup
 class cleanup(MarxanRESTHandler):
@@ -3851,7 +3870,6 @@ class runGapAnalysis(QueryWebSocketHandler):
             self.close({'info':"Gap analysis complete", 'data': df.to_dict(orient="records")})
 
 #resets the database and files to their original state
-#DONT CALL THIS DIRECTLY
 class resetDatabase(QueryWebSocketHandler):
     async def open(self):
         try:
@@ -3991,6 +4009,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/testRoleAuthorisation", testRoleAuthorisation),
             ("/marxan-server/addParameter", addParameter),
             ("/marxan-server/resetDatabase", resetDatabase),
+            ("/marxan-server/runSQLFile", runSQLFile),
             ("/marxan-server/cleanup", cleanup),
             ("/marxan-server/shutdown", shutdown),
             ("/marxan-server/block", block),

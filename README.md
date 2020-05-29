@@ -45,7 +45,7 @@ sudo gcloud compute instances add-metadata $HOSTNAME --metadata-from-file startu
 ```
 
 ## Updating
-To download and apply the latest updates to marxan-server (not as sudo):  
+To download and apply the latest updates to marxan-server, go to the marxan-server folder and run the following (not as sudo):  
 ```
 ./unix_update.sh 
 ```

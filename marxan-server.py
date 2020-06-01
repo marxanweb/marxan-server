@@ -1129,11 +1129,11 @@ def _zipfolder(foldername, zipFile):
             zipobj.write(filename, arcname)
             
 #unzips a zip file and returns the rootname - if rejectMultipleShapefiles is True then an exception will be thrown if the zip file contains multiple shapefiles -  if searchTerm is specified then only the files that match the searchTerm will be extracted 
-def _unzipFile(filename, rejectMultipleShapefiles = True, searchTerm = None):
+def _unzipFile(folder, filename, rejectMultipleShapefiles = True, searchTerm = None):
     #unzip the shapefile
-    if not os.path.exists(MARXAN_FOLDER + filename):
+    if not os.path.exists(folder + filename):
         raise MarxanServicesError("The zip file '" + filename + "' does not exist")
-    zip_ref = zipfile.ZipFile(MARXAN_FOLDER + filename, 'r')
+    zip_ref = zipfile.ZipFile(folder + filename, 'r')
     filenames = zip_ref.namelist()
     #check there is only one set of files
     extensions = [f[-3:] for f in filenames]
@@ -1152,14 +1152,14 @@ def _unzipFile(filename, rejectMultipleShapefiles = True, searchTerm = None):
         try:
             if searchTerm:
                 for f in filenames:
-                    zip_ref.extract(f, MARXAN_FOLDER)
+                    zip_ref.extract(f, folder)
             else:            
-                zip_ref.extractall(MARXAN_FOLDER)
+                zip_ref.extractall(folder)
         except (OSError) as e:
             #delete the already extracted files
             for f in filenames:
-                if os.path.exists(MARXAN_FOLDER + f):
-                    os.remove(MARXAN_FOLDER + f)
+                if os.path.exists(folder + f):
+                    os.remove(folder + f)
             raise MarxanServicesError("No space left on device extracting the file '" + rootfilename + "'")
         else:
             zip_ref.close()
@@ -1183,23 +1183,14 @@ async def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     if (_tilesetExists(feature_class_name)):
         return "0"
     #create the file to upload to MapBox - now using shapefiles as kml files only import the name and description properties into a mapbox tileset
-    cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + MARXAN_FOLDER + feature_class_name + '.shp"' + ' "PG:host=' + DATABASE_HOST + ' dbname=' + DATABASE_NAME + ' user=' + DATABASE_USER + ' password=' + DATABASE_PASSWORD + '" -sql "select * from Marxan.' + feature_class_name + '" -nln ' + mapbox_layer_name + ' -t_srs EPSG:3857'
-    logging.debug(cmd)
+    zipfilename = await _exportAndZipShapefile(EXPORT_FOLDER, feature_class_name, "EPSG:3857")
     try:
-        #run the command
-        result = await _runCmd(cmd)
-    #catch any unforeseen circumstances
-    except CalledProcessError as e:
-        raise MarxanServicesError("Error exporting shapefile. " + e.output.decode("utf-8"))
-    #zip the shapefile to upload to Mapbox
-    zipfilename = _createZipfile(MARXAN_FOLDER, feature_class_name)
-    #upload to mapbox
-    try:
+        #upload to mapbox
         uploadId = _uploadTileset(zipfilename, feature_class_name)
         return uploadId
     finally:
         #delete the temporary shapefile file and zip file
-        _deleteZippedShapefile(MARXAN_FOLDER, feature_class_name + ".zip", feature_class_name)
+        _deleteZippedShapefile(EXPORT_FOLDER, feature_class_name + ".zip", feature_class_name)
     
 #uploads a tileset to mapbox using the filename of the file (filename) to upload and the name of the resulting tileset (_name)
 def _uploadTileset(filename, _name):
@@ -1285,18 +1276,18 @@ async def _finishImportingFeature(feature_class_name, name, description, source,
 #imports the planning unit grid from a zipped shapefile (given by filename) and starts the upload to Mapbox
 async def _importPlanningUnitGrid(filename, name, description, user):
     #unzip the shapefile and get the name of the shapefile without an extension, e.g. PlanningUnitsData.zip -> planningunits.shp -> planningunits
-    rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, filename) 
+    rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, IMPORT_FOLDER, filename) 
     #get a unique feature class name for the import
     feature_class_name = _getUniqueFeatureclassName("pu_")
     try:
         #make sure the puid column is lowercase
-        if _shapefileHasField(MARXAN_FOLDER + rootfilename + ".shp", "PUID"):
+        if _shapefileHasField(IMPORT_FOLDER + rootfilename + ".shp", "PUID"):
             raise MarxanServicesError("The field 'puid' in the zipped shapefile is uppercase and it must be lowercase")
         #import the shapefile into PostGIS
         #create a record for this new feature in the metadata_planning_units table
         await pg.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by,tilesetid) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s,%s);", [feature_class_name, name, description,user,MAPBOX_USER + "." + feature_class_name])
         #import the shapefile
-        await pg.importShapefile(rootfilename + ".shp", feature_class_name)
+        await pg.importShapefile(IMPORT_FOLDER, rootfilename + ".shp", feature_class_name)
         #check the geometry
         await pg.isValid(feature_class_name)
         #make sure the puid column is an integer
@@ -1306,7 +1297,7 @@ async def _importPlanningUnitGrid(filename, name, description, user):
         #set the number of planning units for the new planning grid
         await pg.execute(sql.SQL("UPDATE marxan.metadata_planning_units SET planning_unit_count = (SELECT count(puid) FROM marxan.{}) WHERE feature_class_name = %s;").format(sql.Identifier(feature_class_name)), [feature_class_name])
         #start the upload to mapbox
-        uploadId = _uploadTileset(MARXAN_FOLDER + filename, feature_class_name)
+        uploadId = _uploadTileset(IMPORT_FOLDER + filename, feature_class_name)
     except (MarxanServicesError) as e:
         if 'column' and 'puid' and 'does not exist' in e.args[0]:
             raise MarxanServicesError("The field 'puid' does not exist in the shapefile. See <a href='" + ERRORS_PAGE + "#the-field-puid-does-not-exist-in-the-shapefile' target='blank'>here</a>")
@@ -1316,7 +1307,7 @@ async def _importPlanningUnitGrid(filename, name, description, user):
             raise
     finally:
         #delete the shapefile and the zip file
-        _deleteZippedShapefile(MARXAN_FOLDER, filename, rootfilename)
+        _deleteZippedShapefile(IMPORT_FOLDER, filename, rootfilename)
         pass
     return {'feature_class_name': feature_class_name, 'uploadId': uploadId, 'alias': name}
 
@@ -1498,9 +1489,9 @@ def _guestUserEnabled(obj):
     return obj.serverData['ENABLE_GUEST_USER']
     
 #exports a feature class to a shapfile and then zips it
-async def _exportAndZipShapefile(folder, feature_class_name):
+async def _exportAndZipShapefile(folder, feature_class_name, tEpsgCode = "EPSG:4326"):
     #export the shapefile
-    await pg.exportToShapefile(folder, feature_class_name)
+    await pg.exportToShapefile(folder, feature_class_name, tEpsgCode)
     #zip it up
     zipfilename = _createZipfile(folder, feature_class_name)
     return zipfilename
@@ -1755,12 +1746,12 @@ class PostGIS():
             await self.pool.release(conn)
 
     #uses ogr2ogr to import a file into PostGIS (shapefile or gml file)
-    async def importFile(self, filename, feature_class_name, sEpsgCode, tEpsgCode, splitAtDateline = True):
+    async def importFile(self, folder, filename, feature_class_name, sEpsgCode, tEpsgCode, splitAtDateline = True):
         try:
             #drop the feature class if it already exists
             await self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr - rename the geometry field from the default (wkb_geometry) to geometry
-            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + MARXAN_FOLDER + filename + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -s_srs ' + sEpsgCode + ' -t_srs ' + tEpsgCode + ' -lco precision=NO'
+            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + folder + filename + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry -nln ' + feature_class_name + ' -s_srs ' + sEpsgCode + ' -t_srs ' + tEpsgCode + ' -lco precision=NO'
             logging.debug(cmd)
             #run the command
             result = await _runCmd(cmd)
@@ -1776,23 +1767,28 @@ class PostGIS():
             raise MarxanServicesError(e.args[0])
         
     #imports a shapefile into PostGIS (sEpsgCode is the source SRS and tEpsgCode is the target SRS)
-    async def importShapefile(self, shapefile, feature_class_name, sEpsgCode = "EPSG:4326", tEpsgCode = "EPSG:4326", splitAtDateline = True):
+    async def importShapefile(self, folder, shapefile, feature_class_name, sEpsgCode = "EPSG:4326", tEpsgCode = "EPSG:4326", splitAtDateline = True):
         #check that all the required files are present for the shapefile
-        _checkZippedShapefile(MARXAN_FOLDER + shapefile)
+        _checkZippedShapefile(folder + shapefile)
         #import the file
-        await self.importFile(shapefile, feature_class_name, sEpsgCode, tEpsgCode, splitAtDateline)
+        await self.importFile(folder, shapefile, feature_class_name, sEpsgCode, tEpsgCode, splitAtDateline)
 
     #imports a gml file (sEpsgCode is the source SRS and tEpsgCode is the target SRS)
-    async def importGml(self, gmlfilename, feature_class_name, sEpsgCode = "EPSG:4326", tEpsgCode = "EPSG:4326", splitAtDateline = True):
+    async def importGml(self, folder, gmlfilename, feature_class_name, sEpsgCode = "EPSG:4326", tEpsgCode = "EPSG:4326", splitAtDateline = True):
         #import the file
-        await self.importFile(gmlfilename, feature_class_name, sEpsgCode, tEpsgCode, splitAtDateline)
+        await self.importFile(folder, gmlfilename, feature_class_name, sEpsgCode, tEpsgCode, splitAtDateline)
 
     #exports a feature class from postgis to a shapefile in the exportFolder        
-    async def exportToShapefile(self, exportFolder, feature_class_sname):
+    async def exportToShapefile(self, exportFolder, feature_class_sname, tEpsgCode = "EPSG:4326"):
         #get the command to execute
-        cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT * FROM ' + feature_class_sname + ';" -nln ' + feature_class_sname
+        cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT * FROM ' + feature_class_sname + ';" -nln ' + feature_class_sname + ' -t_srs ' + tEpsgCode
+        logging.debug(cmd)
         #run the command
-        results = await _runCmd(cmd)
+        try:
+            results = await _runCmd(cmd)
+        #catch any unforeseen circumstances
+        except CalledProcessError as e:
+            raise MarxanServicesError("Error exporting shapefile. " + e.output.decode("utf-8"))
         return results
 
     #tests to see if a feature class is valid - raises an error if not
@@ -2808,7 +2804,7 @@ class uploadFileToFolder(MarxanRESTHandler):
             #validate the input arguments
             _validateArguments(self.request.arguments, ['filename','destFolder'])   
             #write the file to the server
-            _writeFile(MARXAN_FOLDER + self.get_argument('destFolder') + self.get_argument('filename'), self.request.files['value'][0].body)
+            _writeFile(MARXAN_FOLDER + self.get_argument('destFolder') + os.sep + self.get_argument('filename'), self.request.files['value'][0].body)
             #set the response
             self.send_response({'info': "File '" + self.get_argument('filename') + "' uploaded", 'file': self.get_argument('filename')})
         except MarxanServicesError as e:
@@ -2836,7 +2832,7 @@ class unzipShapefile(MarxanRESTHandler):
             #validate the input arguments
             _validateArguments(self.request.arguments, ['filename'])   
             #write the file to the server
-            rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, self.get_argument('filename')) 
+            rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, IMPORT_FOLDER, self.get_argument('filename')) 
             #set the response
             self.send_response({'info': "File '" + self.get_argument('filename') + "' unzipped", 'rootfilename': rootfilename})
         except MarxanServicesError as e:
@@ -2850,7 +2846,7 @@ class getShapefileFieldnames(MarxanRESTHandler):
             #validate the input arguments
             _validateArguments(self.request.arguments, ['filename'])  
             #get the field list
-            fields = _getShapefileFieldNames(MARXAN_FOLDER + self.get_argument('filename'))
+            fields = _getShapefileFieldNames(IMPORT_FOLDER + self.get_argument('filename'))
             #set the response
             self.send_response({'info': "Field list returned", 'fieldnames': fields})
         except MarxanServicesError as e:
@@ -2876,7 +2872,7 @@ class deleteShapefile(MarxanRESTHandler):
         try:
             #validate the input arguments
             _validateArguments(self.request.arguments, ['zipfile','shapefile'])   
-            _deleteZippedShapefile(MARXAN_FOLDER, self.get_argument('zipfile'), self.get_argument('shapefile')[:-4])
+            _deleteZippedShapefile(IMPORT_FOLDER, self.get_argument('zipfile'), self.get_argument('shapefile')[:-4])
             #set the response
             self.send_response({'info': "Shapefile deleted"})
         except MarxanServicesError as e:
@@ -3292,7 +3288,7 @@ class updateWDPA(MarxanWebSocketHandler):
             try:
                 #download the new wdpa zip
                 self.send_response({'status':'Preprocessing','info': "Downloading " + self.get_argument("downloadUrl")})
-                await self.asyncDownload(self.get_argument("downloadUrl"), MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                await self.asyncDownload(self.get_argument("downloadUrl"), IMPORT_FOLDER + WDPA_DOWNLOAD_FILE)
             except (MarxanServicesError) as e: #download failed
                 self.close({'error': e.args[0], 'info': 'WDPA not updated'})
             else:
@@ -3300,22 +3296,22 @@ class updateWDPA(MarxanWebSocketHandler):
                 try:
                     #download finished - upzip the polygons shapefile
                     self.send_response({'status':'Preprocessing', 'info': "Unzipping shapefile '" + WDPA_DOWNLOAD_FILE + "'"})
-                    rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, WDPA_DOWNLOAD_FILE, False, "polygons") 
+                    rootfilename = await IOLoop.current().run_in_executor(None, _unzipFile, IMPORT_FOLDER, WDPA_DOWNLOAD_FILE, False, "polygons") 
                 except (MarxanServicesError) as e: #error unzipping - either the polygons shapefile does not exist or the disk space has run out
                     #delete the zip file
-                    os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                    os.remove(IMPORT_FOLDER + WDPA_DOWNLOAD_FILE)
                     self.close({'error': e.args[0], 'info': 'WDPA not updated'})
                 else:
                     self.send_response({'status':'Preprocessing', 'info': "Unzipped shapefile"})
                     #delete the zip file
-                    os.remove(MARXAN_FOLDER + WDPA_DOWNLOAD_FILE)
+                    os.remove(IMPORT_FOLDER + WDPA_DOWNLOAD_FILE)
                     try:
                         #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
                         #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
                         feature_class_name = _getUniqueFeatureclassName("wdpa_")
                         self.send_response({'status': "Preprocessing", 'info': "Importing '" + rootfilename + "' into PostGIS.."})
                         #import the wdpa to a tmp feature class
-                        await pg.importShapefile(rootfilename + ".shp", feature_class_name, splitAtDateline = False)
+                        await pg.importShapefile(IMPORT_FOLDER, rootfilename + ".shp", feature_class_name, splitAtDateline = False)
                         self.send_response({'status': "Preprocessing", 'info': "Imported into '" + feature_class_name + "'"})
                         #rename the existing wdpa feature class
                         await pg.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
@@ -3344,7 +3340,7 @@ class updateWDPA(MarxanWebSocketHandler):
                         self.close({'info': 'WDPA update completed succesfully'})
                     finally:
                         #delete the shapefile
-                        _deleteZippedShapefile(MARXAN_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
+                        _deleteZippedShapefile(IMPORT_FOLDER, WDPA_DOWNLOAD_FILE, rootfilename)
     
     async def asyncDownload(self,url, file):
         #initialise a variable to hold the size downloaded
@@ -3378,7 +3374,6 @@ class updateWDPA(MarxanWebSocketHandler):
             raise MarxanServicesError("Out of disk space on device")
         finally:
             await session.close()
-                
 
 #imports a set of features from an unzipped shapefile
 class importFeatures(MarxanWebSocketHandler):
@@ -3403,7 +3398,7 @@ class importFeatures(MarxanWebSocketHandler):
                 #get a scratch name for the import
                 scratch_name = _getUniqueFeatureclassName("scratch_")
                 #first, import the shapefile into a PostGIS feature class in EPSG:4326
-                await pg.importShapefile(shapefile, scratch_name)
+                await pg.importShapefile(IMPORT_FOLDER, shapefile, scratch_name)
                 #check the geometry
                 self.send_response({'status':'Preprocessing', 'info': "Checking the geometry.."})
                 await pg.isValid(scratch_name)
@@ -3596,9 +3591,9 @@ class createFeaturesFromWFS(MarxanWebSocketHandler):
                 #get the WFS data as GML
                 gml = await IOLoop.current().run_in_executor(None, _getGML, self.get_argument('endpoint'), self.get_argument('featuretype')) 
                 #write it to file
-                _writeFileUnicode(MARXAN_FOLDER + feature_class_name + ".gml", gml)
+                _writeFileUnicode(IMPORT_FOLDER + feature_class_name + ".gml", gml)
                 #import the GML into a PostGIS feature class in EPSG:4326
-                await pg.importGml(feature_class_name + ".gml", feature_class_name, sEpsgCode = self.get_argument('srs'))
+                await pg.importGml(IMPORT_FOLDER, feature_class_name + ".gml", feature_class_name, sEpsgCode = self.get_argument('srs'))
                 #check the geometry
                 self.send_response({'status':'Preprocessing', 'info': "Checking the geometry.."})
                 await pg.isValid(feature_class_name)
@@ -3614,11 +3609,11 @@ class createFeaturesFromWFS(MarxanWebSocketHandler):
                     self.close({'error': e.args[0], 'info': 'Failed to import features'})
             finally:
                 #delete the gml file
-                if os.path.exists(MARXAN_FOLDER + feature_class_name + ".gml"):
-                    os.remove(MARXAN_FOLDER + feature_class_name + ".gml")
+                if os.path.exists(IMPORT_FOLDER + feature_class_name + ".gml"):
+                    os.remove(IMPORT_FOLDER + feature_class_name + ".gml")
                 #delete the gfs file
-                if os.path.exists(MARXAN_FOLDER + feature_class_name + ".gfs"):
-                    os.remove(MARXAN_FOLDER + feature_class_name + ".gfs")
+                if os.path.exists(IMPORT_FOLDER + feature_class_name + ".gfs"):
+                    os.remove(IMPORT_FOLDER + feature_class_name + ".gfs")
 
 #exports a project
 class exportProject(MarxanWebSocketHandler):

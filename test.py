@@ -335,6 +335,12 @@ class TestClass(AsyncHTTPTestCase):
         f = self.makeRequest('/importPlanningUnitGrid?filename=' + TEST_ZIP_SHP_PLANNING_GRID + '&name=pu_test&description=wibble', False)
         self.makeRequest('/deletePlanningUnitGrid?planning_grid_name=' + f['feature_class_name'], False)
 
+    def test_2160_exportPlanningUnitGrid(self):
+        self.makeRequest('/exportPlanningUnitGrid?name=pu_ton_marine_hexagon_50', False)
+        #delete the zip file
+        if os.path.exists(m.EXPORT_FOLDER + 'pu_ton_marine_hexagon_50.zip'):
+            os.remove(m.EXPORT_FOLDER + 'pu_ton_marine_hexagon_50.zip')
+
     def test_2200_deletePlanningUnitGrid(self):
         self.makeRequest('/deletePlanningUnitGrid?planning_grid_name=pu_and_terrestrial_square_50', False)
 
@@ -404,6 +410,12 @@ class TestClass(AsyncHTTPTestCase):
         features = self.makeWebSocketRequest('/importFeatures?zipfile=' + TEST_ZIP_SHP_MISSING_FILE + '&shapefile=' + TEST_ZIP_SHP_MISSING_FILE[:-4] + ".shp", True)
         #delete the shapefile and zipped shapefile
         self.makeRequest('/deleteShapefile?zipfile=' + TEST_ZIP_SHP_MISSING_FILE + '&shapefile=pulayer_costt.shp', False)
+
+    def test_3550_exportFeature(self):
+        self.makeRequest('/exportFeature?name=intersesting_habitat', False)
+        #delete the zip file
+        if os.path.exists(m.EXPORT_FOLDER + 'intersesting_habitat.zip'):
+            os.remove(m.EXPORT_FOLDER + 'intersesting_habitat.zip')
 
     def test_3600_deleteShapefile(self):
         self.makeRequest('/deleteShapefile?zipfile=' + TEST_ZIP_SHP_MULTIPLE + '&shapefile=' + TEST_ZIP_SHP_MULTIPLE[:-4] + ".shp", False)

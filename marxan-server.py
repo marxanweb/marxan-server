@@ -34,7 +34,7 @@ from osgeo import ogr
 PERMITTED_METHODS = ["getServerData","createUser","validateUser","resendPassword","testTornado", "getProjectsWithGrids"]    
 # Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role
 ROLE_UNAUTHORISED_METHODS = {
-    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadFileToFolder","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject",'getCosts','updateCosts','deleteCost','runSQLFile'],
+    "ReadOnly": ["createProject","createImportProject","upgradeProject","deleteProject","cloneProject","createProjectGroup","deleteProjects","renameProject","updateProjectParameters","getCountries","deletePlanningUnitGrid","createPlanningUnitGrid","uploadTilesetToMapBox","uploadFileToFolder","uploadFile","importPlanningUnitGrid","createFeaturePreprocessingFileFromImport","createUser","getUsers","updateUserParameters","getFeature","importFeatures","getPlanningUnitsData","updatePUFile","getSpeciesData","getSpeciesPreProcessingData","updateSpecFile","getProtectedAreaIntersectionsData","getMarxanLog","getBestSolution","getOutputSummary","getSummedSolution","getMissingValues","preprocessFeature","preprocessPlanningUnits","preprocessProtectedAreas","runMarxan","stopProcess","testRoleAuthorisation","deleteFeature","deleteUser","getRunLogs","clearRunLogs","updateWDPA","unzipShapefile","getShapefileFieldnames","createFeatureFromLinestring","runGapAnalysis","toggleEnableGuestUser","importGBIFData","deleteGapAnalysis","shutdown","addParameter","block", "resetDatabase","cleanup","exportProject","importProject",'getCosts','updateCosts','deleteCost','runSQLFile','exportPlanningUnitGrid','exportFeature'],
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup",'runSQLFile'],
     "Admin": []
 }
@@ -1082,18 +1082,33 @@ def _getIntArrayFromArg(arguments, argName):
     else:
         return []
     
-#creates a zip file with the list of files in the folder with the filename zipfilename
-def _createZipfile(lstFileNames, folder, zipfilename):
-    with zipfile.ZipFile(folder + zipfilename, 'w') as myzip:
+#creates a zip file (zipfilename) with all the files that have the root name feature_class_name in the folder 
+def _createZipfile(folder, feature_class_name):
+    #get the matching files
+    lstFileNames = glob.glob(folder + feature_class_name + '.*')
+    #get the zip filename
+    zipfilename = folder + feature_class_name + ".zip"
+    with zipfile.ZipFile(zipfilename, 'w') as myzip:
         for f in lstFileNames:   
             arcname = os.path.split(f)[1]
             myzip.write(f,arcname)
+    #delete all of the archive files
+    _deleteArchiveFiles(folder, feature_class_name)
+    return zipfilename
 
+#deletes all files matching the archivename in the folder
+def _deleteArchiveFiles(folder, archivename):
+    #get the matching files
+    files = glob.glob(folder + archivename + '.*')
+    #if there are any matching files then delete them
+    if len(files)>0:
+        [os.remove(f) for f in files if f[-3:] in ['shx','shp','xml','sbx','prj','sbn','dbf','cpg','qpj','SHX','SHP','XML','SBX','PRJ','SBN','DBF','CPG','QPJ']]       
+    
 #deletes a zip file and the archive files, e.g. deleteZippedShapefile(MARXAN_FOLDER, "pngprovshapes.zip","pngprov")
 def _deleteZippedShapefile(folder, zipfile, archivename):
-    files = glob.glob(folder + archivename + '.*')
-    if len(files)>0:
-        [os.remove(f) for f in files if f[-3:] in ['shx','shp','xml','sbx','prj','sbn','zip','dbf','cpg','qpj','SHX','SHP','XML','SBX','PRJ','SBN','ZIP','DBF','CPG','QPJ']]       
+    #delete any archive files
+    _deleteArchiveFiles(folder, archivename)
+    #delete the zip file
     if (zipfile !="" and os.path.exists(folder + zipfile)):
         os.remove(folder + zipfile)
 
@@ -1177,9 +1192,7 @@ async def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     except CalledProcessError as e:
         raise MarxanServicesError("Error exporting shapefile. " + e.output.decode("utf-8"))
     #zip the shapefile to upload to Mapbox
-    lstFilenames = glob.glob(MARXAN_FOLDER + feature_class_name + '.*')
-    zipfilename = MARXAN_FOLDER + feature_class_name + ".zip"
-    _createZipfile(lstFilenames, MARXAN_FOLDER, feature_class_name + ".zip")
+    zipfilename = _createZipfile(MARXAN_FOLDER, feature_class_name)
     #upload to mapbox
     try:
         uploadId = _uploadTileset(zipfilename, feature_class_name)
@@ -1484,6 +1497,14 @@ def _guestUserEnabled(obj):
     #get the current state
     return obj.serverData['ENABLE_GUEST_USER']
     
+#exports a feature class to a shapfile and then zips it
+async def _exportAndZipShapefile(folder, feature_class_name):
+    #export the shapefile
+    await pg.exportToShapefile(folder, feature_class_name)
+    #zip it up
+    zipfilename = _createZipfile(folder, feature_class_name)
+    return zipfilename
+    
 #returns true if the passed shapefile has the fieldname - this is case sensitive
 def _shapefileHasField(shapefile, fieldname):
     #check that all the required files are present for the shapefile
@@ -1765,7 +1786,15 @@ class PostGIS():
     async def importGml(self, gmlfilename, feature_class_name, sEpsgCode = "EPSG:4326", tEpsgCode = "EPSG:4326", splitAtDateline = True):
         #import the file
         await self.importFile(gmlfilename, feature_class_name, sEpsgCode, tEpsgCode, splitAtDateline)
-        
+
+    #exports a feature class from postgis to a shapefile in the exportFolder        
+    async def exportToShapefile(self, exportFolder, feature_class_sname):
+        #get the command to execute
+        cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT * FROM ' + feature_class_sname + ';" -nln ' + feature_class_sname
+        #run the command
+        results = await _runCmd(cmd)
+        return results
+
     #tests to see if a feature class is valid - raises an error if not
     async def isValid(self, feature_class_name):
         _isValid = await self.execute(sql.SQL("SELECT DISTINCT ST_IsValid(geometry) FROM marxan.{} LIMIT 1;").format(sql.Identifier(feature_class_name)), returnFormat="Array") # will return [false],[false,true] or [true] - so the first row will be [false] or [false,true]
@@ -2110,6 +2139,20 @@ class importPlanningUnitGrid(MarxanRESTHandler):
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])
 
+#exports a planning unit grid to a shapefile
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/exportPlanningUnitGrid?name=pu_ton_marine_hexagon_50
+class exportPlanningUnitGrid(MarxanRESTHandler):
+    async def get(self):
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['name'])   
+            #export the shapefile
+            zipfilename = await _exportAndZipShapefile(EXPORT_FOLDER, self.get_argument('name'))
+            #set the response
+            self.send_response({'info': "Planning grid '" + self.get_argument('name') + "' exported",'filename': zipfilename})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
+
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/deletePlanningUnitGrid?planning_grid_name=pu_f9609f7a4cb0406e8bea4bfa00772&callback=__jp10        
 class deletePlanningUnitGrid(MarxanRESTHandler):
     async def get(self):
@@ -2267,6 +2310,20 @@ class getFeature(MarxanRESTHandler):
             await _getFeature(self, self.get_argument("oid"))
             #set the response
             self.send_response({"data": self.data.to_dict(orient="records")})
+        except MarxanServicesError as e:
+            _raiseError(self, e.args[0])
+
+#https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/exportFeature?name=intersesting_habitat
+#exports a feature to a shapefile
+class exportFeature(MarxanRESTHandler):
+    async def get(self):
+        try:
+            #validate the input arguments
+            _validateArguments(self.request.arguments, ['name'])   
+            #export the shapefile
+            zipfilename = await _exportAndZipShapefile(EXPORT_FOLDER, self.get_argument('name'))
+            #set the response
+            self.send_response({'info': "Feature '" + self.get_argument('name') + "' exported",'filename': zipfilename})
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])
 
@@ -3598,8 +3655,7 @@ class exportProject(MarxanWebSocketHandler):
             #export the planning unit grid
             pu_name = self.projectData['metadata']['PLANNING_UNIT_NAME']
             self.send_response({'status':'Preprocessing', 'info': "Exporting planning grid.."})
-            cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + os.sep + EXPORT_PU_SHP_FOLDER + os.sep + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT * FROM ' + pu_name + ';" -nln ' + pu_name
-            await _runCmd(cmd)
+            await pg.exportToShapefile(exportFolder + os.sep + EXPORT_PU_SHP_FOLDER + os.sep, pu_name)
             #export the planning grid metadata - convert the envelope geometry field to text
             self.send_response({'status':'Preprocessing', 'info': "Exporting planning grid metadata.."})
             cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "CSV" "' + exportFolder + os.sep + EXPORT_PU_METADATA + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT feature_class_name, alias, description, country_id, aoi_id, domain, _area, ST_AsText(envelope) envelope, creation_date, source, created_by, tilesetid, planning_unit_count FROM marxan.metadata_planning_units WHERE feature_class_name = \'' + pu_name + '\';" -lco SEPARATOR=TAB'
@@ -3950,6 +4006,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/getCountries", getCountries),
             ("/marxan-server/getPlanningUnitGrids", getPlanningUnitGrids),
             ("/marxan-server/createPlanningUnitGrid", createPlanningUnitGrid),
+            ("/marxan-server/exportPlanningUnitGrid", exportPlanningUnitGrid),
             ("/marxan-server/deletePlanningUnitGrid", deletePlanningUnitGrid),
             ("/marxan-server/uploadTilesetToMapBox", uploadTilesetToMapBox),
             ("/marxan-server/uploadFileToFolder", uploadFileToFolder),
@@ -3970,6 +4027,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/updateUserParameters", updateUserParameters),
             ("/marxan-server/getFeature", getFeature),
             ("/marxan-server/importFeatures", importFeatures),
+            ("/marxan-server/exportFeature", exportFeature),
             ("/marxan-server/deleteFeature", deleteFeature),
             ("/marxan-server/createFeatureFromLinestring", createFeatureFromLinestring),
             ("/marxan-server/createFeaturesFromWFS", createFeaturesFromWFS),

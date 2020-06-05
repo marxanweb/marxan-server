@@ -73,7 +73,7 @@ GBIF_CONCURRENCY = 10
 GBIF_PAGE_SIZE = 300
 GBIF_POINT_BUFFER_RADIUS = 1000
 GBIF_OCCURRENCE_LIMIT = 200000 # from the GBIF docs here: https://www.gbif.org/developer/occurrence#search
-UNIFORM_COSTS_NAME = "Uniform"
+UNIFORM_COST_NAME = "Equal area"
 DOCS_ROOT = "https://docs.marxanweb.org/"
 ERRORS_PAGE = DOCS_ROOT + "errors.html"
 SHUTDOWN_EVENT = tornado.locks.Event() #to allow Tornado to exit gracefully
@@ -594,7 +594,7 @@ def _getCosts(obj):
     #get the names of the files
     costNames = [os.path.basename(f)[:-5] for f in costFiles]
     #add the default cost profile
-    costNames.append(UNIFORM_COSTS_NAME)
+    costNames.append(UNIFORM_COST_NAME)
     costNames.sort()
     #return the costNames
     obj.costNames = costNames
@@ -605,7 +605,7 @@ async def _updateCosts(obj, costname):
     #load the pu.dat file
     df = await _getProjectInputData(obj, "PUNAME")
     #default costs are uniform
-    if costname==UNIFORM_COSTS_NAME:
+    if costname==UNIFORM_COST_NAME:
         df['cost'] = 1
     else:
         #check the cost file exists
@@ -2145,7 +2145,7 @@ class exportPlanningUnitGrid(MarxanRESTHandler):
             #export the shapefile
             zipfilename = await _exportAndZipShapefile(EXPORT_FOLDER, self.get_argument('name'))
             #set the response
-            self.send_response({'info': "Planning grid '" + self.get_argument('name') + "' exported",'filename': zipfilename})
+            self.send_response({'info': "Planning grid '" + self.get_argument('name') + "' exported",'filename': self.get_argument('name') + ".zip"})
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])
 

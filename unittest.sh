@@ -7,5 +7,5 @@ elif [[ "$OSTYPE" == "freebsd"* ]]; then
     SET CPL_LOG=/dev/null    
 fi
 printf "\n"
-echo "Running unit tests"
+echo "Running unit tests.."
 python -W ignore -m unittest test -v -b

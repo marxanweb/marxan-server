@@ -19,6 +19,4 @@ git pull
 sudo ./unittest.sh
 #restart marxan-server
 printf "\n"
-echo "Restarting marxan-server"
-printf "\n"
 sudo ./unix_startup.sh

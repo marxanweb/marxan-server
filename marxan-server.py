@@ -2992,8 +2992,10 @@ class runSQLFile(MarxanRESTHandler):
             #check the SQL file exists
             if not os.path.exists(MARXAN_FOLDER + self.get_argument("filename")):
                 raise MarxanServicesError("File '" + self.get_argument("filename") + "' does not exist")
+            #see if suppressOutput is set
+            suppressOutput = '>/dev/null' if 'suppressOutput' in self.request.arguments else ''
             #set the command
-            cmd = 'sudo -u postgres psql -f ' + MARXAN_FOLDER + self.get_argument("filename") + ' postgresql://' + DATABASE_USER + ':' + DATABASE_PASSWORD + '@localhost:5432/marxanserver'
+            cmd = 'sudo -u postgres psql -f ' + MARXAN_FOLDER + self.get_argument("filename") + ' postgresql://' + DATABASE_USER + ':' + DATABASE_PASSWORD + '@localhost:5432/marxanserver ' + suppressOutput
             #run the command
             result = await _runCmd(cmd)
             self.send_response({'info': result})

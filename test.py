@@ -463,7 +463,7 @@ class TestClass(AsyncHTTPTestCase):
         self.makeWebSocketRequest('/importGBIFData?taxonKey=2486629&scientificName=Clytorhynchus%20nigrogularis', False)
 
     def test_066_runSQLFile(self):
-        self.makeRequest('/runSQLFile?filename=test.sql', False)
+        self.makeRequest('/runSQLFile?filename=test.sql&suppressOutput=True', False)
 
     def test_067_dismissNotification(self):
         self.makeRequest('/dismissNotification?user=admin&notificationid=1', False)

@@ -45,6 +45,6 @@ cp ./marxan-server/users/admin/user.dat.default ./marxan-server/users/admin/user
 cp ./marxan-server/marxan-server.log.default ./marxan-server/marxan-server.log
 #create a file in /etc/profile.d/ to store the MARXAN_SERVER_DIRECTORY environment variable for all users
 sudo bash -c 'echo MARXAN_SERVER_DIRECTORY=\"$PWD\/marxan-server\" > /etc/profile.d/marxan-server.sh'
-#source the MARXAN_SERVER_DIRECTORY environment variable
+#source the MARXAN_SERVER_DIRECTORY environment variable to apply that environment variable
 source /etc/profile.d/marxan-server.sh
 echo "marxan-server installed to" $MARXAN_SERVER_DIRECTORY

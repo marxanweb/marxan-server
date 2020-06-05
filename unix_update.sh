@@ -8,6 +8,7 @@ then
     echo 'screen killed'
 fi
 #pull the new github repo
+printf "\n"
 echo "Pulling from GitHub.."
 cd $MARXAN_SERVER_DIRECTORY
 git reset --hard

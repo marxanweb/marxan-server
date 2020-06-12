@@ -38,9 +38,9 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup",'runSQLFile'],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.5"
+MARXAN_SERVER_VERSION = "v0.9.6"
 MARXAN_LOG_FILE = 'marxan-server.log'
-MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.js"
+MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 GUEST_USERNAME = "guest"
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
@@ -1606,19 +1606,13 @@ def _checkZippedShapefile(shapefile):
 def _getMBAT():
     with urllib.request.urlopen(MARXAN_REGISTRY) as response:
         data = response.read().decode("utf-8")
-        pos = data.find("MBAT")
-        if (pos == -1):
-            raise MarxanServicesError("MBAT not found in Marxan Registry")
+        #load as json
+        _json = json.loads(data)
+        #check the MBAT is there
+        if 'MBAT' in _json.keys():
+            return _json['MBAT']
         else:
-            pos2 = data[pos:].find(";")
-            if (pos2 == -1):
-                raise MarxanServicesError("MBAT not found in Marxan Registry")
-            else:
-                mbat_line = data[pos:pos + pos2]
-                startPos = (mbat_line.find('"')) + 1;
-                if (startPos == -1):
-                    raise MarxanServicesError("MBAT not found in Marxan Registry")
-                return mbat_line[startPos:-1]
+            raise MarxanServicesError("MBAT not found in Marxan Registry")
 
 #imports a dataframe into a table - this is not part of the PostGIS class as it uses a different connection string - and it is not asynchronous 
 def _importDataFrame(df, table_name):

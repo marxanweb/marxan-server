@@ -3,7 +3,7 @@ Back end Marxan Server installation for running Marxan Web. See also [marxan-cli
 
 ## Architecture
 The following image shows the high level architecture of marxan-server. 
-![marxan-server architecture](https://github.com/marxanweb/marxan-client/raw/master/architecture_client.png)  
+![marxan-server architecture](https://github.com/marxanweb/marxan-server/raw/master/architecture-server.png)  
 
 ## Installation
 The following instructions describe how to install marxan-server on Ubuntu 18.04 LTS. For Windows, see [here](https://github.com/marxanweb/general/releases)    

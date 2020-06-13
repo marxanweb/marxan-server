@@ -1567,7 +1567,7 @@ def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
         i = df.loc[df['pid'] == pid].index.tolist()[0]  
     except:
         # probably the user cleared the run log so the pid was not found
-        return "Unable to update run log"
+        raise MarxanServicesError("Unable to update run log for pid " + str(pid) + " with status " + status)
     else:
         #update the dataframe in place
         if startTime:
@@ -3210,8 +3210,6 @@ class runMarxan(MarxanWebSocketHandler):
                     #read from the stdout stream
                     line = await self.marxanProcess.stdout.read_bytes(1024, partial=True)
                     self.send_response({'info':line.decode("utf-8"), 'status': 'RunningMarxan','pid': 'm' + str(self.marxanProcess.pid)})
-            except (WebSocketClosedError):
-                log("The WebSocket is already closed. Unable to stream Marxan output for pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):                
                 pass
         else:
@@ -3230,8 +3228,6 @@ class runMarxan(MarxanWebSocketHandler):
             except (BufferError):
                 log("BufferError")
                 pass
-            except (WebSocketClosedError):
-                log("The WebSocket is already closed. Unable to stream Marxan output for pid = " + str(self.marxanProcess.pid))
             except (StreamClosedError):  
                 log("StreamClosedError")
                 pass
@@ -3251,9 +3247,7 @@ class runMarxan(MarxanWebSocketHandler):
     #finishes writing the output of a stream and writes the run log
     def finishOutput(self, returnCode):
         try: 
-            #log the end of the run
-            #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.user + "." + self.project + " has finished running"
-            if (self.user != '_clumping'): #dont show clumping runs to the user
+            if (self.user != '_clumping'): #dont log clumping runs 
                 #get the number of runs completed
                 numRunsCompleted = _getNumberOfRunsCompleted(self)
                 #write the response depending on if the run completed or not
@@ -3268,9 +3262,8 @@ class runMarxan(MarxanWebSocketHandler):
                         self.close({'error': 'Run stopped by operating system', 'project': self.project, 'user': self.user})
             else:
                 self.close({'info': 'Run completed', 'project': self.project, 'user': self.user})
-
-        except (WebSocketClosedError): #the websocket may already have been closed
-            log("The WebSocket is already closed. Unable to send a close message for pid = " + str(self.marxanProcess.pid))
+        except MarxanServicesError as e:
+            self.close({'error': e.args[0]})
 
 #updates the WDPA table in PostGIS using the publically available downloadUrl
 class updateWDPA(MarxanWebSocketHandler):

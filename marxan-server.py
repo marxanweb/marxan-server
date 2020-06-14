@@ -1560,9 +1560,9 @@ def _getNumberOfRunsCompleted(obj):
 
 #updates the run log with the details of the marxan job when it has stopped for whatever reason - endtime, runtime, runs and status are updated
 def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
-    #load the run log
-    df = _getRunLogs()
     try:
+        #load the run log
+        df = _getRunLogs()
         #get the index for the record that needs to be updated
         i = df.loc[df['pid'] == pid].index.tolist()[0]  
     except:

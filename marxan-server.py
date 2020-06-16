@@ -3173,8 +3173,8 @@ class runMarxan(MarxanWebSocketHandler):
                     #the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) instead of the tornado process - see here: https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
                     try:
                         if platform.system() != "Windows":
-                            #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM - the "exec " in front allows you to get the pid of the child process, i.e. marxan, and therefore to be able to kill the process using os.kill(pid, signal.SIGTERM) 
-                            self.marxanProcess = Subprocess(["exec " + MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=PIPE, shell=True)
+                            #in Unix operating systems, the log is streamed from stdout to a Tornado STREAM
+                            self.marxanProcess = Subprocess([MARXAN_EXECUTABLE], stdout=Subprocess.STREAM, stdin=PIPE)
                             #add a callback when the process finishes
                             self.marxanProcess.set_exit_callback(self.finishOutput)
                         else:

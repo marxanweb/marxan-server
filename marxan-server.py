@@ -2905,12 +2905,14 @@ class stopProcess(MarxanRESTHandler):
                     #to distinguish between a process killed by the user and by the OS, we need to update the runlog.dat file to set this process as stopped and not killed
                     _updateRunLog(int(pid), None, None, None, 'Stopped')
                     #now kill the process
-                    os.kill(int(pid), signal.SIGTERM)
+                    os.kill(int(pid), signal.SIGKILL)
                 else:
                     #cancel the query
                     await pg.execute("SELECT pg_cancel_backend(%s);",[pid])
             except OSError:
                 raise MarxanServicesError("The pid does not exist")
+            except PermissionError:
+                raise MarxanServicesError("Unable to stop process: PermissionDenied")
             else:
                 self.send_response({'info': "pid '" + pid + "' terminated"})
         except MarxanServicesError as e:
@@ -3193,8 +3195,6 @@ class runMarxan(MarxanWebSocketHandler):
                         #log the run to the run log file
                         if (self.user != '_clumping'): #dont log any clumping runs
                             self.logRun()
-                        #print the details of the run out to the tornado log stream
-                        #print "\x1b[1;34;48m[D " + datetime.datetime.now().strftime("%d-%m-%y %H:%M:%S.%f") + "]\x1b[0m Project " + self.get_argument("user") + "." + self.get_argument("project") + " has the pid = " + str(self.marxanProcess.pid)
                         #return the pid so that the process can be stopped - prefix with an 'm' indicating that the pid is for a marxan run
                         self.send_response({'pid': 'm' + str(self.marxanProcess.pid), 'status':'pid'})
                         #callback on the next I/O loop

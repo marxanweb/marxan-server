@@ -1,5 +1,5 @@
 #!/home/ubuntu/miniconda2/envs/python36/bin/python3.6 
-import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp, monkeypatch, numpy
+import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp, monkeypatch, numpy, shlex
 from psycopg2.extensions import register_adapter, AsIs
 from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
@@ -1639,11 +1639,12 @@ def _deleteShutdownFile():
         os.remove(MARXAN_FOLDER + SHUTDOWN_FILENAME)
 
 #runs a command in a separate process
-async def _runCmd(cmd):
+@gen.coroutine
+def _runCmd(cmd):
     if platform.system() != "Windows":
         #run the import as an asyncronous subprocess
-        process = await asyncio.create_subprocess_shell(cmd, stderr=subprocess.STDOUT)
-        result = await process.wait()
+        process = Subprocess([*shlex.split(cmd)], stdout=Subprocess.STREAM, stderr=Subprocess.STREAM, shell=True)
+        result = yield process.wait_for_exit(raise_error=False)
     else:
         #run the import using the python subprocess module 
         resultBytes = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)

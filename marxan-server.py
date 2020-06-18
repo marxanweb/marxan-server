@@ -1643,7 +1643,7 @@ def _deleteShutdownFile():
 def _runCmd(cmd):
     if platform.system() != "Windows":
         #run the import as an asyncronous subprocess
-        process = Subprocess([*shlex.split(cmd)], stdout=Subprocess.STREAM, stderr=Subprocess.STREAM, shell=True)
+        process = Subprocess([*shlex.split(cmd)], stdout=Subprocess.STREAM, stderr=Subprocess.STREAM)
         result = yield process.wait_for_exit(raise_error=False)
     else:
         #run the import using the python subprocess module 

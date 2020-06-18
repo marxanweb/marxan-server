@@ -14,7 +14,7 @@ TEST_HTTP = "http://localhost"
 TEST_WS = "ws://localhost"
 TEST_REFERER = "http://localhost"
 TEST_USER = "unit_tester"
-TEST_PROJECT = "British%20Columbia%20Marine%20Case%20Study"
+TEST_PROJECT = "test_project"
 TEST_IMPORT_PROJECT = "test_import_project"
 TEST_DATA_FOLDER = MARXAN_SERVER_FOLDER + os.sep + "test-data" + os.sep 
 TEST_FILE = "readme.md"
@@ -205,10 +205,32 @@ class TestClass(AsyncHTTPTestCase):
     ###########################################################################
 
     #asynchronous/synchronous GET request
-    def test_0050_validateUser(self):
+    def test_001_validateUser(self):
         self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
-        self.makeRequest('/clearRunLogs?user=' + LOGIN_USER + '&project=' + TEST_PROJECT, False)
-        self.makeWebSocketRequest('/runMarxan?user=' + LOGIN_USER + '&project=' + TEST_PROJECT, False)
-        shutil.copy("/home/ubuntu/environment/marxanweb/marxan-server/test-data/admin_Fiji NBSAP.mxw", "/home/ubuntu/environment/marxanweb/marxan-server/imports/")
-        self.makeWebSocketRequest('/importProject?user=' + LOGIN_USER + '&project=test%20import&filename=admin_Fiji%20NBSAP.mxw&description=wibble', False) 
-        self.makeWebSocketRequest('/runMarxan?user=' + LOGIN_USER + '&project=test%20import', False)
+
+    def test_002_getServerData(self):
+        self.makeRequest('/getServerData', False)
+
+    def test_003_createUser(self):
+        body = urllib.parse.urlencode({"user":TEST_USER,"password":"wibble","fullname":"wibble","email":"a@b.com"})
+        self.makeRequest('/createUser', False, method="POST", body=body)
+
+    def test_006_createProject(self):
+        body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_PROJECT,"description":"whatever","planning_grid_name":"pu_ton_marine_hexagon_50", 'interest_features':'63407942,63408405,63408475,63767166','target_values':'33,17,45,17','spf_values':'40,40,40,40'})
+        self.makeRequest('/createProject', False, method="POST", body=body)
+
+    def test_007_preprocessFeature(self):
+        self.makeWebSocketRequest('/preprocessFeature?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50&feature_class_name=volcano&alias=volcano&id=63408475', False)
+
+    def test_008_preprocessFeature(self): #no intersection
+        self.makeWebSocketRequest('/preprocessFeature?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50&feature_class_name=png2&alias=Pacific%20Coral%20Reefs&id=63408006', False)
+        
+    def test_016_runMarxan(self):
+        self.makeWebSocketRequest('/runMarxan?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+
+    def test_030_exportProject(self):
+        self.makeWebSocketRequest('/exportProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+        shutil.copy(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw", m.IMPORT_FOLDER)
+        os.remove(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw")
+        
+        

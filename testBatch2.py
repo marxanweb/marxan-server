@@ -1,8 +1,9 @@
 #test a sequence of API calls where deadlocks can occur
-import unittest, importlib, tornado, aiopg, json, urllib, os, sys, shutil
+import unittest, importlib, tornado, aiopg, json, urllib, os, sys, shutil, psutil
 from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.ioloop import IOLoop
 from tornado.httpclient import HTTPRequest
+from pprint import pprint as pp
 from tornado import httputil
 from shutil import copyfile
 
@@ -13,15 +14,6 @@ LOGIN_PASSWORD = "password"
 TEST_HTTP = "http://localhost"
 TEST_WS = "ws://localhost"
 TEST_REFERER = "http://localhost"
-TEST_USER = "unit_tester"
-TEST_PROJECT = "test_project"
-TEST_IMPORT_PROJECT = "test_import_project"
-TEST_DATA_FOLDER = MARXAN_SERVER_FOLDER + os.sep + "test-data" + os.sep 
-TEST_FILE = "readme.md"
-TEST_ZIP_SHP_MULTIPLE = "multiple_features.zip"
-TEST_ZIP_SHP_INVALID_GEOM = "invalid_geometry.zip"
-TEST_ZIP_SHP_MISSING_FILE = "pulayer_missing_file.zip"
-TEST_ZIP_SHP_PLANNING_GRID = "pu_sample.zip"
 
 #global variables
 cookie = None
@@ -52,19 +44,12 @@ def setCookies(response):
     global cookie
     cookie = "user=" + userCookie['user'] + ";role=" + roleCookie['role']
 
-def copyTestData(filename):
-    """
-    Copies a file from the unittests/test-data folder to the marxan-server folder
+def printProcessInfo():
+    for proc in psutil.process_iter(['pid', 'name', 'username','status']):
+        # if ((proc.info['username'] == 'ubuntu') or (proc.info['username'] == 'postgres')) and (proc.info['status'] != psutil.STATUS_SLEEPING):
+        if ((proc.info['username'] == 'ubuntu') or (proc.info['username'] == 'postgres')):
+            print(proc.info)
     
-    Arguments:
-        filename (str): the name of the file to copy including the extension
-    """
-    testFile = TEST_DATA_FOLDER + filename
-    destFile = MARXAN_SERVER_FOLDER + os.sep + filename
-    if os.path.exists(destFile):
-        os.remove(destFile)
-    copyfile(testFile, destFile)
-
 class TestClass(AsyncHTTPTestCase):
     @gen_test
     def get_app(self):
@@ -76,11 +61,13 @@ class TestClass(AsyncHTTPTestCase):
         m.SHOW_START_LOG = False
         #create the app
         self._app = m.Application()
+        # printProcessInfo()
         return self._app
     
     @gen_test
     def tearDown(self):
         #free the database connection
+        # printProcessInfo()
         m.pg.pool.close()
         yield m.pg.pool.wait_closed()
         
@@ -105,8 +92,8 @@ class TestClass(AsyncHTTPTestCase):
             #leave out the href link to the error message
             if err.find("See <")!=-1:
                 err = err[:err.find("See <")]
-            # print(err, end=' ', flush=True)
-        # print(_dict)
+            print(err, end=' ', flush=True)
+        print(_dict)
         #assertions for errors
         if requestComplete:
             if mustReturnError:
@@ -117,16 +104,6 @@ class TestClass(AsyncHTTPTestCase):
     
     @gen_test
     def makeRequest(self, url, mustReturnError, **kwargs):
-        """Makes a GET/POST request to the url using the optional kwargs arguments
-        
-        Parameters:
-            url (str): The query part of the url to request - this excludes the /marxan-server prefix
-            mustReturnError (bool): If True, the request must return an error and the assertTrue will be run
-            **kwargs (optional): Additional parameters that are passed by keyword to the url fetch function, e.g. headers, body
-        
-        Returns:
-            dict: The json response from the marxan-server
-        """
         #get any existing headers
         if "headers" in kwargs.keys():
             d1 = kwargs['headers']
@@ -172,14 +149,6 @@ class TestClass(AsyncHTTPTestCase):
             # print(_dict)
         return msgs
     
-    def uploadFile(self, fullPath, formData, mustReturnError):
-        headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
-        self.makeRequest('/uploadFile', mustReturnError, method='POST', headers=headers, body=body)
-
-    def uploadFileToFolder(self, fullPath, formData, mustReturnError):
-        headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
-        self.makeRequest('/uploadFileToFolder', mustReturnError, method='POST', headers=headers, body=body)
-    
     def getRequestHeaders(self, fullPath, formData, mustReturnError):
         #get the filename from the full path
         filename = fullPath[fullPath.rfind(os.sep) + 1:]
@@ -204,33 +173,22 @@ class TestClass(AsyncHTTPTestCase):
     # start of batch test
     ###########################################################################
 
-    #asynchronous/synchronous GET request
+    #the following test succeeds
+    # def test_000_testAllatOnce(self):
+    #     self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
+    #     self.makeWebSocketRequest('/runMarxan?user=' + LOGIN_USER + '&project=Start%20project', False)
+    #     self.makeWebSocketRequest('/exportProject?user=' + LOGIN_USER + '&project=Start%20project', False)
+    #     os.remove(m.EXPORT_FOLDER + LOGIN_USER + '_Start project.mxw')
+
+    #the following tests fail with a deadlock 
     def test_001_validateUser(self):
         self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
 
-    def test_002_getServerData(self):
-        self.makeRequest('/getServerData', False)
+    def test_002_runMarxan(self):
+        self.makeWebSocketRequest('/runMarxan?user=' + LOGIN_USER + '&project=Start%20project', False)
 
-    def test_003_createUser(self):
-        body = urllib.parse.urlencode({"user":TEST_USER,"password":"wibble","fullname":"wibble","email":"a@b.com"})
-        self.makeRequest('/createUser', False, method="POST", body=body)
-
-    def test_006_createProject(self):
-        body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_PROJECT,"description":"whatever","planning_grid_name":"pu_ton_marine_hexagon_50", 'interest_features':'63407942,63408405,63408475,63767166','target_values':'33,17,45,17','spf_values':'40,40,40,40'})
-        self.makeRequest('/createProject', False, method="POST", body=body)
-
-    def test_007_preprocessFeature(self):
-        self.makeWebSocketRequest('/preprocessFeature?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50&feature_class_name=volcano&alias=volcano&id=63408475', False)
-
-    def test_008_preprocessFeature(self): #no intersection
-        self.makeWebSocketRequest('/preprocessFeature?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50&feature_class_name=png2&alias=Pacific%20Coral%20Reefs&id=63408006', False)
-        
-    def test_016_runMarxan(self):
-        self.makeWebSocketRequest('/runMarxan?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
-
-    def test_030_exportProject(self):
-        self.makeWebSocketRequest('/exportProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
-        shutil.copy(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw", m.IMPORT_FOLDER)
-        os.remove(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw")
-        
+    # this causes an ogr2ogr <defunct> process
+    def test_003_exportProject(self):
+        self.makeWebSocketRequest('/exportProject?user=' + LOGIN_USER + '&project=Start%20project', False)
+        os.remove(m.EXPORT_FOLDER + LOGIN_USER + '_Start project.mxw')
         

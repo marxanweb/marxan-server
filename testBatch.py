@@ -79,10 +79,15 @@ class TestClass(AsyncHTTPTestCase):
         return self._app
     
     @gen_test
-    def tearDown(self):
+    def tearDownHelper(self):
+        # From Ben Darnell article: https://stackoverflow.com/a/32992727
         #free the database connection
         m.pg.pool.close()
         yield m.pg.pool.wait_closed()
+        
+    def tearDown(self):
+        self.tearDownHelper()
+        super().tearDown()
         
     def getDictResponse(self, response, mustReturnError):
         """

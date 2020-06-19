@@ -1,5 +1,5 @@
 #test a sequence of API calls where deadlocks can occur
-import unittest, importlib, tornado, aiopg, json, urllib, os, sys, shutil, psutil
+import unittest, importlib, tornado, aiopg, json, urllib, os, sys, shutil, psutil, time
 from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.ioloop import IOLoop
 from tornado.httpclient import HTTPRequest
@@ -44,12 +44,6 @@ def setCookies(response):
     global cookie
     cookie = "user=" + userCookie['user'] + ";role=" + roleCookie['role']
 
-def printProcessInfo():
-    for proc in psutil.process_iter(['pid', 'name', 'username','status']):
-        # if ((proc.info['username'] == 'ubuntu') or (proc.info['username'] == 'postgres')) and (proc.info['status'] != psutil.STATUS_SLEEPING):
-        if ((proc.info['username'] == 'ubuntu') or (proc.info['username'] == 'postgres')):
-            print(proc.info)
-    
 class TestClass(AsyncHTTPTestCase):
     @gen_test
     def get_app(self):
@@ -61,15 +55,18 @@ class TestClass(AsyncHTTPTestCase):
         m.SHOW_START_LOG = False
         #create the app
         self._app = m.Application()
-        # printProcessInfo()
         return self._app
     
     @gen_test
-    def tearDown(self):
+    def tearDownHelper(self):
+        # From Ben Darnell article: https://stackoverflow.com/a/32992727
         #free the database connection
-        # printProcessInfo()
         m.pg.pool.close()
         yield m.pg.pool.wait_closed()
+        
+    def tearDown(self):
+        self.tearDownHelper()
+        super().tearDown()
         
     def getDictResponse(self, response, mustReturnError):
         """

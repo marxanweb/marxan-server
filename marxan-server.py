@@ -1781,7 +1781,6 @@ class PostGIS():
     async def exportToShapefile(self, exportFolder, feature_class_sname, tEpsgCode = "EPSG:4326"):
         #get the command to execute
         cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "ESRI Shapefile" "' + exportFolder + '" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + ' ACTIVE_SCHEMA=marxan" -sql "SELECT * FROM ' + feature_class_sname + ';" -nln ' + feature_class_sname + ' -t_srs ' + tEpsgCode
-        logging.debug(cmd)
         #run the command
         try:
             results = await _runCmd(cmd)

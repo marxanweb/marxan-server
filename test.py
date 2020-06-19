@@ -303,14 +303,14 @@ class TestClass(AsyncHTTPTestCase):
     def test_029_deleteProjects(self): 
         self.makeRequest('/deleteProjects?projectNames=' + projects, False)
 
-    # def test_030_exportProject(self):
-    #     self.makeWebSocketRequest('/exportProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
-    #     shutil.copy(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw", m.IMPORT_FOLDER)
-    #     os.remove(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw")
+    def test_030_exportProject(self):
+        self.makeWebSocketRequest('/exportProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+        shutil.copy(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw", m.IMPORT_FOLDER)
+        os.remove(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw")
         
-    # def test_031_importProject(self):
-    #     self.makeWebSocketRequest('/importProject?user=' + TEST_USER + '&project=wibble&filename=' + TEST_USER + "_" + TEST_PROJECT + ".mxw&description=wibble%20description", False)
-    #     self.makeRequest('/deleteProject?user=' + TEST_USER + '&project=wibble', False)
+    def test_031_importProject(self):
+        self.makeWebSocketRequest('/importProject?user=' + TEST_USER + '&project=wibble&filename=' + TEST_USER + "_" + TEST_PROJECT + ".mxw&description=wibble%20description", False)
+        self.makeRequest('/deleteProject?user=' + TEST_USER + '&project=wibble', False)
 
     def test_032_renameProject(self):
         self.makeRequest('/renameProject?user=' + TEST_USER + '&project=' + TEST_PROJECT + "&newName=wibble", False)

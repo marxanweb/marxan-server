@@ -338,7 +338,7 @@ class TestClass(AsyncHTTPTestCase):
 
     def test_038_importPlanningUnitGrid(self):
         copyTestData(TEST_ZIP_SHP_PLANNING_GRID)
-        f = self.makeRequest('/importPlanningUnitGrid?filename=' + TEST_ZIP_SHP_PLANNING_GRID + '&name=pu_test&description=wibble', False)
+        f = self.makeRequest('/importPlanningUnitGrid?filename=' + TEST_ZIP_SHP_PLANNING_GRID + '&name=pu_test2&description=wibble', False)
         self.makeRequest('/deletePlanningUnitGrid?planning_grid_name=' + f['feature_class_name'], False)
 
     def test_039_exportPlanningUnitGrid(self):
@@ -432,14 +432,14 @@ class TestClass(AsyncHTTPTestCase):
             self.makeRequest('/deleteFeature?feature_name=' + f, False)
 
     def test_057_createFeaturesFromWFS(self):
-        features = self.makeWebSocketRequest('/createFeaturesFromWFS?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test&description=wibble&srs=EPSG:3857', False)
+        features = self.makeWebSocketRequest('/createFeaturesFromWFS?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test2&description=wibble&srs=EPSG:3857', False)
         #get the feature class names of those that have been imported
         fcns = [feature['feature_class_name'] for feature in features if feature['status'] == 'FeatureCreated']
         for f in fcns:
             self.makeRequest('/deleteFeature?feature_name=' + f, False)
 
     def test_058_createFeatureFromLinestring(self):
-        body = urllib.parse.urlencode({"name": "wibble","description":"wibble2","linestring":"Linestring(-175.3421006344285 -20.69048933878365,-175.4011153142698 -20.86450796169632,-175.001631327652 -20.868749810194487,-174.98801255538095 -20.60977871499442,-175.3421006344285 -20.69048933878365)"})
+        body = urllib.parse.urlencode({"name": "wibble2","description":"wibble2","linestring":"Linestring(-175.3421006344285 -20.69048933878365,-175.4011153142698 -20.86450796169632,-175.001631327652 -20.868749810194487,-174.98801255538095 -20.60977871499442,-175.3421006344285 -20.69048933878365)"})
         f = self.makeRequest('/createFeatureFromLinestring', False, method="POST", body=body)
         #delete the feature class
         self.makeRequest('/deleteFeature?feature_name=' + f['feature_class_name'], False)

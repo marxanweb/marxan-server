@@ -1640,12 +1640,14 @@ def _deleteShutdownFile():
 
 #runs a command in a separate process
 @gen.coroutine
-def _runCmd(cmd):
+def _runCmd(cmd, suppressOutput=False):
     if platform.system() != "Windows":
         try:
             #run the import as an asyncronous subprocess
-            process = Subprocess([*shlex.split(cmd)])
-            #sometimes this creates zombie processes and hangs
+            if suppressOutput: 
+                process = Subprocess([*shlex.split(cmd)], stdout=subprocess.DEVNULL)                    
+            else:
+                process = Subprocess([*shlex.split(cmd)])
             result = yield process.wait_for_exit()
         except CalledProcessError as e:
             raise MarxanServicesError("Error running command: " + cmd + "\n" + e.args[0])
@@ -2993,11 +2995,11 @@ class runSQLFile(MarxanRESTHandler):
             if not os.path.exists(MARXAN_FOLDER + self.get_argument("filename")):
                 raise MarxanServicesError("File '" + self.get_argument("filename") + "' does not exist")
             #see if suppressOutput is set
-            suppressOutput = '>/dev/null' if 'suppressOutput' in self.request.arguments else ''
+            suppressOutput = True if 'suppressOutput' in self.request.arguments else False
             #set the command
-            cmd = 'sudo -u postgres psql -f ' + MARXAN_FOLDER + self.get_argument("filename") + ' postgresql://' + DATABASE_USER + ':' + DATABASE_PASSWORD + '@localhost:5432/marxanserver ' + suppressOutput
+            cmd = 'sudo -u postgres psql -f ' + MARXAN_FOLDER + self.get_argument("filename") + ' postgresql://' + DATABASE_USER + ':' + DATABASE_PASSWORD + '@localhost:5432/marxanserver'
             #run the command
-            result = await _runCmd(cmd)
+            result = await _runCmd(cmd, suppressOutput)
             self.send_response({'info': result})
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])

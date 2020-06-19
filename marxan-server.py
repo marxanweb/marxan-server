@@ -1642,9 +1642,13 @@ def _deleteShutdownFile():
 @gen.coroutine
 def _runCmd(cmd):
     if platform.system() != "Windows":
-        #run the import as an asyncronous subprocess
-        process = Subprocess([*shlex.split(cmd)], stdout=Subprocess.STREAM, stderr=Subprocess.STREAM)
-        result = yield process.wait_for_exit(raise_error=False)
+        try:
+            #run the import as an asyncronous subprocess
+            process = Subprocess([*shlex.split(cmd)])
+            #sometimes this creates zombie processes and hangs
+            result = yield process.wait_for_exit()
+        except CalledProcessError as e:
+            raise MarxanServicesError("Error running command: " + cmd + "\n" + e.args[0])
     else:
         #run the import using the python subprocess module 
         resultBytes = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
@@ -3248,6 +3252,8 @@ class runMarxan(MarxanWebSocketHandler):
     #finishes writing the output of a stream and writes the run log
     def finishOutput(self, returnCode):
         try: 
+            #close the output stream
+            self.marxanProcess.stdout.close()
             if (self.user != '_clumping'): #dont log clumping runs 
                 #get the number of runs completed
                 numRunsCompleted = _getNumberOfRunsCompleted(self)

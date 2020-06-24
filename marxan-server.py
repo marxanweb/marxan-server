@@ -3328,6 +3328,7 @@ class updateWDPA(MarxanWebSocketHandler):
             _validateArguments(self.request.arguments, ['downloadUrl'])   
             if "unittest" in list(self.request.arguments.keys()):
                 unittest = True
+                #if we are running a unit test then download the WDPA from a minimal zipped file geodatabase on google storage
                 downloadUrl = 'https://storage.googleapis.com/geeimageserver.appspot.com/WDPA_Jun2020.zip'
             else:
                 unittest = False

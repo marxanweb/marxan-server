@@ -485,7 +485,10 @@ class TestClass(AsyncHTTPTestCase):
     def test_071_deleteUser(self):
         self.makeRequest('/deleteUser?user=' + TEST_USER, False)
         
-    def test_072_logout(self):
+    def test_072_updateWdpa(self):
+        self.makeWebSocketRequest('/updateWDPA?downloadUrl=whatever&unittest=True', False)
+
+    def test_073_logout(self):
         self.makeRequest('/logout', False)
 
     # ("/resendPassword", resendPassword), #no unit test required

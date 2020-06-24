@@ -244,8 +244,8 @@ class TestClass(AsyncHTTPTestCase):
     # def test_2201_exportFeature(self):
     #     self.makeRequest('/exportFeature?name=intersesting_habitat', False)
 
-    def test_066_runSQLFile(self):
-        self.makeRequest('/runSQLFile?filename=test.sql&suppressOutput=True', False)
+    # def test_066_runSQLFile(self):
+    #     self.makeRequest('/runSQLFile?filename=test.sql&suppressOutput=True', False)
 
     # def test_3000_unzipShapefile(self):
     #     copyTestData(TEST_ZIP_SHP_MULTIPLE)
@@ -257,6 +257,6 @@ class TestClass(AsyncHTTPTestCase):
     #     self.makeRequest('/updateProjectParameters', False, method="POST", body=body)
 
     # #WebSocket request
-    # def test_2300_createPlanningUnitGrid(self):
-    #     self.makeWebSocketRequest('/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=square', False)
+    def test_2300_updateWDPA(self):
+        self.makeWebSocketRequest('/updateWDPA?downloadUrl=whatever&unittest=True', False)
     

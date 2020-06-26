@@ -3343,137 +3343,6 @@ class runMarxan(MarxanWebSocketHandler):
         except MarxanServicesError as e:
             self.close({'error': e.args[0]})
 
-#updates the WDPA table in PostGIS using the publically available downloadUrl
-class updateWDPA(MarxanWebSocketHandler):
-    #authenticate and get the user folder and project folders
-    async def open(self):
-        try:
-            await super().open({'info': "Updating WDPA.."})
-        except MarxanServicesError: #authentication/authorisation error
-            pass
-        else:
-            _validateArguments(self.request.arguments, ['downloadUrl'])   
-            if "unittest" in list(self.request.arguments.keys()):
-                unittest = True
-                #if we are running a unit test then download the WDPA from a minimal zipped file geodatabase on google storage
-                downloadUrl = 'https://storage.googleapis.com/geeimageserver.appspot.com/WDPA_Jun2020.zip'
-            else:
-                unittest = False
-                downloadUrl = self.get_argument("downloadUrl")
-            try:
-                #download the new wdpa zip
-                self.send_response({'status':'Preprocessing','info': "Downloading " + downloadUrl})
-                await self.asyncDownload(downloadUrl, IMPORT_FOLDER + WDPA_DOWNLOAD_FILE)
-            except (MarxanServicesError) as e: #download failed
-                self.close({'error': e.args[0], 'info': 'WDPA not updated'})
-            else:
-                self.send_response({'status':'Preprocessing', 'info': "WDPA downloaded"})
-                try:
-                    #download finished - upzip the file geodatabase
-                    self.send_response({'status':'Preprocessing', 'info': "Unzipping file geodatabase '" + WDPA_DOWNLOAD_FILE + "'"})
-                    files = await IOLoop.current().run_in_executor(None, _unzipFile, IMPORT_FOLDER, WDPA_DOWNLOAD_FILE) 
-                    #check the contents of the unzipped file - the contents should include a folder ending in .gdb - this is the file geodatabase
-                    fileGDBPath = [f for f in files if f[-5:] == '.gdb' + os.sep][0]
-                except IndexError: #file geodatabase not found
-                    self.close({'error': "The WDPA file geodatabase was not found in the zip file", 'info': 'WDPA not updated'})
-                except (MarxanServicesError) as e: #error unzipping - probably the disk space has run out
-                    self.close({'error': e.args[0], 'info': 'WDPA not updated'})
-                else:
-                    self.send_response({'status':'Preprocessing', 'info': "Unzipped file geodatabase"})
-                    #delete the zip file
-                    os.remove(IMPORT_FOLDER + WDPA_DOWNLOAD_FILE)
-                    #get the name of the source feature class - this will be WDPA_poly_<shortmonth><year>, e.g. WDPA_poly_Jun2020 and can be taken from the file geodatabase path, e.g. WDPA_Jun2020_Public/WDPA_Jun2020_Public.gdb/
-                    sourceFeatureClass = 'WDPA_poly_' + fileGDBPath[5:12] 
-                    try:
-                        #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
-                        #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
-                        feature_class_name = _getUniqueFeatureclassName("wdpa_")
-                        self.send_response({'status': "Preprocessing", 'info': "Importing '" + sourceFeatureClass + "' into PostGIS.."})
-                        #import the wdpa to a tmp feature class
-                        await pg.importFileGDBFeatureClass(IMPORT_FOLDER, fileGDBPath, sourceFeatureClass, feature_class_name, splitAtDateline = False)
-                        self.send_response({'status': "Preprocessing", 'info': "Imported into '" + feature_class_name + "'"})
-                        if not unittest:
-                            #rename the existing wdpa feature class
-                            await pg.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
-                            self.send_response({'status': "Preprocessing", 'info': "Renamed 'wdpa' to 'wdpa_old'"})
-                            #rename the tmp feature class
-                            await pg.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
-                            self.send_response({'status': "Preprocessing", 'info': "Renamed '" + feature_class_name + "' to 'wdpa'"})
-                            #drop the columns that are not needed
-                            await pg.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso;")
-                            self.send_response({'status': "Preprocessing", 'info': "Removed unneccesary columns"})
-                            #delete the old wdpa feature class
-                            await pg.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
-                            self.send_response({'status': "Preprocessing", 'info': "Deleted 'wdpa_old' table"})
-                            #delete all of the existing dissolved country wdpa feature classes
-                            await pg.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
-                            self.send_response({'status': "Preprocessing", 'info': "Deleted dissolved country WDPA feature classes"})
-                        else:
-                            #delete the tmp feature
-                            await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(feature_class_name)))
-                            self.send_response({'status': "Preprocessing", 'info': "Unittest has not replaced existing WDPA file"})
-                    except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
-                        self.close({'error': 'No space left on device importing the WDPA into PostGIS', 'info': 'WDPA not updated'})
-                    else: 
-                        if not unittest:
-                            #update the WDPA_VERSION variable in the server.dat file
-                            _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
-                            #delete all of the existing intersections between planning units and the old version of the WDPA
-                            self.send_response({'status': "Preprocessing", 'info': 'Invalidating existing WDPA intersections'})
-                            _invalidateProtectedAreaIntersections()
-                            #redo the protected area preprocessing on any of the case studies that are included by default with all newly registered users - otherwise the existing data in the input/protected_area_intersections.dat files will be out-of-date
-                            await _reprocessProtectedAreas(self, CASE_STUDIES_FOLDER)
-                        else:
-                            self.send_response({'status': "Preprocessing", 'info': "Unittest has not invalidated existing WDPA intersections"})
-                        #send the response
-                        self.close({'info': 'WDPA update completed succesfully'})
-                finally:
-                    #delete the zip file
-                    if os.path.exists(IMPORT_FOLDER + WDPA_DOWNLOAD_FILE):
-                        os.remove(IMPORT_FOLDER + WDPA_DOWNLOAD_FILE)
-                    #delete the unzipped files
-                    for f in files:
-                        if os.path.exists(IMPORT_FOLDER + f):
-                            try:
-                                os.remove(IMPORT_FOLDER + f)
-                            except IsADirectoryError:
-                                shutil.rmtree(IMPORT_FOLDER + f)
-    
-    async def asyncDownload(self,url, file):
-        #initialise a variable to hold the size downloaded
-        file_size_dl = 0
-        try:
-            async with aiohttp.ClientSession() as session:
-                try:
-                    timeout = aiohttp.ClientTimeout(total=None)
-                    async with aiohttp.ClientSession(timeout=timeout) as session:
-                        async with session.get(url) as resp:
-                            #get the file size
-                            file_size = resp.headers["Content-Length"]
-                            try:
-                                with open(file, 'wb') as f:
-                                    while True:
-                                        chunk = await resp.content.read(100000000)
-                                        if not chunk:
-                                            break
-                                        f.write(chunk)   
-                                        file_size_dl += len(chunk)
-                                        self.ping_message = str(int((file_size_dl/int(file_size))*100)) + "% downloaded"
-                            except Exception as e:
-                                raise MarxanServicesError("Error getting a file: %s" % e)
-                            finally:
-                                f.close()
-                                #remove the ping message otherwise this will be shown every 30 seconds
-                                delattr(self, 'ping_message')
-                except Exception as e:
-                    raise MarxanServicesError("Error getting the url: %s" % url)
-        except (OSError) as e: # out of disk space probably
-            f.close()
-            os.remove(file)
-            raise MarxanServicesError("Out of disk space on device")
-        finally:
-            await session.close()
-
 #imports a set of features from an unzipped shapefile
 class importFeatures(MarxanWebSocketHandler):
     async def open(self):
@@ -4087,6 +3956,137 @@ class resetDatabase(QueryWebSocketHandler):
                 self.send_response({'status':'Preprocessing', 'info': "Cleaning up.."})
                 await _cleanup()
                 self.close({'info':"Reset complete"})
+
+#updates the WDPA table in PostGIS using the publically available downloadUrl
+class updateWDPA(QueryWebSocketHandler):
+    #authenticate and get the user folder and project folders
+    async def open(self):
+        try:
+            await super().open({'info': "Updating WDPA.."})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
+            _validateArguments(self.request.arguments, ['downloadUrl'])   
+            if "unittest" in list(self.request.arguments.keys()):
+                unittest = True
+                #if we are running a unit test then download the WDPA from a minimal zipped file geodatabase on google storage
+                downloadUrl = 'https://storage.googleapis.com/geeimageserver.appspot.com/WDPA_Jun2020.zip'
+            else:
+                unittest = False
+                downloadUrl = self.get_argument("downloadUrl")
+            try:
+                #download the new wdpa zip
+                self.send_response({'status':'Preprocessing','info': "Downloading " + downloadUrl})
+                await self.asyncDownload(downloadUrl, IMPORT_FOLDER + WDPA_DOWNLOAD_FILE)
+            except (MarxanServicesError) as e: #download failed
+                self.close({'error': e.args[0], 'info': 'WDPA not updated'})
+            else:
+                self.send_response({'status':'Preprocessing', 'info': "WDPA downloaded"})
+                try:
+                    #download finished - upzip the file geodatabase
+                    self.send_response({'status':'Preprocessing', 'info': "Unzipping file geodatabase '" + WDPA_DOWNLOAD_FILE + "'"})
+                    files = await IOLoop.current().run_in_executor(None, _unzipFile, IMPORT_FOLDER, WDPA_DOWNLOAD_FILE) 
+                    #check the contents of the unzipped file - the contents should include a folder ending in .gdb - this is the file geodatabase
+                    fileGDBPath = [f for f in files if f[-5:] == '.gdb' + os.sep][0]
+                except IndexError: #file geodatabase not found
+                    self.close({'error': "The WDPA file geodatabase was not found in the zip file", 'info': 'WDPA not updated'})
+                except (MarxanServicesError) as e: #error unzipping - probably the disk space has run out
+                    self.close({'error': e.args[0], 'info': 'WDPA not updated'})
+                else:
+                    self.send_response({'status':'Preprocessing', 'info': "Unzipped file geodatabase"})
+                    #delete the zip file
+                    os.remove(IMPORT_FOLDER + WDPA_DOWNLOAD_FILE)
+                    #get the name of the source feature class - this will be WDPA_poly_<shortmonth><year>, e.g. WDPA_poly_Jun2020 and can be taken from the file geodatabase path, e.g. WDPA_Jun2020_Public/WDPA_Jun2020_Public.gdb/
+                    sourceFeatureClass = 'WDPA_poly_' + fileGDBPath[5:12] 
+                    try:
+                        #import the new wdpa into a temporary PostGIS feature class in EPSG:4326
+                        #get a unique feature class name for the tmp imported feature class - this is necessary as ogr2ogr automatically creates a spatial index called <featureclassname>_geometry_geom_idx on import - which will end up being the name of the index on the wdpa table preventing further imports (as the index will already exist)
+                        feature_class_name = _getUniqueFeatureclassName("wdpa_")
+                        self.send_response({'status': "Preprocessing", 'info': "Importing '" + sourceFeatureClass + "' into PostGIS.."})
+                        #import the wdpa to a tmp feature class
+                        await pg.importFileGDBFeatureClass(IMPORT_FOLDER, fileGDBPath, sourceFeatureClass, feature_class_name, splitAtDateline = False)
+                        self.send_response({'status': "Preprocessing", 'info': "Imported into '" + feature_class_name + "'"})
+                        if not unittest:
+                            #rename the existing wdpa feature class
+                            await pg.execute("ALTER TABLE marxan.wdpa RENAME TO wdpa_old;")
+                            self.send_response({'status': "Preprocessing", 'info': "Renamed 'wdpa' to 'wdpa_old'"})
+                            #rename the tmp feature class
+                            await pg.execute(sql.SQL("ALTER TABLE marxan.{} RENAME TO wdpa;").format(sql.Identifier(feature_class_name)))
+                            self.send_response({'status': "Preprocessing", 'info': "Renamed '" + feature_class_name + "' to 'wdpa'"})
+                            #drop the columns that are not needed
+                            await pg.execute("ALTER TABLE marxan.wdpa DROP COLUMN IF EXISTS ogc_fid,DROP COLUMN IF EXISTS wdpa_pid,DROP COLUMN IF EXISTS pa_def,DROP COLUMN IF EXISTS name,DROP COLUMN IF EXISTS orig_name,DROP COLUMN IF EXISTS desig_eng,DROP COLUMN IF EXISTS desig_type,DROP COLUMN IF EXISTS int_crit,DROP COLUMN IF EXISTS marine,DROP COLUMN IF EXISTS rep_m_area,DROP COLUMN IF EXISTS gis_m_area,DROP COLUMN IF EXISTS rep_area,DROP COLUMN IF EXISTS gis_area,DROP COLUMN IF EXISTS no_take,DROP COLUMN IF EXISTS no_tk_area,DROP COLUMN IF EXISTS status_yr,DROP COLUMN IF EXISTS gov_type,DROP COLUMN IF EXISTS own_type,DROP COLUMN IF EXISTS mang_auth,DROP COLUMN IF EXISTS mang_plan,DROP COLUMN IF EXISTS verif,DROP COLUMN IF EXISTS metadataid,DROP COLUMN IF EXISTS sub_loc,DROP COLUMN IF EXISTS parent_iso;")
+                            self.send_response({'status': "Preprocessing", 'info': "Removed unneccesary columns"})
+                            #delete the old wdpa feature class
+                            await pg.execute("DROP TABLE IF EXISTS marxan.wdpa_old;") 
+                            self.send_response({'status': "Preprocessing", 'info': "Deleted 'wdpa_old' table"})
+                            #delete all of the existing dissolved country wdpa feature classes
+                            await pg.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
+                            self.send_response({'status': "Preprocessing", 'info': "Deleted dissolved country WDPA feature classes"})
+                        else:
+                            #delete the tmp feature
+                            await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(feature_class_name)))
+                            self.send_response({'status': "Preprocessing", 'info': "Unittest has not replaced existing WDPA file"})
+                    except (OSError) as e: #TODO Add other exception classes especially PostGIS ones
+                        self.close({'error': 'No space left on device importing the WDPA into PostGIS', 'info': 'WDPA not updated'})
+                    else: 
+                        if not unittest:
+                            #delete all of the existing intersections between planning units and the old version of the WDPA
+                            self.send_response({'status': "Preprocessing", 'info': 'Invalidating existing WDPA intersections'})
+                            _invalidateProtectedAreaIntersections()
+                            #redo the protected area preprocessing on any of the case studies that are included by default with all newly registered users - otherwise the existing data in the input/protected_area_intersections.dat files will be out-of-date
+                            await _reprocessProtectedAreas(self, CASE_STUDIES_FOLDER)
+                            #update the WDPA_VERSION variable in the server.dat file
+                            _updateParameters(MARXAN_FOLDER + SERVER_CONFIG_FILENAME, {"WDPA_VERSION": self.get_argument("wdpaVersion")})
+                        else:
+                            self.send_response({'status': "Preprocessing", 'info': "Unittest has not invalidated existing WDPA intersections"})
+                        #send the response
+                        self.close({'info': 'WDPA update completed succesfully'})
+                finally:
+                    #delete the zip file
+                    if os.path.exists(IMPORT_FOLDER + WDPA_DOWNLOAD_FILE):
+                        os.remove(IMPORT_FOLDER + WDPA_DOWNLOAD_FILE)
+                    #delete the unzipped files
+                    for f in files:
+                        if os.path.exists(IMPORT_FOLDER + f):
+                            try:
+                                os.remove(IMPORT_FOLDER + f)
+                            except IsADirectoryError:
+                                shutil.rmtree(IMPORT_FOLDER + f)
+    
+    async def asyncDownload(self,url, file):
+        #initialise a variable to hold the size downloaded
+        file_size_dl = 0
+        try:
+            async with aiohttp.ClientSession() as session:
+                try:
+                    timeout = aiohttp.ClientTimeout(total=None)
+                    async with aiohttp.ClientSession(timeout=timeout) as session:
+                        async with session.get(url) as resp:
+                            #get the file size
+                            file_size = resp.headers["Content-Length"]
+                            try:
+                                with open(file, 'wb') as f:
+                                    while True:
+                                        chunk = await resp.content.read(100000000)
+                                        if not chunk:
+                                            break
+                                        f.write(chunk)   
+                                        file_size_dl += len(chunk)
+                                        self.ping_message = str(int((file_size_dl/int(file_size))*100)) + "% downloaded"
+                            except Exception as e:
+                                raise MarxanServicesError("Error getting a file: %s" % e)
+                            finally:
+                                f.close()
+                                #remove the ping message otherwise this will be shown every 30 seconds
+                                delattr(self, 'ping_message')
+                except Exception as e:
+                    raise MarxanServicesError("Error getting the url: %s" % url)
+        except (OSError) as e: # out of disk space probably
+            f.close()
+            os.remove(file)
+            raise MarxanServicesError("Out of disk space on device")
+        finally:
+            await session.close()
 
 ####################################################################################################################################################################################################################################################################
 ## tornado functions

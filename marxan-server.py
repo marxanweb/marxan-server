@@ -678,7 +678,7 @@ async def _reprocessProtectedAreas(obj, folder):
         planning_grid_name = tmpObj.projectData['metadata']['PLANNING_UNIT_NAME']
         #preprocess the planning grid with the WDPA
         obj.send_response({'status': "Preprocessing", 'info': 'Preprocessing ' + planning_grid_name})
-        _preprocessProtectedAreas(obj, planning_grid_name, tmpObj.folder_project)
+        await _preprocessProtectedAreas(obj, planning_grid_name, tmpObj.folder_project + 'input' + os.sep)
     return project_folders
 
 #gets the marxan log after a run
@@ -3923,7 +3923,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
         else:
             _validateArguments(self.request.arguments, ['user','project','planning_grid_name'])    
             #do the intersection with the protected areas
-            _preprocessProtectedAreas(self, self.get_argument('planning_grid_name'), self.folder_input)
+            await _preprocessProtectedAreas(self, self.get_argument('planning_grid_name'), self.folder_input)
             #get the data to return to the client
             _getProtectedAreaIntersectionsData(self)
             #set the response

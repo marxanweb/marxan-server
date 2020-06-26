@@ -38,7 +38,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup",'runSQLFile'],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.6"
+MARXAN_SERVER_VERSION = "v0.9.7"
 MARXAN_LOG_FILE = 'marxan-server.log'
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 GUEST_USERNAME = "guest"
@@ -3463,6 +3463,8 @@ class updateWDPA(MarxanWebSocketHandler):
                                 raise MarxanServicesError("Error getting a file: %s" % e)
                             finally:
                                 f.close()
+                                #remove the ping message otherwise this will be shown every 30 seconds
+                                delattr(self, 'ping_message')
                 except Exception as e:
                     raise MarxanServicesError("Error getting the url: %s" % url)
         except (OSError) as e: # out of disk space probably

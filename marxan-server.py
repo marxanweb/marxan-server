@@ -650,7 +650,7 @@ def _getProtectedAreaIntersectionsData(obj):
 #resets all of the protected area intersections information - for example when a new version of the wdpa is installed 
 def _invalidateProtectedAreaIntersections():
     #get all of the existing protected area intersection files - this includes projects in the /_marxan_web_resources/case_studies folder 
-    files = _getFilesInFolderRecursive(MARXAN_FOLDER, PROTECTED_AREA_INTERSECTIONS_FILENAME)
+    files = _getFilesInFolderRecursive(MARXAN_USERS_FOLDER, PROTECTED_AREA_INTERSECTIONS_FILENAME)
     #iterate through all of these files and replace them with an empty file
     for file in files:
         shutil.copyfile(EMPTY_PROJECT_TEMPLATE_FOLDER + "input" + os.sep + PROTECTED_AREA_INTERSECTIONS_FILENAME, file)    
@@ -3407,7 +3407,7 @@ class updateWDPA(MarxanWebSocketHandler):
                             self.send_response({'status': "Preprocessing", 'info': "Deleted 'wdpa_old' table"})
                             #delete all of the existing dissolved country wdpa feature classes
                             await pg.execute("SELECT * FROM marxan.deleteDissolvedWDPAFeatureClasses()")
-                            self.send_response({'status': "Preprocessing", 'info': "Deleted dissolved country WDPAP feature classes"})
+                            self.send_response({'status': "Preprocessing", 'info': "Deleted dissolved country WDPA feature classes"})
                         else:
                             #delete the tmp feature
                             await pg.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{}").format(sql.Identifier(feature_class_name)))

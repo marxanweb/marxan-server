@@ -649,11 +649,37 @@ def _getProtectedAreaIntersectionsData(obj):
     
 #resets all of the protected area intersections information - for example when a new version of the wdpa is installed 
 def _invalidateProtectedAreaIntersections():
-    #get all of the existing protected area intersection files
-    files = _getFilesInFolderRecursive(MARXAN_USERS_FOLDER, PROTECTED_AREA_INTERSECTIONS_FILENAME)
+    #get all of the existing protected area intersection files - this includes projects in the /_marxan_web_resources/case_studies folder 
+    files = _getFilesInFolderRecursive(MARXAN_FOLDER, PROTECTED_AREA_INTERSECTIONS_FILENAME)
     #iterate through all of these files and replace them with an empty file
     for file in files:
         shutil.copyfile(EMPTY_PROJECT_TEMPLATE_FOLDER + "input" + os.sep + PROTECTED_AREA_INTERSECTIONS_FILENAME, file)    
+
+#intersects the planning grid with the WDPA and writes the results of that intersection to the output folder - obj is an instance of a QueryWebSocketHandler descendent class
+async def _preprocessProtectedAreas(obj, planning_grid_name, output_folder):
+    #do the intersection        
+    intersectionData = await obj.executeQuery(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(planning_grid_name)), data=[planning_grid_name], returnFormat="DataFrame")
+    #write the intersections to file
+    intersectionData.to_csv(output_folder + PROTECTED_AREA_INTERSECTIONS_FILENAME, index=False)
+
+#redoes the protected area preprocessing for the projects in the passed folder - for example, when the WDPA is updated we want to redo the protected area preprocessing for all of the case study projects so that new registered users have the most up-to-date intersection data
+#obj is an instance of a MarxanWebSocketHandler descendent class 
+async def _reprocessProtectedAreas(obj, folder):
+    #get the project folders
+    project_folders = glob.glob(folder + "*/")
+    #iterate through the folders
+    for folder in project_folders:
+        #get the project metadata
+        tmpObj = ExtendableObject()
+        tmpObj.project = "unimportant"
+        tmpObj.folder_project = os.path.dirname(folder) + os.sep
+        await _getProjectData(tmpObj)
+        #get the planning grid name
+        planning_grid_name = tmpObj.projectData['metadata']['PLANNING_UNIT_NAME']
+        #preprocess the planning grid with the WDPA
+        obj.send_response({'status': "Preprocessing", 'info': 'Preprocessing ' + planning_grid_name})
+        _preprocessProtectedAreas(obj, planning_grid_name, tmpObj.folder_project)
+    return project_folders
 
 #gets the marxan log after a run
 def _getMarxanLog(obj):
@@ -3131,7 +3157,8 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
             if "user" in self.request.arguments.keys():
                 _setFolderPaths(self, self.request.arguments)
                 #get the project data
-                await _getProjectData(self)
+                if hasattr(self, 'folder_project'):
+                    await _getProjectData(self)
             #check the request is authenticated
             _authenticate(self)
             #get the requested method
@@ -3394,6 +3421,8 @@ class updateWDPA(MarxanWebSocketHandler):
                             #delete all of the existing intersections between planning units and the old version of the WDPA
                             self.send_response({'status': "Preprocessing", 'info': 'Invalidating existing WDPA intersections'})
                             _invalidateProtectedAreaIntersections()
+                            #redo the protected area preprocessing on any of the case studies that are included by default with all newly registered users - otherwise the existing data in the input/protected_area_intersections.dat files will be out-of-date
+                            await _reprocessProtectedAreas(self, CASE_STUDIES_FOLDER)
                         else:
                             self.send_response({'status': "Preprocessing", 'info': "Unittest has not invalidated existing WDPA intersections"})
                         #send the response
@@ -3883,7 +3912,7 @@ class preprocessFeature(QueryWebSocketHandler):
                 #set the response
                 self.close({'info': "Feature '" + self.get_argument('alias') + "' preprocessed", "feature_class_name": self.get_argument('feature_class_name'), "pu_area" : str(record.iloc[0]['pu_area']),"pu_count" : str(record.iloc[0]['pu_count']), "id":str(speciesId)})
 
-#preprocesses the protected areas by intersecting them with the planning units
+#preprocesses the protected areas by intersecting them with the planning grid
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30
 class preprocessProtectedAreas(QueryWebSocketHandler):
     async def open(self):
@@ -3894,13 +3923,28 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
         else:
             _validateArguments(self.request.arguments, ['user','project','planning_grid_name'])    
             #do the intersection with the protected areas
-            intersectionData = await self.executeQuery(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(self.get_argument('planning_grid_name'))), data=[self.get_argument('planning_grid_name')], returnFormat="DataFrame")
-            #write the intersections to file
-            intersectionData.to_csv(self.folder_input + PROTECTED_AREA_INTERSECTIONS_FILENAME, index=False)
-            #get the data
+            _preprocessProtectedAreas(self, self.get_argument('planning_grid_name'), self.folder_input)
+            #get the data to return to the client
             _getProtectedAreaIntersectionsData(self)
             #set the response
             self.close({'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData })
+    
+#redoes the preprocessesing of protected areas for all projects for the user by intersecting them with their planning grids - if the user is case_studies then the case studies folder if redone. Useful after the WDPA has been updated
+#wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/reprocessProtectedAreas?user=case_studies
+class reprocessProtectedAreas(QueryWebSocketHandler):
+    async def open(self):
+        try:
+            await super().open({'info': "Reprocessing protected areas for projects"})
+        except MarxanServicesError: #authentication/authorisation error
+            pass
+        else:
+            _validateArguments(self.request.arguments, ['user'])
+            #get the folder to process
+            folder = CASE_STUDIES_FOLDER if self.get_argument('user') == 'case_studies' else self.get_argument('user')
+            #reprocess the folder
+            await _reprocessProtectedAreas(self, folder)
+            #set the response
+            self.close({'info': 'Reprocessing finished'})
     
 #preprocesses the planning units to get the boundary lengths where they intersect - produces the bounds.dat file
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessPlanningUnits?user=admin&project=Start%20project
@@ -4114,6 +4158,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/preprocessFeature", preprocessFeature),
             ("/marxan-server/preprocessPlanningUnits", preprocessPlanningUnits),
             ("/marxan-server/preprocessProtectedAreas", preprocessProtectedAreas),
+            ("/marxan-server/reprocessProtectedAreas", reprocessProtectedAreas),
             ("/marxan-server/runMarxan", runMarxan),
             ("/marxan-server/stopProcess", stopProcess),
             ("/marxan-server/getRunLogs", getRunLogs),

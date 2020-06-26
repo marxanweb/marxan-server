@@ -257,6 +257,9 @@ class TestClass(AsyncHTTPTestCase):
     #     self.makeRequest('/updateProjectParameters', False, method="POST", body=body)
 
     # #WebSocket request
-    def test_2300_updateWDPA(self):
-        self.makeWebSocketRequest('/updateWDPA?downloadUrl=whatever&unittest=True', False)
+    # def test_2300_updateWDPA(self):
+    #     self.makeWebSocketRequest('/updateWDPA?downloadUrl=whatever&unittest=True', False)
+    
+    def test_2301_reprocessProtectedAreas(self):
+        self.makeWebSocketRequest('/reprocessProtectedAreas?user=case_studies', False)
     

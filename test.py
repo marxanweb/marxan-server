@@ -272,7 +272,9 @@ class TestClass(AsyncHTTPTestCase):
         self.makeRequest('/getRunLogs?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
     
     def test_019_clearRunLogs(self):
-        self.makeRequest('/clearRunLogs?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+        #we no longer want it to clear the run log
+        #self.makeRequest('/clearRunLogs?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+        pass
 
     def test_020_runGapAnalysis(self):
         self.makeWebSocketRequest('/runGapAnalysis?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)

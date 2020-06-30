@@ -1685,7 +1685,7 @@ def _getExceptionLastLine(exc_info):
     
 def _deleteShutdownFile():
     if (os.path.exists(MARXAN_FOLDER + SHUTDOWN_FILENAME)):
-        print("Deleting the shutdown file")
+        logging.warning("Deleting the shutdown file")
         os.remove(MARXAN_FOLDER + SHUTDOWN_FILENAME)
 
 #runs a command in a separate process
@@ -3099,9 +3099,11 @@ class shutdown(MarxanRESTHandler):
                     _writeFileUnicode(MARXAN_FOLDER + SHUTDOWN_FILENAME, (datetime.datetime.now(timezone.utc) + timedelta(minutes/1440)).isoformat())
                 #wait for so many minutes
                 await asyncio.sleep(minutes * 60)
+                logging.warning("marxan-server stopping due to shutdown event")
                 #delete the shutdown file
                 _deleteShutdownFile()
                 #shutdown the os
+                logging.warning("marxan-server stopped")
                 os.system('sudo shutdown now')
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])
@@ -4253,7 +4255,6 @@ async def initialiseApp():
     #close the database connection
     pg.pool.close()
     await pg.pool.wait_closed()
-    logging.warning("marxan-server stopped automatically")
         
 if __name__ == "__main__":
     try:
@@ -4262,9 +4263,10 @@ if __name__ == "__main__":
             tornado.ioloop.IOLoop.current().run_sync(initialiseApp)
         except KeyboardInterrupt:
             _deleteShutdownFile()
+            logging.warning("marxan-server stopping due to KeyboardInterrupt")
             pass    
         finally:
-            logging.warning("marxan-server stopped by KeyboardInterrupt")
+            logging.warning("marxan-server stopped")
             SHUTDOWN_EVENT.set()   
             
     except Exception as e:

@@ -43,6 +43,8 @@ cp ./marxan-server/server.dat.default ./marxan-server/server.dat
 cp ./marxan-server/users/admin/user.dat.default ./marxan-server/users/admin/user.dat
 #create the default marxan-server.log file - this allows git resets without overwriting log changes
 cp ./marxan-server/marxan-server.log.default ./marxan-server/marxan-server.log
+#create the default runlog.dat file - this allows git resets without overwriting run log changes
+cp ./marxan-server/runlog.dat.default ./marxan-server/runlog.dat
 #create a file in /etc/profile.d/ to store the MARXAN_SERVER_DIRECTORY environment variable for all users
 sudo bash -c 'echo MARXAN_SERVER_DIRECTORY=\"$PWD\/marxan-server\" > /etc/profile.d/marxan-server.sh'
 #source the MARXAN_SERVER_DIRECTORY environment variable to apply that environment variable

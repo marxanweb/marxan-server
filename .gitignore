@@ -1,5 +1,6 @@
 server.dat
 marxan-server.log
+runlog.dat
 users/admin/user.dat
 __pycache__/*
 *.pyc

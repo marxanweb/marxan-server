@@ -585,7 +585,7 @@ async def _getPlanningUnitsData(obj):
 async def _getPlanningUnitsCostData(obj):
     df = await _getProjectInputData(obj, "PUNAME")
     #normalise the planning unit cost data to make the payload smaller    
-    obj.planningUnitsData = _normaliseDataFrame(df, "cost", "id", 9)
+    return _normaliseDataFrame(df, "cost", "id", 9)
 
 #gets a list of the custom cost profiles for a project - these are defined in the input/*.cost files
 def _getCosts(obj):
@@ -1027,7 +1027,7 @@ def _normaliseDataFrame(df, columnToNormaliseBy, puidColumnName, classes = None)
             bin = int((row[columnToNormaliseBy] - minValue) / binSize)
             #append the puid
             bins[bin][1].append(int(row[puidColumnName]))
-        response = bins
+        response = (bins, minValue, maxValue)
     else:
         #get the groups from the data (i.e. the unique values for columnToNormaliseBy in ascending order)
         groups = df.groupby(by = columnToNormaliseBy).groups
@@ -2470,9 +2470,9 @@ class getPlanningUnitsCostData(MarxanRESTHandler):
             #validate the input arguments
             _validateArguments(self.request.arguments, ['user','project'])    
             #get the planning units cost information
-            await _getPlanningUnitsCostData(self)
+            data = await _getPlanningUnitsCostData(self)
             #set the response
-            self.send_response({"data": self.planningUnitsData})
+            self.send_response({"data": data[0], 'min': str(data[1]), 'max': str(data[2])})
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])
 

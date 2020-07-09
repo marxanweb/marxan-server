@@ -1220,14 +1220,11 @@ def _unzipShapefile(folder, filename, rejectMultipleShapefiles = True, searchTer
 #checks to see if the tileset already exists on mapbox
 def _tilesetExists(tilesetid):
     url = "https://api.mapbox.com/tilesets/v1/" + MAPBOX_USER + "." + tilesetid + "?access_token=" + MBAT
-    try:
-        urllib.request.urlopen(url)
-    except (Exception) as e:
-        if (e.code == 404):
-            return False
-    else:
-        return True
-
+    #make the request
+    response = requests.get(url)
+    #return true if the tileset already exists
+    return (response.status_code == 200)
+        
 #starts an upload job to mapbox from the passed feature class and returns the uploadid        
 async def _uploadTilesetToMapbox(feature_class_name, mapbox_layer_name):
     if (_tilesetExists(feature_class_name)):

@@ -1772,6 +1772,8 @@ class PostGIS():
                     await cur.execute(sql)
                 except psycopg2.errors.UniqueViolation as e:
                     raise MarxanServicesError("That item already exists")
+                except psycopg2.errors.InternalError:
+                    raise MarxanServicesError("Query stopped")
                 #if the query doesnt return any records then return
                 if returnFormat == None:
                     return
@@ -3754,36 +3756,40 @@ class preprocessFeature(QueryWebSocketHandler):
         else:
             _validateArguments(self.request.arguments, ['user','project','id','feature_class_name','alias','planning_grid_name'])    
             #run the query asynchronously and wait for the results
-            intersectionData = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))), data=[self.get_argument('feature_class_name')], returnFormat="DataFrame")
-            #get the existing data
             try:
-                #load the existing preprocessing data
-                df = await _getProjectInputData(self, "PUVSPRNAME", True)
-            except:
-                #no existing preprocessing data so use the empty data frame
-                d = {'amount':pandas.Series([], dtype='float64'), 'species':pandas.Series([], dtype='int64'), 'pu':pandas.Series([], dtype='int64')}
-                df = pandas.DataFrame(data=d)[['species', 'pu', 'amount']] #reorder the columns
-            #get the species id from the arguments
-            speciesId = int(self.get_argument('id'))
-            #make sure there are not existing records for this feature - otherwise we will get duplicates
-            df = df[~df.species.isin([speciesId])]
-            #append the intersection data to the existing data
-            df = df.append(intersectionData)
-            #sort the values by the pu column then the species column 
-            df = df.sort_values(by=['pu','species'])
-            try: 
-                #write the data to the PUVSPR.dat file
-                await _writeCSV(self, "PUVSPRNAME", df)
-                #get the summary information and write it to the feature preprocessing file
-                record = _getPuvsprStats(df, speciesId)
-                _writeToDatFile(self.folder_input + FEATURE_PREPROCESSING_FILENAME, record)
-            except (MarxanServicesError) as e:
-                self.close({'error': e.args[1] })
+                intersectionData = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))), data=[self.get_argument('feature_class_name')], returnFormat="DataFrame")
+            except (MarxanServicesError) as e: # if the user stops the preprocessing
+                self.close({'error': e.args[0] })
             else:
-                #update the input.dat file
-                _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'PUVSPRNAME': PUVSPR_FILENAME})
-                #set the response
-                self.close({'info': "Feature '" + self.get_argument('alias') + "' preprocessed", "feature_class_name": self.get_argument('feature_class_name'), "pu_area" : str(record.iloc[0]['pu_area']),"pu_count" : str(record.iloc[0]['pu_count']), "id":str(speciesId)})
+                #get the existing data
+                try:
+                    #load the existing preprocessing data
+                    df = await _getProjectInputData(self, "PUVSPRNAME", True)
+                except:
+                    #no existing preprocessing data so use the empty data frame
+                    d = {'amount':pandas.Series([], dtype='float64'), 'species':pandas.Series([], dtype='int64'), 'pu':pandas.Series([], dtype='int64')}
+                    df = pandas.DataFrame(data=d)[['species', 'pu', 'amount']] #reorder the columns
+                #get the species id from the arguments
+                speciesId = int(self.get_argument('id'))
+                #make sure there are not existing records for this feature - otherwise we will get duplicates
+                df = df[~df.species.isin([speciesId])]
+                #append the intersection data to the existing data
+                df = df.append(intersectionData)
+                #sort the values by the pu column then the species column 
+                df = df.sort_values(by=['pu','species'])
+                try: 
+                    #write the data to the PUVSPR.dat file
+                    await _writeCSV(self, "PUVSPRNAME", df)
+                    #get the summary information and write it to the feature preprocessing file
+                    record = _getPuvsprStats(df, speciesId)
+                    _writeToDatFile(self.folder_input + FEATURE_PREPROCESSING_FILENAME, record)
+                except (MarxanServicesError) as e:
+                    self.close({'error': e.args[1] })
+                else:
+                    #update the input.dat file
+                    _updateParameters(self.folder_project + PROJECT_DATA_FILENAME, {'PUVSPRNAME': PUVSPR_FILENAME})
+                    #set the response
+                    self.close({'info': "Feature '" + self.get_argument('alias') + "' preprocessed", "feature_class_name": self.get_argument('feature_class_name'), "pu_area" : str(record.iloc[0]['pu_area']),"pu_count" : str(record.iloc[0]['pu_count']), "id":str(speciesId)})
 
 #preprocesses the protected areas by intersecting them with the planning grid
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessProtectedAreas?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30

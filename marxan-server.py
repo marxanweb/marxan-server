@@ -3800,7 +3800,10 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
             #get the data to return to the client
             _getProtectedAreaIntersectionsData(self)
             #set the response
-            self.close({'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData })
+            if (len(self.protectedAreaIntersectionsData) == 0):
+                self.close({'error': "No intersections between the protected areas and planning grid. See <a href='" + ERRORS_PAGE + "#no-intersections-between-the-protected-areas-and-planning-grid' target='blank'>here</a>"})
+            else:
+                self.close({'info': 'Preprocessing finished', 'intersections': self.protectedAreaIntersectionsData })
     
 #redoes the preprocessesing of protected areas for all projects for the user by intersecting them with their planning grids - if the user is case_studies then the case studies folder if redone. Useful after the WDPA has been updated
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/reprocessProtectedAreas?user=case_studies

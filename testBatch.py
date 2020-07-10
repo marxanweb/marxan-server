@@ -1,13 +1,5 @@
-#single service tester for websocket
-# To test:
-# 1. change to the marxan-server directory
-# 2. conda activate base (or the conda environment used to install marxan-server)
-# 3. Run the following (the -W option disables all warnings - if you omit it you will see ResourceWarnings for things like Sockets not closing when you start an upload the Mapbox and the unit tests stop)
-#    python -W ignore -m unittest testSingleService -v
-# To test against an SSL localhost:
-# 1. Replace all AsyncHTTPTestCase with AsyncHTTPSTestCase
-# 2. Set TEST_HTTP, TEST_WS and TEST_REFERER to point to secure endpoints, e.g. https and wss
-import unittest, importlib, tornado, aiopg, json, urllib, os, sys
+#test a sequence of API calls where deadlocks can occur
+import unittest, importlib, tornado, aiopg, json, urllib, os, sys, shutil
 from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.ioloop import IOLoop
 from tornado.httpclient import HTTPRequest
@@ -22,7 +14,7 @@ TEST_HTTP = "http://localhost"
 TEST_WS = "ws://localhost"
 TEST_REFERER = "http://localhost"
 TEST_USER = "unit_tester"
-TEST_PROJECT = "test_project"
+TEST_PROJECT = "British%20Columbia%20Marine%20Case%20Study"
 TEST_IMPORT_PROJECT = "test_import_project"
 TEST_DATA_FOLDER = MARXAN_SERVER_FOLDER + os.sep + "test-data" + os.sep 
 TEST_FILE = "readme.md"
@@ -119,7 +111,7 @@ class TestClass(AsyncHTTPTestCase):
             if err.find("See <")!=-1:
                 err = err[:err.find("See <")]
             # print(err, end=' ', flush=True)
-        print(_dict)
+        # print(_dict)
         #assertions for errors
         if requestComplete:
             if mustReturnError:
@@ -214,52 +206,14 @@ class TestClass(AsyncHTTPTestCase):
         return headers, body
         
     ###########################################################################
-    # start of individual tests
+    # start of batch test
     ###########################################################################
 
     #asynchronous/synchronous GET request
     def test_0050_validateUser(self):
         self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
-
-    #WebSocket request
-    # def test_2300_exportProject(self):
-    #     self.makeWebSocketRequest('/exportProject?user=admin&project=Start%20project', False)
-
-    # def test_2400_importProject(self):
-    #     self.makeWebSocketRequest('/importProject?user=admin&project=Start%20project2&filename=admin_Start%20project.mxw&description=wibble%20description', False)
-
-    # def test_1080_createFeaturesFromWFS(self):
-    #     features = self.makeWebSocketRequest('/createFeaturesFromWFS2?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test&description=wibble&srs=EPSG:3857', False)
-    #     #get the feature class names of those that have been imported
-    #     fcns = [feature['feature_class_name'] for feature in features if feature['status'] == 'FeatureCreated']
-    #     for f in fcns:
-    #         self.makeRequest('/deleteFeature?feature_name=' + f, False)
-
-    # def test_1450_updateCosts(self):
-    #     self.makeRequest('/updateCosts?user=admin&project=Start%20project&costname=Uniform', False)
-    
-    # def test_2200_exportPlanningUnitGrid(self):
-    #     self.makeRequest('/exportPlanningUnitGrid?name=pu_ton_marine_hexagon_50', False)
-
-    # def test_2201_exportFeature(self):
-    #     self.makeRequest('/exportFeature?name=intersesting_habitat', False)
-
-    # def test_066_runSQLFile(self):
-    #     self.makeRequest('/runSQLFile?filename=test.sql&suppressOutput=True', False)
-
-    # def test_3000_unzipShapefile(self):
-    #     copyTestData(TEST_ZIP_SHP_MULTIPLE)
-    #     self.makeRequest('/unzipShapefile?filename=' + TEST_ZIP_SHP_MULTIPLE, False)
-
-    # #asynchronous/synchronous POST request
-    # def test_1600_updateProjectParameters(self):
-    #     body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT, 'COLORCODE':'wibble'})
-    #     self.makeRequest('/updateProjectParameters', False, method="POST", body=body)
-
-    # #WebSocket request
-    # def test_2300_updateWDPA(self):
-    #     self.makeWebSocketRequest('/updateWDPA?downloadUrl=whatever&unittest=True', False)
-    
-    def test_2301_reprocessProtectedAreas(self):
-        self.makeWebSocketRequest('/reprocessProtectedAreas?user=case_studies', False)
-    
+        self.makeRequest('/clearRunLogs?user=' + LOGIN_USER + '&project=' + TEST_PROJECT, False)
+        self.makeWebSocketRequest('/runMarxan?user=' + LOGIN_USER + '&project=' + TEST_PROJECT, False)
+        shutil.copy("/home/ubuntu/environment/marxanweb/marxan-server/test-data/admin_Fiji NBSAP.mxw", "/home/ubuntu/environment/marxanweb/marxan-server/imports/")
+        self.makeWebSocketRequest('/importProject?user=' + LOGIN_USER + '&project=test%20import&filename=admin_Fiji%20NBSAP.mxw&description=wibble', False) 
+        self.makeWebSocketRequest('/runMarxan?user=' + LOGIN_USER + '&project=test%20import', False)

@@ -7,7 +7,7 @@
 # To test against an SSL localhost:
 # 1. Replace all AsyncHTTPTestCase with AsyncHTTPSTestCase
 # 2. Set TEST_HTTP, TEST_WS and TEST_REFERER to point to secure endpoints, e.g. https and wss
-import unittest, importlib, tornado, aiopg, json, urllib, os, sys
+import unittest, importlib, tornado, aiopg, json, urllib, os, sys, shutil
 from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.ioloop import IOLoop
 from tornado.httpclient import HTTPRequest
@@ -16,6 +16,7 @@ from shutil import copyfile
 
 #CONSTANTS
 MARXAN_SERVER_FOLDER = os.getcwd()
+IMPORTS_FOLDER = MARXAN_SERVER_FOLDER + os.sep + "imports" + os.sep
 LOGIN_USER = "admin"
 LOGIN_PASSWORD = "password"
 TEST_HTTP = "http://localhost"
@@ -41,14 +42,6 @@ m = importlib.import_module("marxan-server")
 #set the ASYNC_TEST_TIMEOUT environment variable as described here http://www.tornadoweb.org/en/stable/testing.html#tornado.testing.AsyncTestCase.wait
 os.environ['ASYNC_TEST_TIMEOUT'] = '600' # 10 minutes
 
-def initialiseServer():
-    m.SHOW_START_LOG = False
-    #set the global variables
-    m._setGlobalVariables()
-    m.DISABLE_SECURITY = False
-    m.SHOW_START_LOG = False
-    return 
-    
 def setCookies(response):
     #get the cookies
     cookies = response.headers['set-cookie'].split(",")
@@ -62,13 +55,13 @@ def setCookies(response):
 
 def copyTestData(filename):
     """
-    Copies a file from the unittests/test-data folder to the marxan-server folder
+    Copies a file from the unittests/test-data folder to the imports folder
     
     Arguments:
         filename (str): the name of the file to copy including the extension
     """
     testFile = TEST_DATA_FOLDER + filename
-    destFile = MARXAN_SERVER_FOLDER + os.sep + filename
+    destFile = IMPORTS_FOLDER + os.sep + filename
     if os.path.exists(destFile):
         os.remove(destFile)
     copyfile(testFile, destFile)
@@ -77,19 +70,26 @@ class TestClass(AsyncHTTPTestCase):
     @gen_test
     def get_app(self):
         #set variables
-        initialiseServer()
-        #create a connection pool 
-        self._pool = yield aiopg.create_pool(m.CONNECTION_STRING, timeout = None)
+        m.SHOW_START_LOG = False
+        #set the global variables
+        yield m._setGlobalVariables()
+        m.DISABLE_SECURITY = False
+        m.SHOW_START_LOG = False
         #create the app
-        self._app = m.Application(self._pool)
+        self._app = m.Application()
         return self._app
     
     @gen_test
-    def tearDown(self):
+    def tearDownHelper(self):
+        # From Ben Darnell article: https://stackoverflow.com/a/32992727
         #free the database connection
-        self._pool.close()
-        yield self._pool.wait_closed()
+        m.pg.pool.close()
+        yield m.pg.pool.wait_closed()
         
+    def tearDown(self):
+        self.tearDownHelper()
+        super().tearDown()
+       
     def getDictResponse(self, response, mustReturnError):
         """
         Parses the response from either a GET/POST request or a WebSocket message to check for errors
@@ -180,9 +180,9 @@ class TestClass(AsyncHTTPTestCase):
         headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
         self.makeRequest('/uploadFile', mustReturnError, method='POST', headers=headers, body=body)
 
-    def uploadShapefile(self, fullPath, formData, mustReturnError):
+    def uploadFileToFolder(self, fullPath, formData, mustReturnError):
         headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
-        self.makeRequest('/uploadShapefile', mustReturnError, method='POST', headers=headers, body=body)
+        self.makeRequest('/uploadFileToFolder', mustReturnError, method='POST', headers=headers, body=body)
     
     def getRequestHeaders(self, fullPath, formData, mustReturnError):
         #get the filename from the full path
@@ -209,157 +209,189 @@ class TestClass(AsyncHTTPTestCase):
     ###########################################################################
 
     #synchronous GET request
-    def test_0050_validateUser(self):
+    def test_001_validateUser(self):
         self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
 
-    def test_0100_getServerData(self):
+    def test_002_getServerData(self):
         self.makeRequest('/getServerData', False)
 
-    def test_0300_createUser(self):
+    def test_003_createUser(self):
         body = urllib.parse.urlencode({"user":TEST_USER,"password":"wibble","fullname":"wibble","email":"a@b.com"})
         self.makeRequest('/createUser', False, method="POST", body=body)
         
-    def test_0600_toggleEnableGuestUser(self):
+    def test_004_toggleEnableGuestUser(self):
         _dict = self.makeRequest('/toggleEnableGuestUser', False)
         self.assertTrue('enabled' in _dict.keys())
         
-    def test_0800_getProjectsWithGrids(self):
+    def test_005_getProjectsWithGrids(self):
         self.makeRequest('/getProjectsWithGrids', False)
 
-    def test_1000_createProject(self):
+    def test_006_createProject(self):
         body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_PROJECT,"description":"whatever","planning_grid_name":"pu_ton_marine_hexagon_50", 'interest_features':'63407942,63408405,63408475,63767166','target_values':'33,17,45,17','spf_values':'40,40,40,40'})
         self.makeRequest('/createProject', False, method="POST", body=body)
 
-    def test_1080_preprocessFeature(self):
+    def test_007_preprocessFeature(self):
         self.makeWebSocketRequest('/preprocessFeature?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50&feature_class_name=volcano&alias=volcano&id=63408475', False)
 
+    def test_008_preprocessFeature(self): #no intersection
+        self.makeWebSocketRequest('/preprocessFeature?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50&feature_class_name=png2&alias=Pacific%20Coral%20Reefs&id=63408006', False)
+
     #this needs some data to be in the puvspr.dat file - the previous test populates it
-    def test_1082_createFeaturePreprocessingFileFromImport(self):
+    def test_009_createFeaturePreprocessingFileFromImport(self):
         self.makeRequest('/createFeaturePreprocessingFileFromImport?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
  
-    def test_1083_upgradeProject(self):
+    def test_010_upgradeProject(self):
         self.makeRequest('/upgradeProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
-    def test_1085_preprocessPlanningUnits(self):
+    def test_011_preprocessPlanningUnits(self):
         self.makeWebSocketRequest('/preprocessPlanningUnits?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
-    def test_1090_preprocessProtectedAreas(self):
+    def test_012_preprocessProtectedAreas(self):
         self.makeWebSocketRequest('/preprocessProtectedAreas?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&planning_grid_name=pu_ton_marine_hexagon_50', False)
 
-    def test_1091_uploadFile(self):
+    def test_013_reprocessProtectedAreas(self):
+        self.makeWebSocketRequest('/reprocessProtectedAreas?user=' + TEST_USER, False)
+
+    def test_014_uploadFile(self):
         #get the path to the file to upload
         testFile = TEST_DATA_FOLDER + TEST_FILE
         self.uploadFile(testFile, {"user":TEST_USER,"project":TEST_PROJECT, "filename": TEST_FILE}, False)
 
-    def test_1092_updatePUFile(self):
+    def test_015_updatePUFile(self):
         body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_PROJECT, "status2": "8172", "status3": "8542,8541"})
         f = self.makeRequest('/updatePUFile', False, method="POST", body=body)
 
-    def test_1093_updateSpecFile(self):
+    def test_016_updateSpecFile(self):
         body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_PROJECT, "interest_features": "63407942,63408405", "target_values": "52,53", "spf_values":"40,40"})
         self.makeRequest('/updateSpecFile', False, method="POST", body=body)
 
-    def test_1094_runMarxan(self):
+    def test_017_runMarxan(self):
         self.makeWebSocketRequest('/runMarxan?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
-    def test_1095_getRunLogs(self):
+    def test_018_getRunLogs(self):
         self.makeRequest('/getRunLogs?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
     
-    def test_1096_clearRunLogs(self):
-        self.makeRequest('/clearRunLogs?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+    def test_019_clearRunLogs(self):
+        #we no longer want it to clear the run log
+        #self.makeRequest('/clearRunLogs?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+        pass
 
-    def test_1096_runGapAnalysis(self):
+    def test_020_runGapAnalysis(self):
         self.makeWebSocketRequest('/runGapAnalysis?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
-    def test_1097_deleteGapAnalysis(self):
+    def test_021_deleteGapAnalysis(self):
         self.makeRequest('/deleteGapAnalysis?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
-    def test_1100_createImportProject(self):
+    def test_022_createImportProject(self):
         body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT})
         self.makeRequest('/createImportProject', False, method="POST", body=body)
 
-    def test_1125_getProjects(self):
+    def test_023_getProjects(self):
         self.makeRequest('/getProjects?user=' + TEST_USER, False)
         
-    def test_1150_getProject(self):
+    def test_024_getProject(self):
         self.makeRequest('/getProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
-    def test_1200_cloneProject(self):
+    def test_025_getCosts(self):
+        self.makeRequest('/getCosts?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+
+    def test_026_updateCosts(self):
+        self.makeRequest('/updateCosts?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&costname=Equal%20area', False)
+    
+    def test_027_deleteCost(self):
+        self.makeRequest('/deleteCost?user=admin&project=Start%20project&costname=wibble2', True)
+
+    def test_028_cloneProject(self):
         self.makeRequest('/cloneProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
 
-    def test_1300_createProjectGroup(self):
+    def test_029_createProjectGroup(self):
         _dict = self.makeRequest('/createProjectGroup?user=' + TEST_USER + '&project=' + TEST_PROJECT + '&copies=5&blmValues=0.1,0.2,0.3,0.4,0.5', False)
         global projects
         # get the names of the projects so we can delete them in the next test
         projects = ",".join([i['projectName'] for i in _dict['data']])
 
-    def test_1400_deleteProjects(self): 
+    def test_030_deleteProjects(self): 
         self.makeRequest('/deleteProjects?projectNames=' + projects, False)
 
-    def test_1500_renameProject(self):
+    def test_031_exportProject(self):
+        self.makeWebSocketRequest('/exportProject?user=' + TEST_USER + '&project=' + TEST_PROJECT, False)
+        shutil.copy(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw", m.IMPORT_FOLDER)
+        os.remove(m.EXPORT_FOLDER + TEST_USER + "_" + TEST_PROJECT + ".mxw")
+        
+    def test_032_importProject(self):
+        self.makeWebSocketRequest('/importProject?user=' + TEST_USER + '&project=wibble&filename=' + TEST_USER + "_" + TEST_PROJECT + ".mxw&description=wibble%20description", False)
+        self.makeRequest('/deleteProject?user=' + TEST_USER + '&project=wibble', False)
+
+    def test_033_renameProject(self):
         self.makeRequest('/renameProject?user=' + TEST_USER + '&project=' + TEST_PROJECT + "&newName=wibble", False)
  
-    def test_1600_updateProjectParameters(self):
+    def test_034_updateProjectParameters(self):
         body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT, 'COLORCODE':'wibble'})
         self.makeRequest('/updateProjectParameters', False, method="POST", body=body)
 
-    def test_1800_listProjectsForFeature(self):
+    def test_035_listProjectsForFeature(self):
         self.makeRequest('/listProjectsForFeature?feature_class_id=63407942', False)
 
-    def test_1900_listProjectsForPlanningGrid(self):
+    def test_036_listProjectsForPlanningGrid(self):
         self.makeRequest('/listProjectsForPlanningGrid?feature_class_name=pu_89979654c5d044baa27b6008f9d06', False)
 
-    def test_2000_getCountries(self):
+    def test_037_getCountries(self):
         self.makeRequest('/getCountries', False)
 
-    def test_2100_getPlanningUnitGrids(self):
+    def test_038_getPlanningUnitGrids(self):
         self.makeRequest('/getPlanningUnitGrids', False)
 
-    def test_2150_importPlanningUnitGrid(self):
+    def test_039_importPlanningUnitGrid(self):
         copyTestData(TEST_ZIP_SHP_PLANNING_GRID)
-        f = self.makeRequest('/importPlanningUnitGrid?filename=' + TEST_ZIP_SHP_PLANNING_GRID + '&name=pu_test&description=wibble', False)
+        f = self.makeRequest('/importPlanningUnitGrid?filename=' + TEST_ZIP_SHP_PLANNING_GRID + '&name=pu_test2&description=wibble', False)
         self.makeRequest('/deletePlanningUnitGrid?planning_grid_name=' + f['feature_class_name'], False)
 
-    def test_2200_deletePlanningUnitGrid(self):
+    def test_040_exportPlanningUnitGrid(self):
+        self.makeRequest('/exportPlanningUnitGrid?name=pu_ton_marine_hexagon_50', False)
+        #delete the zip file
+        if os.path.exists(m.EXPORT_FOLDER + 'pu_ton_marine_hexagon_50.zip'):
+            os.remove(m.EXPORT_FOLDER + 'pu_ton_marine_hexagon_50.zip')
+
+    def test_041_deletePlanningUnitGrid(self):
         self.makeRequest('/deletePlanningUnitGrid?planning_grid_name=pu_and_terrestrial_square_50', False)
 
-    def test_2300_createPlanningUnitGrid(self):
+    def test_042_createPlanningUnitGrid(self):
         self.makeWebSocketRequest('/createPlanningUnitGrid?iso3=AND&domain=Terrestrial&areakm2=50&shape=square', False)
 
-    def test_2400_uploadTilesetToMapBox(self):
+    def test_043_uploadTilesetToMapBox(self):
         self.makeRequest('/uploadTilesetToMapBox?feature_class_name=pu_and_terrestrial_square_50&mapbox_layer_name=square', False)
     
-    def test_2500_getUser(self):
+    def test_044_getUser(self):
         self.makeRequest('/getUser?user=' + TEST_USER, False)
 
-    def test_2600_getUsers(self):
+    def test_045_getUsers(self):
         self.makeRequest('/getUsers', False)
 
-    def test_2700_updateUserParameters(self):
+    def test_046_updateUserParameters(self):
         body = urllib.parse.urlencode({"user":TEST_USER, 'EMAIL':'wibble2'})
         self.makeRequest('/updateUserParameters', False, method="POST", body=body)
 
-    def test_2800_getFeature(self):
+    def test_047_getFeature(self):
         self.makeRequest('/getFeature?oid=63407942', False)
         
-    def test_2900_uploadShapefile(self):
+    def test_048_uploadFileToFolder(self):
         #get the path to the file to upload
         testFile = TEST_DATA_FOLDER + TEST_ZIP_SHP_MULTIPLE
-        self.uploadShapefile(testFile, {'name': 'whatever', 'description': 'whatever2', 'filename': TEST_ZIP_SHP_MULTIPLE}, False)
+        self.uploadFileToFolder(testFile, {'filename': TEST_ZIP_SHP_MULTIPLE,'destFolder':'imports'}, False)
         # TODO The following is a hack as I cant upload a zip file as a binary file through the API, so all subsequent operations on the zip shapefile fail
         copyTestData(TEST_ZIP_SHP_MULTIPLE)
 
-    def test_3000_unzipShapefile(self):
+    def test_049_unzipShapefile(self):
         self.makeRequest('/unzipShapefile?filename=' + TEST_ZIP_SHP_MULTIPLE, False)
 
-    def test_3100_getShapefileFieldnames(self):
+    def test_050_getShapefileFieldnames(self):
         self.makeRequest('/getShapefileFieldnames?filename=' + TEST_ZIP_SHP_MULTIPLE[:-4] + ".shp", False)
 
-    def test_3200_importFeatures(self):
+    def test_051_importFeatures(self):
         #non-existing shapefile
         self.makeWebSocketRequest('/importFeatures?zipfile=ignored&shapefile=nonexisting', True)
 
-    def test_3300_importFeatures(self):
+    def test_052_importFeatures(self):
         #import multiple features 
         features = self.makeWebSocketRequest('/importFeatures?zipfile=' + TEST_ZIP_SHP_MULTIPLE + '&shapefile=' + TEST_ZIP_SHP_MULTIPLE[:-4] + ".shp&splitfield=sp_duplica", False)
         global fcns
@@ -368,7 +400,7 @@ class TestClass(AsyncHTTPTestCase):
         for f in fcns:
             self.makeRequest('/deleteFeature?feature_name=' + f, False)
 
-    def test_3400_importFeatures(self):
+    def test_053_importFeatures(self):
         #import features with invalid geometries
         #copy the test data
         copyTestData(TEST_ZIP_SHP_INVALID_GEOM)
@@ -379,7 +411,7 @@ class TestClass(AsyncHTTPTestCase):
         #delete the shapefile and zipped shapefile
         self.makeRequest('/deleteShapefile?zipfile=' + TEST_ZIP_SHP_INVALID_GEOM + '&shapefile=' + TEST_ZIP_SHP_INVALID_GEOM[:-4] + ".shp", False)
 
-    def test_3500_importFeatures(self):
+    def test_054_importFeatures(self):
         #import a zipped shapefile with missing files
         #copy the test data
         copyTestData(TEST_ZIP_SHP_MISSING_FILE)
@@ -390,59 +422,78 @@ class TestClass(AsyncHTTPTestCase):
         #delete the shapefile and zipped shapefile
         self.makeRequest('/deleteShapefile?zipfile=' + TEST_ZIP_SHP_MISSING_FILE + '&shapefile=pulayer_costt.shp', False)
 
-    def test_3600_deleteShapefile(self):
+    def test_055_exportFeature(self):
+        self.makeRequest('/exportFeature?name=intersesting_habitat', False)
+        #delete the zip file
+        if os.path.exists(m.EXPORT_FOLDER + 'intersesting_habitat.zip'):
+            os.remove(m.EXPORT_FOLDER + 'intersesting_habitat.zip')
+
+    def test_056_deleteShapefile(self):
         self.makeRequest('/deleteShapefile?zipfile=' + TEST_ZIP_SHP_MULTIPLE + '&shapefile=' + TEST_ZIP_SHP_MULTIPLE[:-4] + ".shp", False)
 
-    def test_3700_deleteFeature(self):
+    def test_057_deleteFeature(self):
         #delete the imported features
         for f in fcns:
             self.makeRequest('/deleteFeature?feature_name=' + f, False)
 
-    def test_3800_createFeatureFromLinestring(self):
-        body = urllib.parse.urlencode({"name": "wibble","description":"wibble2","linestring":"Linestring(-175.3421006344285 -20.69048933878365,-175.4011153142698 -20.86450796169632,-175.001631327652 -20.868749810194487,-174.98801255538095 -20.60977871499442,-175.3421006344285 -20.69048933878365)"})
+    def test_058_createFeaturesFromWFS(self):
+        features = self.makeWebSocketRequest('/createFeaturesFromWFS?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test2&description=wibble&srs=EPSG:3857', False)
+        #get the feature class names of those that have been imported
+        fcns = [feature['feature_class_name'] for feature in features if feature['status'] == 'FeatureCreated']
+        for f in fcns:
+            self.makeRequest('/deleteFeature?feature_name=' + f, False)
+
+    def test_059_createFeatureFromLinestring(self):
+        body = urllib.parse.urlencode({"name": "wibble2","description":"wibble2","linestring":"Linestring(-175.3421006344285 -20.69048933878365,-175.4011153142698 -20.86450796169632,-175.001631327652 -20.868749810194487,-174.98801255538095 -20.60977871499442,-175.3421006344285 -20.69048933878365)"})
         f = self.makeRequest('/createFeatureFromLinestring', False, method="POST", body=body)
         #delete the feature class
         self.makeRequest('/deleteFeature?feature_name=' + f['feature_class_name'], False)
 
-    def test_3900_getFeaturePlanningUnits(self):
+    def test_060_getFeaturePlanningUnits(self):
         self.makeRequest('/getFeaturePlanningUnits?user=admin&project=Start%20project&oid=63408475', False)
 
-    def test_4000_getPlanningUnitsCostData(self):
+    def test_061_getPlanningUnitsCostData(self):
         self.makeRequest('/getPlanningUnitsCostData?user=admin&project=Start%20project', False)
 
-    def test_4100_getPUData(self):
+    def test_062_getPUData(self):
         self.makeRequest('/getPUData?user=admin&project=Start%20project&puid=10561', False)
 
-    def test_4200_getAllSpeciesData(self):
+    def test_063_getAllSpeciesData(self):
         self.makeRequest('/getAllSpeciesData', False)
 
-    def test_4300_getResults(self):
+    def test_064_getResults(self):
         self.makeRequest('/getResults?user=admin&project=Start%20project', False)
 
-    def test_4400_getSolution(self):
+    def test_065_getSolution(self):
         self.makeRequest('/getSolution?user=admin&project=Start%20project&solution=1', False)
 
-    def test_4500_importGBIFData(self):
+    def test_066_importGBIFData(self):
         #delete the feature if it already exists
         self.makeRequest('/deleteFeature?feature_name=gbif_2486629', False)
         self.makeWebSocketRequest('/importGBIFData?taxonKey=2486629&scientificName=Clytorhynchus%20nigrogularis', False)
 
-    def test_4600_dismissNotification(self):
+    def test_067_runSQLFile(self):
+        self.makeRequest('/runSQLFile?filename=test.sql&suppressOutput=True', False)
+
+    def test_068_dismissNotification(self):
         self.makeRequest('/dismissNotification?user=admin&notificationid=1', False)
 
-    def test_4700_resetNotifications(self):
+    def test_069_resetNotifications(self):
         self.makeRequest('/resetNotifications?user=admin', False)
 
-    def test_4800_addParameter(self):
+    def test_070_addParameter(self):
         self.makeRequest('/addParameter?type=user&key=REPORTUNITS&value=Ha', False)
 
-    def test_4850_deleteProject(self):
+    def test_071_deleteProject(self):
         self.makeRequest('/deleteProject?user=' + TEST_USER + '&project=wibble', False)
 
-    def test_4900_deleteUser(self):
+    def test_072_deleteUser(self):
         self.makeRequest('/deleteUser?user=' + TEST_USER, False)
         
-    def test_5000_logout(self):
+    def test_073_updateWdpa(self):
+        self.makeWebSocketRequest('/updateWDPA?downloadUrl=whatever&unittest=True', False)
+
+    def test_074_logout(self):
         self.makeRequest('/logout', False)
 
     # ("/resendPassword", resendPassword), #no unit test required

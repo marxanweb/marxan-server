@@ -1,16 +1,9 @@
-#single service tester for websocket
-# To test:
-# 1. change to the marxan-server directory
-# 2. conda activate base (or the conda environment used to install marxan-server)
-# 3. Run the following (the -W option disables all warnings - if you omit it you will see ResourceWarnings for things like Sockets not closing when you start an upload the Mapbox and the unit tests stop)
-#    python -W ignore -m unittest testSingleService -v
-# To test against an SSL localhost:
-# 1. Replace all AsyncHTTPTestCase with AsyncHTTPSTestCase
-# 2. Set TEST_HTTP, TEST_WS and TEST_REFERER to point to secure endpoints, e.g. https and wss
-import unittest, importlib, tornado, aiopg, json, urllib, os, sys
+#test a sequence of API calls where deadlocks can occur
+import unittest, importlib, tornado, aiopg, json, urllib, os, sys, shutil, psutil, time
 from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.ioloop import IOLoop
 from tornado.httpclient import HTTPRequest
+from pprint import pprint as pp
 from tornado import httputil
 from shutil import copyfile
 
@@ -21,15 +14,6 @@ LOGIN_PASSWORD = "password"
 TEST_HTTP = "http://localhost"
 TEST_WS = "ws://localhost"
 TEST_REFERER = "http://localhost"
-TEST_USER = "unit_tester"
-TEST_PROJECT = "test_project"
-TEST_IMPORT_PROJECT = "test_import_project"
-TEST_DATA_FOLDER = MARXAN_SERVER_FOLDER + os.sep + "test-data" + os.sep 
-TEST_FILE = "readme.md"
-TEST_ZIP_SHP_MULTIPLE = "multiple_features.zip"
-TEST_ZIP_SHP_INVALID_GEOM = "invalid_geometry.zip"
-TEST_ZIP_SHP_MISSING_FILE = "pulayer_missing_file.zip"
-TEST_ZIP_SHP_PLANNING_GRID = "pu_sample.zip"
 
 #global variables
 cookie = None
@@ -59,19 +43,6 @@ def setCookies(response):
     roleCookie = next((c for c in parsed if "role" in c.keys()), None)
     global cookie
     cookie = "user=" + userCookie['user'] + ";role=" + roleCookie['role']
-
-def copyTestData(filename):
-    """
-    Copies a file from the unittests/test-data folder to the marxan-server folder
-    
-    Arguments:
-        filename (str): the name of the file to copy including the extension
-    """
-    testFile = TEST_DATA_FOLDER + filename
-    destFile = MARXAN_SERVER_FOLDER + os.sep + filename
-    if os.path.exists(destFile):
-        os.remove(destFile)
-    copyfile(testFile, destFile)
 
 class TestClass(AsyncHTTPTestCase):
     @gen_test
@@ -118,7 +89,7 @@ class TestClass(AsyncHTTPTestCase):
             #leave out the href link to the error message
             if err.find("See <")!=-1:
                 err = err[:err.find("See <")]
-            # print(err, end=' ', flush=True)
+            print(err, end=' ', flush=True)
         print(_dict)
         #assertions for errors
         if requestComplete:
@@ -130,16 +101,6 @@ class TestClass(AsyncHTTPTestCase):
     
     @gen_test
     def makeRequest(self, url, mustReturnError, **kwargs):
-        """Makes a GET/POST request to the url using the optional kwargs arguments
-        
-        Parameters:
-            url (str): The query part of the url to request - this excludes the /marxan-server prefix
-            mustReturnError (bool): If True, the request must return an error and the assertTrue will be run
-            **kwargs (optional): Additional parameters that are passed by keyword to the url fetch function, e.g. headers, body
-        
-        Returns:
-            dict: The json response from the marxan-server
-        """
         #get any existing headers
         if "headers" in kwargs.keys():
             d1 = kwargs['headers']
@@ -185,14 +146,6 @@ class TestClass(AsyncHTTPTestCase):
             # print(_dict)
         return msgs
     
-    def uploadFile(self, fullPath, formData, mustReturnError):
-        headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
-        self.makeRequest('/uploadFile', mustReturnError, method='POST', headers=headers, body=body)
-
-    def uploadFileToFolder(self, fullPath, formData, mustReturnError):
-        headers, body = self.getRequestHeaders(fullPath, formData, mustReturnError)
-        self.makeRequest('/uploadFileToFolder', mustReturnError, method='POST', headers=headers, body=body)
-    
     def getRequestHeaders(self, fullPath, formData, mustReturnError):
         #get the filename from the full path
         filename = fullPath[fullPath.rfind(os.sep) + 1:]
@@ -214,52 +167,25 @@ class TestClass(AsyncHTTPTestCase):
         return headers, body
         
     ###########################################################################
-    # start of individual tests
+    # start of batch test
     ###########################################################################
 
-    #asynchronous/synchronous GET request
-    def test_0050_validateUser(self):
+    #the following test succeeds
+    # def test_000_testAllatOnce(self):
+    #     self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
+    #     self.makeWebSocketRequest('/runMarxan?user=' + LOGIN_USER + '&project=Start%20project', False)
+    #     self.makeWebSocketRequest('/exportProject?user=' + LOGIN_USER + '&project=Start%20project', False)
+    #     os.remove(m.EXPORT_FOLDER + LOGIN_USER + '_Start project.mxw')
+
+    #the following tests fail with a deadlock 
+    def test_001_validateUser(self):
         self.makeRequest('/validateUser?user=' + LOGIN_USER + '&password=' + LOGIN_PASSWORD, False) 
 
-    #WebSocket request
-    # def test_2300_exportProject(self):
-    #     self.makeWebSocketRequest('/exportProject?user=admin&project=Start%20project', False)
+    def test_002_runMarxan(self):
+        self.makeWebSocketRequest('/runMarxan?user=' + LOGIN_USER + '&project=Start%20project', False)
 
-    # def test_2400_importProject(self):
-    #     self.makeWebSocketRequest('/importProject?user=admin&project=Start%20project2&filename=admin_Start%20project.mxw&description=wibble%20description', False)
-
-    # def test_1080_createFeaturesFromWFS(self):
-    #     features = self.makeWebSocketRequest('/createFeaturesFromWFS2?endpoint=https%3A%2F%2Fdservices2.arcgis.com%2F7p8XMQ9sy7kJZN4K%2Farcgis%2Fservices%2FCranes_Species_Ranges%2FWFSServer%3Fservice%3Dwfs&featuretype=Cranes_Species_Ranges%3ABlack_Crowned_Cranes&name=test&description=wibble&srs=EPSG:3857', False)
-    #     #get the feature class names of those that have been imported
-    #     fcns = [feature['feature_class_name'] for feature in features if feature['status'] == 'FeatureCreated']
-    #     for f in fcns:
-    #         self.makeRequest('/deleteFeature?feature_name=' + f, False)
-
-    # def test_1450_updateCosts(self):
-    #     self.makeRequest('/updateCosts?user=admin&project=Start%20project&costname=Uniform', False)
-    
-    # def test_2200_exportPlanningUnitGrid(self):
-    #     self.makeRequest('/exportPlanningUnitGrid?name=pu_ton_marine_hexagon_50', False)
-
-    # def test_2201_exportFeature(self):
-    #     self.makeRequest('/exportFeature?name=intersesting_habitat', False)
-
-    # def test_066_runSQLFile(self):
-    #     self.makeRequest('/runSQLFile?filename=test.sql&suppressOutput=True', False)
-
-    # def test_3000_unzipShapefile(self):
-    #     copyTestData(TEST_ZIP_SHP_MULTIPLE)
-    #     self.makeRequest('/unzipShapefile?filename=' + TEST_ZIP_SHP_MULTIPLE, False)
-
-    # #asynchronous/synchronous POST request
-    # def test_1600_updateProjectParameters(self):
-    #     body = urllib.parse.urlencode({"user":TEST_USER,"project":TEST_IMPORT_PROJECT, 'COLORCODE':'wibble'})
-    #     self.makeRequest('/updateProjectParameters', False, method="POST", body=body)
-
-    # #WebSocket request
-    # def test_2300_updateWDPA(self):
-    #     self.makeWebSocketRequest('/updateWDPA?downloadUrl=whatever&unittest=True', False)
-    
-    def test_2301_reprocessProtectedAreas(self):
-        self.makeWebSocketRequest('/reprocessProtectedAreas?user=case_studies', False)
-    
+    # this causes an ogr2ogr <defunct> process
+    def test_003_exportProject(self):
+        self.makeWebSocketRequest('/exportProject?user=' + LOGIN_USER + '&project=Start%20project', False)
+        os.remove(m.EXPORT_FOLDER + LOGIN_USER + '_Start project.mxw')
+        

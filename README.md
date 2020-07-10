@@ -3,7 +3,7 @@ Back end Marxan Server installation for running Marxan Web. See also [marxan-cli
 
 ## Architecture
 The following image shows the high level architecture of marxan-server. 
-![marxan-server architecture](https://github.com/marxanweb/marxan-client/raw/master/architecture_client.png)  
+![marxan-server architecture](https://github.com/marxanweb/marxan-server/raw/master/architecture-server.png)  
 
 ## Installation
 The following instructions describe how to install marxan-server on Ubuntu 18.04 LTS. For Windows, see [here](https://github.com/marxanweb/general/releases)    
@@ -20,7 +20,8 @@ marxan-server/unix_install.sh
 
 ### Start marxan-server:
 ```
-sudo marxan-server/unix_startup.sh
+cd marxan-server/
+sudo ./unix_startup.sh
 ```
 
 ## Test the installation
@@ -28,8 +29,7 @@ To test the installation goto: http://\<host\>/marxan-server/testTornado.
 
 To run a complete set of unit tests, start a new shell and run the following:  
 ```
-cd marxan-server/
-./unittest.sh
+sudo ./unittest.sh
 ```
   
 ## Configuration  
@@ -45,9 +45,8 @@ sudo gcloud compute instances add-metadata $HOSTNAME --metadata-from-file startu
 ```
 
 ## Updating
-To download and apply the latest updates to marxan-server:  
+To download and apply the latest updates to marxan-server, go to the marxan-server folder and run the following (not as sudo):  
 ```
-cd marxan-server/
 ./unix_update.sh 
 ```
 

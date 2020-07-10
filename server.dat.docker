@@ -1,0 +1,18 @@
+
+ENABLE_GUEST_USER True
+SERVER_NAME 
+SERVER_DESCRIPTION 
+COOKIE_RANDOM_VALUE __TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__
+PERMITTED_DOMAINS http://app.marxanweb.org,https://app.marxanweb.org,http://www.marxanweb.org,https://www.marxanweb.org,http://marxanweb.org,https://marxanweb.org
+DATABASE_NAME marxanserver
+DATABASE_HOST localhost
+DATABASE_USER jrc
+DATABASE_PASSWORD thargal88
+CERTFILE None
+KEYFILE None
+PORT 80
+WDPA_VERSION August 2017
+PLANNING_GRID_UNITS_LIMIT 100000
+DISABLE_SECURITY False
+DISABLE_FILE_LOGGING True
+ENABLE_RESET False

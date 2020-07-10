@@ -1,0 +1,10 @@
+/__pycache__/
+/MarOpt_v243_Mac*
+MarOpt_v243_Linux32
+unix*
+/test-data/
+/_marxan_web_resources/
+architecture-server.png
+test.sql
+test*.py
+unix*.sh

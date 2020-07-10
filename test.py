@@ -496,9 +496,11 @@ class TestClass(AsyncHTTPTestCase):
     def test_074_logout(self):
         self.makeRequest('/logout', False)
 
+    def test_075_cleanup(self):
+        self.makeRequest('/cleanup?', False)
+        
     # ("/resendPassword", resendPassword), #no unit test required
     # ("/stopProcess", stopProcess), #cant easily unit test
-    # ("/updateWDPA", updateWDPA), #cant easily unit test at the moment because we dont have the april 2020 wdpa online
     # ("/shutdown", shutdown), #not a good idea to test this!
     # ("/block", block), #no unit test required
         

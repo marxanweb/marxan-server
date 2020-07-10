@@ -38,7 +38,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup",'runSQLFile'],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v0.9.10"
+MARXAN_SERVER_VERSION = "v1.0"
 MARXAN_LOG_FILE = 'marxan-server.log'
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 GUEST_USERNAME = "guest"
@@ -3077,7 +3077,7 @@ class runSQLFile(MarxanRESTHandler):
 class cleanup(MarxanRESTHandler):
     async def get(self):
         try:
-            _cleanup()
+            await _cleanup()
             self.send_response({'info': "Cleanup succesful"})
         except MarxanServicesError as e:
             _raiseError(self, e.args[0])

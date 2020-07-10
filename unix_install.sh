@@ -31,7 +31,7 @@ sudo -u postgres psql -c "CREATE USER jrc WITH PASSWORD 'thargal88' LOGIN NOSUPE
 #create the marxanserver database
 sudo -u postgres psql -c "CREATE DATABASE marxanserver WITH TEMPLATE = template0 ENCODING='UTF8';"
 #get the database dump 
-wget https://github.com/marxanweb/marxan-server/releases/download/Beta2/dump.sql 
+wget https://github.com/marxanweb/marxan-server/releases/download/v1.0/dump.sql 
 #restore the database
 echo "Restoring database objects .."
 sudo -u postgres pg_restore ./dump.sql -d marxanserver

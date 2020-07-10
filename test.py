@@ -493,12 +493,12 @@ class TestClass(AsyncHTTPTestCase):
     def test_073_updateWdpa(self):
         self.makeWebSocketRequest('/updateWDPA?downloadUrl=whatever&unittest=True', False)
 
-    def test_074_logout(self):
-        self.makeRequest('/logout', False)
-
-    def test_075_cleanup(self):
+    def test_074_cleanup(self):
         self.makeRequest('/cleanup?', False)
         
+    def test_075_logout(self):
+        self.makeRequest('/logout', False)
+
     # ("/resendPassword", resendPassword), #no unit test required
     # ("/stopProcess", stopProcess), #cant easily unit test
     # ("/shutdown", shutdown), #not a good idea to test this!

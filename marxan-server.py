@@ -38,7 +38,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "User": ["testRoleAuthorisation","deleteFeature","getUsers","deleteUser","deletePlanningUnitGrid","clearRunLogs","updateWDPA","toggleEnableGuestUser","shutdown","addParameter","block", "resetDatabase","cleanup",'runSQLFile'],
     "Admin": []
 }
-MARXAN_SERVER_VERSION = "v1.0.0"
+MARXAN_SERVER_VERSION = "v1.0.1"
 MARXAN_LOG_FILE = 'marxan-server.log'
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 GUEST_USERNAME = "guest"

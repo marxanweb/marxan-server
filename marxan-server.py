@@ -3192,6 +3192,9 @@ class MarxanWebSocketHandler(tornado.websocket.WebSocketHandler):
         #add in the start time 
         elapsedtime = str((datetime.datetime.now() - self.startTime).seconds) + "s" 
         message.update({'elapsedtime': elapsedtime})
+        #add a user if passed
+        if "user" in self.request.arguments.keys():
+            message.update({'user': self.request.arguments["user"][0].decode("utf-8") })
         #add in messages from descendent classes  
         if hasattr(self, 'pid'): 
             message.update({'pid': self.pid})

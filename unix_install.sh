@@ -1,4 +1,11 @@
-## MINICONDA
+##
+## Copyright (c) 2020 Andrew Cottam.
+##
+## This file is part of marxan-server
+## (see https://github.com/marxanweb/marxan-server).
+##
+## License: European Union Public Licence V. 1.2, see https://opensource.org/licenses/EUPL-1.2
+##
 echo "Installing miniconda .."
 #download the miniconda installer
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh 

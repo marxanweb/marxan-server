@@ -1,12 +1,11 @@
-#single service tester for websocket
-# To test:
-# 1. change to the marxan-server directory
-# 2. conda activate base (or the conda environment used to install marxan-server)
-# 3. Run the following (the -W option disables all warnings - if you omit it you will see ResourceWarnings for things like Sockets not closing when you start an upload the Mapbox and the unit tests stop)
-#    python -W ignore -m unittest testSingleService -v
-# To test against an SSL localhost:
-# 1. Replace all AsyncHTTPTestCase with AsyncHTTPSTestCase
-# 2. Set TEST_HTTP, TEST_WS and TEST_REFERER to point to secure endpoints, e.g. https and wss
+#
+# Copyright (c) 2020 Andrew Cottam.
+#
+# This file is part of marxan-server
+# (see https://github.com/marxanweb/marxan-server).
+#
+# License: European Union Public Licence V. 1.2, see https://opensource.org/licenses/EUPL-1.2
+#
 import unittest, importlib, tornado, aiopg, json, urllib, os, sys
 from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.ioloop import IOLoop

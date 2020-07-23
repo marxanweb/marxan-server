@@ -1,4 +1,11 @@
-#test a sequence of API calls where deadlocks can occur
+#
+# Copyright (c) 2020 Andrew Cottam.
+#
+# This file is part of marxan-server
+# (see https://github.com/marxanweb/marxan-server).
+#
+# License: European Union Public Licence V. 1.2, see https://opensource.org/licenses/EUPL-1.2
+#
 import unittest, importlib, tornado, aiopg, json, urllib, os, sys, shutil, psutil, time
 from tornado.testing import AsyncHTTPTestCase, gen_test
 from tornado.ioloop import IOLoop

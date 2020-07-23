@@ -1,3 +1,10 @@
-#this is required to get around the new Chrome restriction on cross-domain cookies - see https://blog.chromium.org/2019/10/developers-get-ready-for-new.html
+#
+# Copyright (c) 2020 Andrew Cottam.
+#
+# This file is part of marxan-server
+# (see https://github.com/marxanweb/marxan-server).
+#
+# License: European Union Public Licence V. 1.2, see https://opensource.org/licenses/EUPL-1.2
+#
 from http.cookies import Morsel
 Morsel._reserved["samesite"] = "SameSite"

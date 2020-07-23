@@ -1,4 +1,12 @@
 #!/home/ubuntu/miniconda2/envs/python36/bin/python3.6 
+#
+# Copyright (c) 2020 Andrew Cottam.
+#
+# This file is part of marxan-server
+# (see https://github.com/marxanweb/marxan-server).
+#
+# License: European Union Public Licence V. 1.2, see https://opensource.org/licenses/EUPL-1.2
+#
 import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp, monkeypatch, numpy, shlex
 from psycopg2.extensions import register_adapter, AsIs
 from tornado.websocket import WebSocketClosedError

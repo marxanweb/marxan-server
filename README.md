@@ -25,9 +25,9 @@ sudo ./unix_startup.sh
 ```
 
 ## Test the installation
-To test the installation goto: http://\<host\>/marxan-server/testTornado.  
+To test the marxan-server is installed and running, goto: http://\<host\>/marxan-server/testTornado.  
 
-To run a complete set of unit tests, start a new shell and run the following:  
+To run a complete set of unit tests, stop the server and run the following:  
 ```
 sudo ./unittest.sh
 ```
@@ -49,7 +49,3 @@ To download and apply the latest updates to marxan-server, go to the marxan-serv
 ```
 ./unix_update.sh 
 ```
-
-## Troubleshooting
-### Cannot connect to marxan-server
-If you see a connection refused error on attempting to connect, then it is likely that a Firewall is blocking the connections. Add the following rules: Allow TCP:80, TCP:8080, TCP:8081 for the IP ranges 0.0.0.0/0. 

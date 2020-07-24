@@ -1,0 +1,6 @@
+Copyright (c) ${years} ${owner}.
+
+This file is part of ${projectname}
+(see ${projecturl}).
+
+License: European Union Public Licence V. 1.2, see https://opensource.org/licenses/EUPL-1.2

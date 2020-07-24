@@ -1,0 +1,52 @@
+id,prop,spf,name
+1,0.17,3,Base_coralGAPCT_erase_pu
+2,0.17,1,Base_mangrove_USUS_erased_pu
+3,0.17,1,5-50 coral cover
+4,0.17,1,50-100 coral cover
+5,0.17,1,Deep Sea
+6,0.17,1,Mud
+7,0.17,1,Rock
+8,0.17,1,Sand
+9,0.17,1,Seagrass/seaweed
+10,0.17,1,Unidentified
+12,0.17,1,Andaman Sea Coral Coast
+13,0.17,1,Arafura Sea
+14,0.17,1,Banda Sea
+15,0.17,1,Bismarck Sea
+16,0.17,1,Eastern Philippines
+17,0.17,1,Gulf of Papua
+18,0.17,1,Gulf of Thailand
+19,0.17,1,Halmahera
+20,0.17,1,Lesser Sunda
+21,0.17,1,Malacca Strait
+22,0.17,1,Northeast Sulawesi
+23,0.17,1,Palawan/North Borneo
+24,0.17,1,Papua
+25,0.17,1,Solomon Archipelago
+26,0.17,1,Solomon Sea
+27,0.17,1,South China Sea Oceanic Islands
+28,0.17,1,South Kuroshio
+29,0.17,1,Southeast Papua New Guinea
+30,0.17,1,Sulawesi Sea/Makassar Strait
+31,0.17,1,Vanuatu
+32,0.17,1,Southern Java
+33,0.17,1,Western Sumatra
+34,0.17,1,Torres Strait Northern Great Barrier Reef
+35,0.17,1,Sunda Shelf/Java Sea
+36,0.17,1,Unnamed1
+37,0.17,1,Unnamed2
+38,0.17,1,Unnamed3
+39,0.17,1,Unnamed4
+40,0.17,1,Unnamed5
+41,0.17,1,Unnamed6
+42,0.17,1,Unnamed7
+43,0.17,1,Unnamed8
+44,0.17,1,Unnamed9
+45,0.17,1,Unnamed10
+46,0.17,1,Unnamed11
+47,0.17,1,Unnamed12
+48,0.17,1,Unnamed13
+49,0.17,1,Unnamed14
+50,0.17,1,Unnamed15
+51,0.17,1,Unnamed16
+52,0.17,1,Unnamed17

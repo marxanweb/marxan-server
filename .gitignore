@@ -5,3 +5,4 @@ users/admin/user.dat
 __pycache__/*
 *.pyc
 .~*
+dump.sql

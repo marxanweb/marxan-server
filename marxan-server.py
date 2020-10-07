@@ -63,7 +63,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "Admin": []
 }
 """Dict that controls access to REST services using role-based authentication. Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role"""
-MARXAN_SERVER_VERSION = "v1.0.2"
+MARXAN_SERVER_VERSION = "v1.0.3"
 """The version of marxan-server."""
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 """The url of the Marxan Registry which contains information on hosted Marxan Web servers, base maps and other global level variables"""
@@ -2744,8 +2744,8 @@ class PostGIS():
                     await cur.execute(sql)
                 except psycopg2.errors.UniqueViolation as e:
                     raise MarxanServicesError("That item already exists")
-                except psycopg2.errors.InternalError:
-                    raise MarxanServicesError("Query stopped")
+                except psycopg2.errors.InternalError as e:
+                    raise MarxanServicesError("Query stopped: " + e.args[0])
                 #if the query doesnt return any records then return
                 if returnFormat == None:
                     return

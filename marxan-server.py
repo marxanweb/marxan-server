@@ -63,7 +63,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "Admin": []
 }
 """Dict that controls access to REST services using role-based authentication. Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role"""
-MARXAN_SERVER_VERSION = "v1.0.1"
+MARXAN_SERVER_VERSION = "v1.0.2"
 """The version of marxan-server."""
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 """The url of the Marxan Registry which contains information on hosted Marxan Web servers, base maps and other global level variables"""
@@ -138,7 +138,7 @@ DICT_PAD = 25
 LOGGING_LEVEL = logging.INFO                
 """Tornado logging level that controls what is logged to the console - options are logging.INFO, logging.DEBUG, logging.WARNING, logging.ERROR, logging.CRITICAL. All SQL statements can be logged by setting this to logging.DEBUG."""
 
-#pdoc3 dict to whitelist private members
+#pdoc3 dict to whitelist private members for the documentation
 __pdoc__ = {}
 privateMembers = ['_addParameter', '_authenticate', '_authoriseRole', '_authoriseUser', '_checkCORS', '_checkZippedShapefile', '_cleanup', '_cloneProject', '_copyDirectory', '_createFeaturePreprocessingFileFromImport', '_createProject', '_createPuFile', '_createUser', '_createZipfile', '_dataFrameContainsValue', '_debugSQLStatement', '_deleteAllFiles', '_deleteArchiveFiles', '_deleteCost', '_deleteFeature', '_deleteFeatureClass', '_deletePlanningUnitGrid', '_deleteProject', '_deleteRecordsInTextFile', '_deleteShutdownFile', '_deleteTileset', '_deleteZippedShapefile', '_dismissNotification', '_estimatePlanningUnitCount', '_exportAndZipShapefile', '_finishCreatingFeature', '_finishImportingFeature', '_getAllProjects', '_getAllSpeciesData', '_getBestSolution', '_getCosts', '_getDictValue', '_getEndOfLine', '_getExceptionLastLine', '_getFeature', '_getFilesInFolderRecursive', '_getGML', '_getIntArrayFromArg', '_getKeyValue', '_getKeyValuesFromFile', '_getKeys', '_getMBAT', '_getMarxanLog', '_getMissingValues', '_getNotificationsData', '_getNumberOfRunsCompleted', '_getNumberOfRunsRequired', '_getOutputFilename', '_getOutputSummary', '_getPlanningUnitGrids', '_getPlanningUnitsCostData', '_getPlanningUnitsData', '_getProjectData', '_getProjectInputData', '_getProjectInputFilename', '_getProjects', '_getProjectsForFeature', '_getProjectsForPlanningGrid', '_getProjectsForUser', '_getProtectedAreaIntersectionsData', '_getPuvsprStats', '_getRESTMethod', '_getRunLogs', '_getSafeProjectName', '_getServerData', '_getShapefileFieldNames', '_getSimpleArguments', '_getSolution', '_getSpeciesData', '_getSpeciesPreProcessingData', '_getSummedSolution', '_getUniqueFeatureclassName', '_getUserData', '_getUsers', '_getUsersData', '_get_free_space_mb', '_guestUserEnabled', '_importDataFrame', '_importPlanningUnitGrid', '_invalidateProtectedAreaIntersections', '_isProjectRunning', '_loadCSV', '_normaliseDataFrame', '_padDict', '_preprocessProtectedAreas', '_puidsArrayToPuDatFormat', '_raiseError', '_readFile', '_readFileUnicode', '_reprocessProtectedAreas', '_requestIsWebSocket', '_resetNotifications', '_runCmd', '_setCORS', '_setFolderPaths', '_setGlobalVariables', '_shapefileHasField', '_tilesetExists', '_txtIntsToList', '_unzipFile', '_unzipShapefile', '_updateCosts', '_updateDataFrame', '_updateParameters', '_updatePuFile', '_updateRunLog', '_updateSpeciesFile', '_uploadTileset', '_uploadTilesetToMapbox', '_validateArguments', '_writeCSV', '_writeFile', '_writeFileUnicode', '_writeToDatFile', '_zipfolder']
 for m in privateMembers:
@@ -1833,7 +1833,8 @@ def _unzipShapefile(folder, filename, rejectMultipleShapefiles = True, searchTer
     if not os.path.exists(folder + filename):
         raise MarxanServicesError("The zip file '" + filename + "' does not exist")
     zip_ref = zipfile.ZipFile(folder + filename, 'r')
-    filenames = zip_ref.namelist()
+    #get the filenames ignoring any duplicates in mac archive files
+    filenames = [f for f in zip_ref.namelist() if f[:8]!='__MACOSX']
     #check there is only one set of files
     extensions = [f[-3:] for f in filenames]
     if (len(extensions)!=len(set(extensions))) and rejectMultipleShapefiles:
@@ -4453,7 +4454,7 @@ class createFeaturePreprocessingFileFromImport(MarxanRESTHandler): #not currentl
 
 #https://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/addParameter?type=user&key=REPORTUNITS&value=Ha&callback=__jp2
 class addParameter(MarxanRESTHandler):
-    """REST HTTP handler. Creates a new parameter in a *.dat file, either the user (user.dat), project (project.dat) or server (server.dat), by iterating through all the files and adding the key/value if it doesnt already exist. The required arguments in the request.arguments parameter are: The required arguments in the request.arguments parameter are:  
+    """REST HTTP handler. Creates a new parameter in a *.dat file, either the user (user.dat), project (project.dat) or server (server.dat), by iterating through all the files and adding the key/value if it doesnt already exist. The required arguments in the request.arguments parameter are: 
     Args:
         type (string): The type of configuration file to add the parameter to. One of server, user or project.  
         key (string): The key to create/update.  
@@ -5223,7 +5224,7 @@ class runMarxan(MarxanWebSocketHandler):
         user (string): The name of the user.  
         project (string): The name of the project to run.  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"user": The name of the user,  
@@ -5366,7 +5367,7 @@ class importFeatures(MarxanWebSocketHandler):
         description (string): Optional. A description for the imported feature class.   
         splitfield (string): Optional. The name of the field to use to split the features in the shapefile into separate feature classes. The separate feature classes will have a name derived from the values in this field.  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the import process,  
@@ -5448,7 +5449,7 @@ class importGBIFData(MarxanWebSocketHandler):
         taxonKey (string): The GBIF taxon key for the feature.  
         scientificName (string): The GBIF scientific name for the feature.  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the import process,  
@@ -5626,7 +5627,7 @@ class createFeaturesFromWFS(MarxanWebSocketHandler):
         description (string): A description for the feature.  
         featuretype (string): The layer name within the WFS service representing the feature class to import.  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the import process,  
@@ -5682,7 +5683,7 @@ class exportProject(MarxanWebSocketHandler):
         user (string): The name of the user.  
         project (string): The name of the project to export.  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the export process,  
@@ -5750,7 +5751,7 @@ class importProject(MarxanWebSocketHandler):
         description (string): A description for the imported project.  
         filename (string): The name of the *.mxw file (minus the .mxw extension).  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the import process,  
@@ -5881,7 +5882,7 @@ class preprocessFeature(QueryWebSocketHandler):
         alias (string): The alias for the feature.  
         planning_grid_name (string): The name of the planning grid.  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the preprocessing,  
@@ -5945,7 +5946,7 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
         project (string): The name of the project.  
         planning_grid_name (string): The name of the planning grid.  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on preprocessing,  
@@ -5978,7 +5979,7 @@ class reprocessProtectedAreas(QueryWebSocketHandler):
     Args:
         None  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
@@ -6008,7 +6009,7 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
         user (string): The name of the user.  
         project (string): The name of the project.  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
@@ -6053,7 +6054,7 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
         areakm2 (string): The area of the planning grid in Km2.  
         shape (string): The shape of the planning grid units. One of square or hexagon.  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
@@ -6103,7 +6104,7 @@ class runGapAnalysis(QueryWebSocketHandler):
         user (string): The name of the user.  
         project (string): The name of the project.  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
@@ -6137,7 +6138,7 @@ class resetDatabase(QueryWebSocketHandler):
     Args:
         None  
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress information on the database reset,  
@@ -6203,7 +6204,7 @@ class updateWDPA(QueryWebSocketHandler):
     Args:
         downloadUrl (string): The url endpoint where the new version of the WDPA can be downloaded from. This is normally set in the Marxan Registry. 
     Returns:
-        WebSocket dict messages with one or more the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
+        WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
         &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress information on the update,  

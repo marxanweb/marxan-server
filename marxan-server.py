@@ -63,7 +63,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "Admin": []
 }
 """Dict that controls access to REST services using role-based authentication. Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role"""
-MARXAN_SERVER_VERSION = "v1.0.3"
+MARXAN_SERVER_VERSION = "v1.0.4"
 """The version of marxan-server."""
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 """The url of the Marxan Registry which contains information on hosted Marxan Web servers, base maps and other global level variables"""
@@ -1913,6 +1913,8 @@ def _uploadTileset(filename, _name):
     Raises:
         MarxanServicesError: If the Mapbox Uploads API fails to return an upload ID.
     """
+    #check the zipped shapefile is valid
+    _checkZippedShapefile(filename, True)
     #create an instance of the upload service
     service = Uploader(access_token=MBAT)    
     with open(filename, 'rb') as src:
@@ -2540,11 +2542,12 @@ def _debugSQLStatement(sql, connection):
     else:
         logging.debug(sql.as_string(connection))
     
-def _checkZippedShapefile(shapefile):
+def _checkZippedShapefile(shapefile, checkForExtraFiles = False):
     """Checks that all the necessary files in the shapefile are present. Raise an exception if any of the file are missing.
     
     Args:
         shapefile (string): The full path to the shapefile (*.shp).
+        checkForExtraFiles (bool): Optional. If True, checks the zipped shapefile for unexpected files. Default value is False.  
     Returns:
         None  
     """
@@ -2559,6 +2562,9 @@ def _checkZippedShapefile(shapefile):
         raise MarxanServicesError("The *.shx file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
     if (not os.path.exists(shapefile[:-3] + "dbf")) and (not os.path.exists(shapefile[:-3] + "DBF")):
         raise MarxanServicesError("The *.dbf file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
+    if checkForExtraFiles:
+        if shapefile[:-3] not in ['shp', 'dbf', 'shx', 'prj', 'sbx', 'sbn', 'xml', 'cpg']:
+            raise MarxanServicesError("The zipped shapefile contains additional unexpected files. See <a href='" + ERRORS_PAGE + "#the-zipped-shapefile-contains-additional-unexpected-files' target='blank'>here</a>")
 
 def _getMBAT():
     """Gets the MBAT from the registry. 
@@ -3541,6 +3547,7 @@ class validateUser(MarxanRESTHandler):
             if self.get_argument("password") == self.userData["PASSWORD"]:
                 #if the request is secure, then set the secure response header for the cookie
                 secure = True if self.request.protocol == 'https' else False
+                secure = True
                 #set a response cookie for the authenticated user
                 self.set_secure_cookie("user", self.get_argument("user"), httponly = True, samesite = None, secure = secure) 
                 #set a response cookie for the authenticated users role

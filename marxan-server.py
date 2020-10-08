@@ -2678,7 +2678,10 @@ async def _cleanup():
         td = datetime.datetime.now() - fileDate
         if td.days > 1:
             #if the file is older than 1 day, then delete it 
-            os.remove(file)
+            if (os.path.isdir(file)):
+                shutil.rmtree(file)            
+            else:
+                os.remove(file)
     
 ####################################################################################################################################################################################################################################################################
 ## generic classes

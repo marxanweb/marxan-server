@@ -140,7 +140,7 @@ LOGGING_LEVEL = logging.INFO
 
 #pdoc3 dict to whitelist private members for the documentation
 __pdoc__ = {}
-privateMembers = ['_addParameter', '_authenticate', '_authoriseRole', '_authoriseUser', '_checkCORS', '_checkZippedShapefile', '_cleanup', '_cloneProject', '_copyDirectory', '_createFeaturePreprocessingFileFromImport', '_createProject', '_createPuFile', '_createUser', '_createZipfile', '_dataFrameContainsValue', '_debugSQLStatement', '_deleteAllFiles', '_deleteArchiveFiles', '_deleteCost', '_deleteFeature', '_deleteFeatureClass', '_deletePlanningUnitGrid', '_deleteProject', '_deleteRecordsInTextFile', '_deleteShutdownFile', '_deleteTileset', '_deleteZippedShapefile', '_dismissNotification', '_estimatePlanningUnitCount', '_exportAndZipShapefile', '_finishCreatingFeature', '_finishImportingFeature', '_getAllProjects', '_getAllSpeciesData', '_getBestSolution', '_getCosts', '_getDictValue', '_getEndOfLine', '_getExceptionLastLine', '_getFeature', '_getFilesInFolderRecursive', '_getGML', '_getIntArrayFromArg', '_getKeyValue', '_getKeyValuesFromFile', '_getKeys', '_getMBAT', '_getMarxanLog', '_getMissingValues', '_getNotificationsData', '_getNumberOfRunsCompleted', '_getNumberOfRunsRequired', '_getOutputFilename', '_getOutputSummary', '_getPlanningUnitGrids', '_getPlanningUnitsCostData', '_getPlanningUnitsData', '_getProjectData', '_getProjectInputData', '_getProjectInputFilename', '_getProjects', '_getProjectsForFeature', '_getProjectsForPlanningGrid', '_getProjectsForUser', '_getProtectedAreaIntersectionsData', '_getPuvsprStats', '_getRESTMethod', '_getRunLogs', '_getSafeProjectName', '_getServerData', '_getShapefileFieldNames', '_getSimpleArguments', '_getSolution', '_getSpeciesData', '_getSpeciesPreProcessingData', '_getSummedSolution', '_getUniqueFeatureclassName', '_getUserData', '_getUsers', '_getUsersData', '_get_free_space_mb', '_guestUserEnabled', '_importDataFrame', '_importPlanningUnitGrid', '_invalidateProtectedAreaIntersections', '_isProjectRunning', '_loadCSV', '_normaliseDataFrame', '_padDict', '_preprocessProtectedAreas', '_puidsArrayToPuDatFormat', '_raiseError', '_readFile', '_readFileUnicode', '_reprocessProtectedAreas', '_requestIsWebSocket', '_resetNotifications', '_runCmd', '_setCORS', '_setFolderPaths', '_setGlobalVariables', '_shapefileHasField', '_tilesetExists', '_txtIntsToList', '_unzipFile', '_unzipShapefile', '_updateCosts', '_updateDataFrame', '_updateParameters', '_updatePuFile', '_updateRunLog', '_updateSpeciesFile', '_uploadTileset', '_uploadTilesetToMapbox', '_validateArguments', '_writeCSV', '_writeFile', '_writeFileUnicode', '_writeToDatFile', '_zipfolder']
+privateMembers = ['_addParameter', '_authenticate', '_authoriseRole', '_authoriseUser', '_checkCORS', '_checkZippedShapefile', '_checkShapefileForExtraFiles','_cleanup', '_cloneProject', '_copyDirectory', '_createFeaturePreprocessingFileFromImport', '_createProject', '_createPuFile', '_createUser', '_createZipfile', '_dataFrameContainsValue', '_debugSQLStatement', '_deleteAllFiles', '_deleteArchiveFiles', '_deleteCost', '_deleteFeature', '_deleteFeatureClass', '_deletePlanningUnitGrid', '_deleteProject', '_deleteRecordsInTextFile', '_deleteShutdownFile', '_deleteTileset', '_deleteZippedShapefile', '_dismissNotification', '_estimatePlanningUnitCount', '_exportAndZipShapefile', '_finishCreatingFeature', '_finishImportingFeature', '_getAllProjects', '_getAllSpeciesData', '_getBestSolution', '_getCosts', '_getDictValue', '_getEndOfLine', '_getExceptionLastLine', '_getFeature', '_getFilesInFolderRecursive', '_getGML', '_getIntArrayFromArg', '_getKeyValue', '_getKeyValuesFromFile', '_getKeys', '_getMBAT', '_getMarxanLog', '_getMissingValues', '_getNotificationsData', '_getNumberOfRunsCompleted', '_getNumberOfRunsRequired', '_getOutputFilename', '_getOutputSummary', '_getPlanningUnitGrids', '_getPlanningUnitsCostData', '_getPlanningUnitsData', '_getProjectData', '_getProjectInputData', '_getProjectInputFilename', '_getProjects', '_getProjectsForFeature', '_getProjectsForPlanningGrid', '_getProjectsForUser', '_getProtectedAreaIntersectionsData', '_getPuvsprStats', '_getRESTMethod', '_getRunLogs', '_getSafeProjectName', '_getServerData', '_getShapefileFieldNames', '_getSimpleArguments', '_getSolution', '_getSpeciesData', '_getSpeciesPreProcessingData', '_getSummedSolution', '_getUniqueFeatureclassName', '_getUserData', '_getUsers', '_getUsersData', '_get_free_space_mb', '_guestUserEnabled', '_importDataFrame', '_importPlanningUnitGrid', '_invalidateProtectedAreaIntersections', '_isProjectRunning', '_loadCSV', '_normaliseDataFrame', '_padDict', '_preprocessProtectedAreas', '_puidsArrayToPuDatFormat', '_raiseError', '_readFile', '_readFileUnicode', '_reprocessProtectedAreas', '_requestIsWebSocket', '_resetNotifications', '_runCmd', '_setCORS', '_setFolderPaths', '_setGlobalVariables', '_shapefileHasField', '_tilesetExists', '_txtIntsToList', '_unzipFile', '_unzipShapefile', '_updateCosts', '_updateDataFrame', '_updateParameters', '_updatePuFile', '_updateRunLog', '_updateSpeciesFile', '_uploadTileset', '_uploadTilesetToMapbox', '_validateArguments', '_writeCSV', '_writeFile', '_writeFileUnicode', '_writeToDatFile', '_zipfolder']
 for m in privateMembers:
     __pdoc__.update({m: True})
 
@@ -1913,6 +1913,8 @@ def _uploadTileset(filename, _name):
     Raises:
         MarxanServicesError: If the Mapbox Uploads API fails to return an upload ID.
     """
+    #check the zipped shapefile is valid
+    _checkZippedShapefile(filename)
     #create an instance of the upload service
     service = Uploader(access_token=MBAT)    
     with open(filename, 'rb') as src:
@@ -2064,6 +2066,8 @@ async def _importPlanningUnitGrid(filename, name, description, user):
         #make sure the puid column is lowercase
         if _shapefileHasField(IMPORT_FOLDER + rootfilename + ".shp", "PUID"):
             raise MarxanServicesError("The field 'puid' in the zipped shapefile is uppercase and it must be lowercase")
+        #extra files in the zip archive will cause the Mapbox Upload API call to fail with an Invalid zipfile error - so check
+        _checkShapefileForExtraFiles(IMPORT_FOLDER + rootfilename + ".shp")
         #import the shapefile into PostGIS
         #create a record for this new feature in the metadata_planning_units table
         await pg.execute("INSERT INTO marxan.metadata_planning_units(feature_class_name,alias,description,creation_date, source,created_by,tilesetid) VALUES (%s,%s,%s,now(),'Imported from shapefile',%s,%s);", [feature_class_name, name, description,user,MAPBOX_USER + "." + feature_class_name])
@@ -2560,6 +2564,22 @@ def _checkZippedShapefile(shapefile):
     if (not os.path.exists(shapefile[:-3] + "dbf")) and (not os.path.exists(shapefile[:-3] + "DBF")):
         raise MarxanServicesError("The *.dbf file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
 
+def _checkShapefileForExtraFiles(shapefile):
+    """Checks a zipped shapefile archive does not have unexpected files.
+    
+    Args:
+        shapefile (string): The full path to the shapefile (*.shp).
+    Returns:
+        None  
+    Raises:
+        MarxanServicesError: If the shapefile contains unexpected files
+    """
+    files = glob.glob(shapefile[:-4] + "*") 
+    #iterate through the files to see if there are any unexpected ones
+    for file in files:
+        if file[-3:] not in ['shp', 'dbf', 'shx', 'prj', 'sbx', 'sbn', 'xml', 'cpg','zip']:
+            raise MarxanServicesError("The zipped shapefile contains an unexpected file: " + file + ". See <a href='" + ERRORS_PAGE + "#the-zipped-shapefile-contains-additional-unexpected-files' target='blank'>here</a>")
+    
 def _getMBAT():
     """Gets the MBAT from the registry. 
     
@@ -2672,7 +2692,10 @@ async def _cleanup():
         td = datetime.datetime.now() - fileDate
         if td.days > 1:
             #if the file is older than 1 day, then delete it 
-            os.remove(file)
+            if (os.path.isdir(file)):
+                shutil.rmtree(file)            
+            else:
+                os.remove(file)
     
 ####################################################################################################################################################################################################################################################################
 ## generic classes

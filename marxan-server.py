@@ -2562,7 +2562,7 @@ def _checkZippedShapefile(shapefile, checkForExtraFiles = False):
         raise MarxanServicesError("The *.shx file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
     if (not os.path.exists(shapefile[:-3] + "dbf")) and (not os.path.exists(shapefile[:-3] + "DBF")):
         raise MarxanServicesError("The *.dbf file is missing in the zipfile. See <a href='" + ERRORS_PAGE + "#the-extension-file-is-missing-in-the-zipfile' target='blank'>here</a>")
-    if checkForExtraFiles:
+    if (checkForExtraFiles):
         if shapefile[:-3] not in ['shp', 'dbf', 'shx', 'prj', 'sbx', 'sbn', 'xml', 'cpg']:
             raise MarxanServicesError("The zipped shapefile contains additional unexpected files. See <a href='" + ERRORS_PAGE + "#the-zipped-shapefile-contains-additional-unexpected-files' target='blank'>here</a>")
 

@@ -3547,7 +3547,6 @@ class validateUser(MarxanRESTHandler):
             if self.get_argument("password") == self.userData["PASSWORD"]:
                 #if the request is secure, then set the secure response header for the cookie
                 secure = True if self.request.protocol == 'https' else False
-                secure = True
                 #set a response cookie for the authenticated user
                 self.set_secure_cookie("user", self.get_argument("user"), httponly = True, samesite = None, secure = secure) 
                 #set a response cookie for the authenticated users role

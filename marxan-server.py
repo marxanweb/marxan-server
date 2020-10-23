@@ -63,7 +63,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "Admin": []
 }
 """Dict that controls access to REST services using role-based authentication. Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role"""
-MARXAN_SERVER_VERSION = "v1.0.4"
+MARXAN_SERVER_VERSION = "v1.0.5"
 """The version of marxan-server."""
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 """The url of the Marxan Registry which contains information on hosted Marxan Web servers, base maps and other global level variables"""
@@ -3552,7 +3552,6 @@ class validateUser(MarxanRESTHandler):
             if self.get_argument("password") == self.userData["PASSWORD"]:
                 #if the request is secure, then set the secure response header for the cookie
                 secure = True if self.request.protocol == 'https' else False
-                secure = True
                 #set a response cookie for the authenticated user
                 self.set_secure_cookie("user", self.get_argument("user"), httponly = True, samesite = None, secure = secure) 
                 #set a response cookie for the authenticated users role

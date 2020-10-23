@@ -63,7 +63,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "Admin": []
 }
 """Dict that controls access to REST services using role-based authentication. Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role"""
-MARXAN_SERVER_VERSION = "v1.0.5"
+MARXAN_SERVER_VERSION = "v1.0.6"
 """The version of marxan-server."""
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 """The url of the Marxan Registry which contains information on hosted Marxan Web servers, base maps and other global level variables"""
@@ -1004,8 +1004,10 @@ async def _preprocessProtectedAreas(obj, planning_grid_name, output_folder):
     Returns:
         None  
     """
-    #do the intersection        
-    intersectionData = await obj.executeQuery(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(planning_grid_name)), data=[planning_grid_name], returnFormat="DataFrame")
+    #set the threshold for the intersection area
+    threshold = 0.5
+    #puids for all intersecting protected areas with a dissolved area of >50% of the planning unit 
+    intersectionData = await obj.executeQuery(sql.SQL("SELECT iucn_cat, puid FROM (SELECT iucn_cat, puid, (ST_Area(ST_Transform(ST_Union(ST_Intersection(wdpa.geometry,grid.geometry)), 3410))/ST_Area(ST_Transform(grid.geometry, 3410))) percent_overlap FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name = %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) GROUP BY 1,2) AS sub2 WHERE percent_overlap >= %s ORDER BY 1,2").format(sql.Identifier(planning_grid_name)), data=[planning_grid_name, threshold], returnFormat="DataFrame")
     #write the intersections to file
     intersectionData.to_csv(output_folder + PROTECTED_AREA_INTERSECTIONS_FILENAME, index=False)
 
@@ -3557,7 +3559,7 @@ class validateUser(MarxanRESTHandler):
             #compare the passed password to the one in the user.dat file
             if self.get_argument("password") == self.userData["PASSWORD"]:
                 #if the request is secure, then set the secure response header for the cookie
-                secure = True if self.request.protocol == 'https' else False
+                secure = True if (self.request.protocol == 'https' or self.request.host == '61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081') else False
                 #set a response cookie for the authenticated user
                 self.set_secure_cookie("user", self.get_argument("user"), httponly = True, samesite = None, secure = secure) 
                 #set a response cookie for the authenticated users role

@@ -140,7 +140,7 @@ LOGGING_LEVEL = logging.INFO
 
 #pdoc3 dict to whitelist private members for the documentation
 __pdoc__ = {}
-privateMembers = ['_addParameter', '_authenticate', '_authoriseRole', '_authoriseUser', '_checkCORS', '_checkZippedShapefile', '_cleanup', '_cloneProject', '_copyDirectory', '_createFeaturePreprocessingFileFromImport', '_createProject', '_createPuFile', '_createUser', '_createZipfile', '_dataFrameContainsValue', '_debugSQLStatement', '_deleteAllFiles', '_deleteArchiveFiles', '_deleteCost', '_deleteFeature', '_deleteFeatureClass', '_deletePlanningUnitGrid', '_deleteProject', '_deleteRecordsInTextFile', '_deleteShutdownFile', '_deleteTileset', '_deleteZippedShapefile', '_dismissNotification', '_estimatePlanningUnitCount', '_exportAndZipShapefile', '_finishCreatingFeature', '_finishImportingFeature', '_getAllProjects', '_getAllSpeciesData', '_getBestSolution', '_getCosts', '_getDictValue', '_getEndOfLine', '_getExceptionLastLine', '_getFeature', '_getFilesInFolderRecursive', '_getGML', '_getIntArrayFromArg', '_getKeyValue', '_getKeyValuesFromFile', '_getKeys', '_getMBAT', '_getMarxanLog', '_getMissingValues', '_getNotificationsData', '_getNumberOfRunsCompleted', '_getNumberOfRunsRequired', '_getOutputFilename', '_getOutputSummary', '_getPlanningUnitGrids', '_getPlanningUnitsCostData', '_getPlanningUnitsData', '_getProjectData', '_getProjectInputData', '_getProjectInputFilename', '_getProjects', '_getProjectsForFeature', '_getProjectsForPlanningGrid', '_getProjectsForUser', '_getProtectedAreaIntersectionsData', '_getPuvsprStats', '_getRESTMethod', '_getRunLogs', '_getSafeProjectName', '_getServerData', '_getShapefileFieldNames', '_getSimpleArguments', '_getSolution', '_getSpeciesData', '_getSpeciesPreProcessingData', '_getSummedSolution', '_getUniqueFeatureclassName', '_getUserData', '_getUsers', '_getUsersData', '_get_free_space_mb', '_guestUserEnabled', '_importDataFrame', '_importPlanningUnitGrid', '_invalidateProtectedAreaIntersections', '_isProjectRunning', '_loadCSV', '_normaliseDataFrame', '_padDict', '_preprocessProtectedAreas', '_puidsArrayToPuDatFormat', '_raiseError', '_readFile', '_readFileUnicode', '_reprocessProtectedAreas', '_requestIsWebSocket', '_resetNotifications', '_runCmd', '_setCORS', '_setFolderPaths', '_setGlobalVariables', '_shapefileHasField', '_tilesetExists', '_txtIntsToList', '_unzipFile', '_unzipShapefile', '_updateCosts', '_updateDataFrame', '_updateParameters', '_updatePuFile', '_updateRunLog', '_updateSpeciesFile', '_uploadTileset', '_uploadTilesetToMapbox', '_validateArguments', '_writeCSV', '_writeFile', '_writeFileUnicode', '_writeToDatFile', '_zipfolder']
+privateMembers = ['getGeometryType','_addParameter', '_authenticate', '_authoriseRole', '_authoriseUser', '_checkCORS', '_checkZippedShapefile', '_cleanup', '_cloneProject', '_copyDirectory', '_createFeaturePreprocessingFileFromImport', '_createProject', '_createPuFile', '_createUser', '_createZipfile', '_dataFrameContainsValue', '_debugSQLStatement', '_deleteAllFiles', '_deleteArchiveFiles', '_deleteCost', '_deleteFeature', '_deleteFeatureClass', '_deletePlanningUnitGrid', '_deleteProject', '_deleteRecordsInTextFile', '_deleteShutdownFile', '_deleteTileset', '_deleteZippedShapefile', '_dismissNotification', '_estimatePlanningUnitCount', '_exportAndZipShapefile', '_finishCreatingFeature', '_finishImportingFeature', '_getAllProjects', '_getAllSpeciesData', '_getBestSolution', '_getCosts', '_getDictValue', '_getEndOfLine', '_getExceptionLastLine', '_getFeature', '_getFilesInFolderRecursive', '_getGML', '_getIntArrayFromArg', '_getKeyValue', '_getKeyValuesFromFile', '_getKeys', '_getMBAT', '_getMarxanLog', '_getMissingValues', '_getNotificationsData', '_getNumberOfRunsCompleted', '_getNumberOfRunsRequired', '_getOutputFilename', '_getOutputSummary', '_getPlanningUnitGrids', '_getPlanningUnitsCostData', '_getPlanningUnitsData', '_getProjectData', '_getProjectInputData', '_getProjectInputFilename', '_getProjects', '_getProjectsForFeature', '_getProjectsForPlanningGrid', '_getProjectsForUser', '_getProtectedAreaIntersectionsData', '_getPuvsprStats', '_getRESTMethod', '_getRunLogs', '_getSafeProjectName', '_getServerData', '_getShapefileFieldNames', '_getSimpleArguments', '_getSolution', '_getSpeciesData', '_getSpeciesPreProcessingData', '_getSummedSolution', '_getUniqueFeatureclassName', '_getUserData', '_getUsers', '_getUsersData', '_get_free_space_mb', '_guestUserEnabled', '_importDataFrame', '_importPlanningUnitGrid', '_invalidateProtectedAreaIntersections', '_isProjectRunning', '_loadCSV', '_normaliseDataFrame', '_padDict', '_preprocessProtectedAreas', '_puidsArrayToPuDatFormat', '_raiseError', '_readFile', '_readFileUnicode', '_reprocessProtectedAreas', '_requestIsWebSocket', '_resetNotifications', '_runCmd', '_setCORS', '_setFolderPaths', '_setGlobalVariables', '_shapefileHasField', '_tilesetExists', '_txtIntsToList', '_unzipFile', '_unzipShapefile', '_updateCosts', '_updateDataFrame', '_updateParameters', '_updatePuFile', '_updateRunLog', '_updateSpeciesFile', '_uploadTileset', '_uploadTilesetToMapbox', '_validateArguments', '_writeCSV', '_writeFile', '_writeFileUnicode', '_writeToDatFile', '_zipfolder']
 for m in privateMembers:
     __pdoc__.update({m: True})
 
@@ -2911,6 +2911,17 @@ class PostGIS():
         """
         await self.execute(sql.SQL("ALTER TABLE marxan.{tbl} ADD CONSTRAINT {key} PRIMARY KEY ({col});").format(tbl=sql.Identifier(feature_class_name), key=sql.Identifier("idx_" + uuid.uuid4().hex), col=sql.Identifier(column)))
 
+    async def getGeometryType(self, feature_class_name):
+        """Gets the geometry type of the passed feature_class.
+        
+        Args:
+            feature_class_sname (string): The name of the feature class in PostGIS to return the geometry type for.  
+        Returns:
+            string: The PostGIS geometry type, e.g. ST_PointgetGeometryType  
+        """
+        geometryType = await self.execute(sql.SQL("SELECT st_geometrytype(geometry) FROM marxan.{feature_class_name} LIMIT 1;").format(feature_class_name=sql.Identifier(feature_class_name)), returnFormat="Array")  
+        return geometryType[0][0]
+        
 ####################################################################################################################################################################################################################################################################
 ## subclass of Popen to allow registering callbacks when processes complete on Windows (tornado.process.Subprocess.set_exit_callback is not supported on Windows)
 ####################################################################################################################################################################################################################################################################
@@ -3541,6 +3552,7 @@ class validateUser(MarxanRESTHandler):
             if self.get_argument("password") == self.userData["PASSWORD"]:
                 #if the request is secure, then set the secure response header for the cookie
                 secure = True if self.request.protocol == 'https' else False
+                secure = True
                 #set a response cookie for the authenticated user
                 self.set_secure_cookie("user", self.get_argument("user"), httponly = True, samesite = None, secure = secure) 
                 #set a response cookie for the authenticated users role
@@ -5426,7 +5438,9 @@ class importFeatures(MarxanWebSocketHandler):
                         await pg.execute(sql.SQL("CREATE TABLE marxan.{feature_class_name} AS SELECT * FROM marxan.{scratchTable} WHERE {splitField} = %s;").format(feature_class_name=sql.Identifier(feature_class_name),scratchTable=sql.Identifier(scratch_name),splitField=sql.Identifier(splitfield)),[feature_name])
                         description = "Imported from '" + shapefile + "' and split by '" + splitfield + "' field"
                     #add an index and a record in the metadata_interest_features table and start the upload to mapbox
-                    id, uploadId = await _finishCreatingFeature(feature_class_name, feature_name, description, "Imported shapefile", self.get_current_user())            
+                    geometryType = await pg.getGeometryType(feature_class_name)
+                    source = "Imported shapefile" if (geometryType == 'ST_Polygon') else "Imported shapefile (points)"
+                    id, uploadId = await _finishCreatingFeature(feature_class_name, feature_name, description, source, self.get_current_user())            
                     #append the uploadId to the uploadIds array
                     uploadIds.append(uploadId)
                     self.send_response({'id': id, 'feature_class_name': feature_class_name, 'uploadId': uploadId, 'info': "Feature '" + feature_name + "' imported", 'status': 'FeatureCreated'})
@@ -5872,7 +5886,7 @@ class QueryWebSocketHandler(MarxanWebSocketHandler):
 #preprocesses the features by intersecting them with the planning units
 #wss://61c92e42cb1042699911c485c38d52ae.vfs.cloud9.eu-west-1.amazonaws.com:8081/marxan-server/preprocessFeature?user=andrew&project=Tonga%20marine%2030km2&planning_grid_name=pu_ton_marine_hexagon_30&feature_class_name=volcano&alias=volcano&id=63408475
 class preprocessFeature(QueryWebSocketHandler):
-    """REST WebSocket Handler. Preprocesses the features by intersecting them with the planning units. The required arguments in the request.arguments parameter are:  
+    """REST WebSocket Handler. Preprocesses the features by intersecting them with the planning units. If the features are polygons, then the areas are summarised for each planning unit. If the features are points, then the sum of the 'value' field is computed for all points within each planning unit. The required arguments in the request.arguments parameter are:  
     
     Args:
         user (string): The name of the user.  
@@ -5903,7 +5917,14 @@ class preprocessFeature(QueryWebSocketHandler):
             _validateArguments(self.request.arguments, ['user','project','id','feature_class_name','alias','planning_grid_name'])    
             #run the query asynchronously and wait for the results
             try:
-                intersectionData = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))), data=[self.get_argument('feature_class_name')], returnFormat="DataFrame")
+                #see what geometry type the feature class has
+                geometryType = await pg.getGeometryType(self.get_argument('feature_class_name'))
+                if (geometryType == 'ST_Polygon'):
+                    #if the geometry type is a polygon, then get the area for each planning unit
+                    intersectionData = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))), data=[self.get_argument('feature_class_name')], returnFormat="DataFrame")
+                else:
+                    #if the geometry type is a point, then sum the point values for each planning unit
+                    intersectionData = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, SUM(feature.value) amount FROM marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata WHERE st_intersects(grid.geometry,feature.geometry) AND metadata.feature_class_name = %s GROUP BY 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))), data=[self.get_argument('feature_class_name')], returnFormat="DataFrame")
             except (MarxanServicesError) as e: # if the user stops the preprocessing
                 self.close({'error': e.args[0] })
             else:

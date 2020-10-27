@@ -1007,7 +1007,9 @@ async def _preprocessProtectedAreas(obj, planning_grid_name, output_folder):
     #set the threshold for the intersection area
     threshold = 0.5
     #puids for all intersecting protected areas with a dissolved area of >50% of the planning unit 
-    intersectionData = await obj.executeQuery(sql.SQL("SELECT iucn_cat, puid FROM (SELECT iucn_cat, puid, (ST_Area(ST_Transform(ST_Union(ST_Intersection(wdpa.geometry,grid.geometry)), 3410))/ST_Area(ST_Transform(grid.geometry, 3410))) percent_overlap FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name = %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) GROUP BY 1,2) AS sub2 WHERE percent_overlap >= %s ORDER BY 1,2").format(sql.Identifier(planning_grid_name)), data=[planning_grid_name, threshold], returnFormat="DataFrame")
+    # intersectionData = await obj.executeQuery(sql.SQL("SELECT iucn_cat, puid FROM (SELECT iucn_cat, puid, (ST_Area(ST_Transform(ST_Union(ST_Intersection(wdpa.geometry,grid.geometry)), 3410))/ST_Area(ST_Transform(grid.geometry, 3410))) percent_overlap FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name = %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) GROUP BY 1,2) AS sub2 WHERE percent_overlap >= %s ORDER BY 1,2").format(sql.Identifier(planning_grid_name)), data=[planning_grid_name, threshold], returnFormat="DataFrame")
+    #puids for all intersecting protected areas
+    intersectionData = await obj.executeQuery(sql.SQL("SELECT DISTINCT iucn_cat, grid.puid FROM marxan.wdpa, marxan.{} grid WHERE ST_Intersects(wdpa.geometry, grid.geometry) AND wdpaid IN (SELECT wdpaid FROM (SELECT envelope FROM marxan.metadata_planning_units WHERE feature_class_name =  %s) AS sub, marxan.wdpa WHERE ST_Intersects(wdpa.geometry, envelope)) ORDER BY 1,2").format(sql.Identifier(planning_grid_name)), data=[planning_grid_name], returnFormat="DataFrame")
     #write the intersections to file
     intersectionData.to_csv(output_folder + PROTECTED_AREA_INTERSECTIONS_FILENAME, index=False)
 
@@ -5796,6 +5798,13 @@ class importProject(MarxanWebSocketHandler):
             await super().open({'info': "Importing project.."})
         except MarxanServicesError: #authentication/authorisation error
             pass
+        except zipfile.BadZipFile as e:
+            #remove the project folder
+            shutil.rmtree(projectFolder)
+            #set the start time of the websocket - this has not yet been set as super().open() was not called
+            self.startTime = datetime.datetime.now()
+            #return an error
+            self.close({'error': 'File is not a zip file' })
         else:
             #FEATURES
             #import all of the shapefiles - those that already exist are skipped

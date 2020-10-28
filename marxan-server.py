@@ -621,7 +621,7 @@ def _setFolderPaths(obj, arguments):
         obj.user = user
         #get the project folder and the input and output folders
         if "project" in list(arguments.keys()):
-            obj.folder_project = obj.folder_user + arguments["project"][0].decode("utf-8")  + os.sep
+            obj.folder_project = obj.folder_user + arguments["project"][0].decode("utf-8").strip()  + os.sep
             obj.folder_input =  obj.folder_project + "input" + os.sep
             obj.folder_output = obj.folder_project + "output" + os.sep
             obj.project = obj.get_argument("project")
@@ -5872,6 +5872,7 @@ class importProject(MarxanWebSocketHandler):
             shutil.rmtree(projectFolder + EXPORT_PU_SHP_FOLDER)
             os.remove(projectFolder + EXPORT_F_METADATA)
             os.remove(projectFolder + EXPORT_PU_METADATA)
+            #remove the zip file
             os.remove(IMPORT_FOLDER + self.get_argument('filename'))
             #return the results
             self.close({'info':"Import project complete"})

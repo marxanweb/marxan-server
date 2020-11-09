@@ -63,7 +63,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "Admin": []
 }
 """Dict that controls access to REST services using role-based authentication. Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role"""
-MARXAN_SERVER_VERSION = "v1.0.6"
+MARXAN_SERVER_VERSION = "v1.0.7"
 """The version of marxan-server."""
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 """The url of the Marxan Registry which contains information on hosted Marxan Web servers, base maps and other global level variables"""
@@ -2683,6 +2683,18 @@ async def _cleanup():
         if td.days > 1:
             #if the file is older than 1 day, then delete it 
             os.remove(file)
+    #folder cleanup - orphaned projects
+    #get the list of users
+    users = _getUsers() 
+    #iterate through the users
+    for user in users:
+        #get the users projects
+        projects = glob.glob(MARXAN_USERS_FOLDER + user + os.sep + "*/")
+        #iterate through the projects
+        for project in projects:
+            if len(glob.glob(project + "*")) == 0:
+                #remove any that have no files
+                shutil.rmtree(project)        
     
 ####################################################################################################################################################################################################################################################################
 ## generic classes

@@ -5948,7 +5948,7 @@ class preprocessFeature(QueryWebSocketHandler):
             try:
                 #see what geometry type the feature class has
                 geometryType = await pg.getGeometryType(self.get_argument('feature_class_name'))
-                if (geometryType == 'ST_Polygon'):
+                if (geometryType != 'ST_Point'):
                     #if the geometry type is a polygon, then get the area for each planning unit
                     intersectionData = await self.executeQuery(sql.SQL("SELECT metadata.oid::integer species, puid pu, ST_Area(ST_Transform(ST_Union(ST_Intersection(grid.geometry,feature.geometry)),3410)) amount from marxan.{grid} grid, marxan.{feature} feature, marxan.metadata_interest_features metadata where st_intersects(grid.geometry,feature.geometry) and metadata.feature_class_name = %s group by 1,2;").format(grid=sql.Identifier(self.get_argument('planning_grid_name')), feature=sql.Identifier(self.get_argument('feature_class_name'))), data=[self.get_argument('feature_class_name')], returnFormat="DataFrame")
                 else:

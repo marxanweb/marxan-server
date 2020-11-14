@@ -2039,7 +2039,7 @@ async def _finishImportingFeature(feature_class_name, name, description, source,
     try:    
         #create a record for this new feature in the metadata_interest_features table
         geometryType = await pg.getGeometryType(feature_class_name)
-        if (geometryType == 'ST_Polygon'):
+        if (geometryType != 'ST_Point'):
             #if the feature class is a polygon then get the total area
             id = await pg.execute(sql.SQL("INSERT INTO marxan.metadata_interest_features (feature_class_name, alias, description, creation_date, _area, tilesetid, extent, source, created_by) SELECT %s, %s, %s, now(), sub._area, %s, sub.extent, %s, %s FROM (SELECT ST_Area(ST_Transform(geom, 3410)) _area, box2d(geom) extent FROM (SELECT ST_Union(geometry) geom FROM marxan.{}) AS sub2) AS sub RETURNING oid;").format(sql.Identifier(feature_class_name)), data=[feature_class_name, name, description, tilesetId, source, user], returnFormat="Array")
         else:
@@ -5460,7 +5460,7 @@ class importFeatures(MarxanWebSocketHandler):
                         description = "Imported from '" + shapefile + "' and split by '" + splitfield + "' field"
                     #add an index and a record in the metadata_interest_features table and start the upload to mapbox
                     geometryType = await pg.getGeometryType(feature_class_name)
-                    source = "Imported shapefile" if (geometryType == 'ST_Polygon') else "Imported shapefile (points)"
+                    source = "Imported shapefile" if (geometryType != 'ST_Point') else "Imported shapefile (points)"
                     id, uploadId = await _finishCreatingFeature(feature_class_name, feature_name, description, source, self.get_current_user())            
                     #append the uploadId to the uploadIds array
                     uploadIds.append(uploadId)

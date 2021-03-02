@@ -25,7 +25,7 @@ This module defines the following:
 
 """
 
-import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp, monkeypatch, numpy, shlex
+import psutil, urllib, tornado.options, webbrowser, logging, fnmatch, json, psycopg2, pandas, os, re, time, traceback, glob, time, datetime, select, subprocess, sys, zipfile, shutil, uuid, signal, colorama, io, requests, platform, ctypes, aiopg, asyncio, aiohttp, monkeypatch, numpy, shlex, threading
 from psycopg2.extensions import register_adapter, AsIs
 from tornado.websocket import WebSocketClosedError
 from tornado.iostream import StreamClosedError
@@ -63,7 +63,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "Admin": []
 }
 """Dict that controls access to REST services using role-based authentication. Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role"""
-MARXAN_SERVER_VERSION = "v1.0.7"
+MARXAN_SERVER_VERSION = "v1.0.8"
 """The version of marxan-server."""
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 """The url of the Marxan Registry which contains information on hosted Marxan Web servers, base maps and other global level variables"""
@@ -157,6 +157,7 @@ async def _setGlobalVariables():
         None  
     """
     global MBAT
+    global GLOBAL_LOCK
     global MARXAN_FOLDER
     global MARXAN_USERS_FOLDER
     global MARXAN_CLIENT_BUILD_FOLDER
@@ -194,6 +195,8 @@ async def _setGlobalVariables():
     MBAT = _getMBAT()
     #initialise colorama to be able to show log messages on windows in color
     colorama.init()
+    #create a global lock for writing to the run log file in a thread-safe way
+    GLOBAL_LOCK = threading.Lock()
     #register numpy int64 with psycopg2
     psycopg2.extensions.register_adapter(numpy.int64, psycopg2._psycopg.AsIs)
     #get the folder from this files path
@@ -2515,6 +2518,11 @@ def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
         MarxanServicesError: If unable to update the log file.
     """
     try:
+        #wait for any read/writes to the run log file to complete
+        while GLOBAL_LOCK.locked():
+            continue
+        #acquire a lock on the run log file
+        GLOBAL_LOCK.acquire()
         #load the run log
         df = _getRunLogs()
         #get the index for the record that needs to be updated
@@ -2533,6 +2541,8 @@ def _updateRunLog(pid, startTime, numRunsCompleted, numRunsRequired, status):
             df.loc[i,'status'] = status
         #write the dataframe back to the run log 
         df.to_csv(MARXAN_FOLDER + RUN_LOG_FILENAME, index =False, sep='\t')
+        #release the lock
+        GLOBAL_LOCK.release()        
         return df.loc[i,'status']
 
 def _debugSQLStatement(sql, connection):

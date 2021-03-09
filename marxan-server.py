@@ -63,7 +63,7 @@ ROLE_UNAUTHORISED_METHODS = {
     "Admin": []
 }
 """Dict that controls access to REST services using role-based authentication. Add REST services that you want to lock down to specific roles - a class added to an array will make that method unavailable for that role"""
-MARXAN_SERVER_VERSION = "v1.0.8"
+MARXAN_SERVER_VERSION = "v1.0.9"
 """The version of marxan-server."""
 MARXAN_REGISTRY = "https://marxanweb.github.io/general/registry/marxan.json"
 """The url of the Marxan Registry which contains information on hosted Marxan Web servers, base maps and other global level variables"""
@@ -2451,6 +2451,7 @@ def _isProjectRunning(user, project):
     Returns:
         bool: Returns True if the project is already running.
     """
+    return False
     #get the data from the run log file
     df = _loadCSV(MARXAN_FOLDER + RUN_LOG_FILENAME)
     #filter for running projects from the passed user and project

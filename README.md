@@ -101,5 +101,5 @@ If youre using pgadmin use pgadmin3 as pgadmin4 will not restore with `OIDS`
 - Create a new Codespace  
 - Run the installer  
 ```
-sudo sh marxan-server/codespace_install.sh
+sh codespace_install.sh
 ```

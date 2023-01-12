@@ -30,6 +30,8 @@ echo "Installing PostGIS .."
 sudo apt-get update  
 sudo apt-get install postgresql postgis -y
 sudo apt-get update  
+#start postgres
+sudo pg_ctlcluster 12 main start
 #create the postgis extensions
 sudo -u postgres psql -c "CREATE EXTENSION postgis;"
 sudo -u postgres psql -c "CREATE EXTENSION postgis_topology;"

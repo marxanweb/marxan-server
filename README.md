@@ -97,3 +97,9 @@ Get the database restore file
 restore the database.  
 If youre using pgadmin use pgadmin3 as pgadmin4 will not restore with `OIDS`  
 
+## GitHub Codespace
+- Create a new Codespace  
+- Run the installer  
+```
+sudo sh marxan-server/codespace_install.sh
+```

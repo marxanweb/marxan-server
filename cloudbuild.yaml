@@ -9,7 +9,7 @@ steps:
   args:
   - 'run'
   - 'deploy'
-  - 'python-rest-server'
+  - 'marxan-server'
   - '--image'
   - 'europe-west8-docker.pkg.dev/andrewcottam-default/andrew-docker/marxan-server:latest'
   - '--region'

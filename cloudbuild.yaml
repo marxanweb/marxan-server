@@ -1,0 +1,19 @@
+# Builds an image and pushes it to the Artefact Registry
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: [ 'build', '-t', 'europe-west8-docker.pkg.dev/andrewcottam-default/andrew-docker/marxan-server:latest', '.' ]
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'europe-west8-docker.pkg.dev/andrewcottam-default/andrew-docker/marxan-server:latest']
+# File that deploys a Docker image to Google Cloud Run and can be used in Google Cloud Build
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - 'run'
+  - 'deploy'
+  - 'python-rest-server'
+  - '--image'
+  - 'europe-west8-docker.pkg.dev/andrewcottam-default/andrew-docker/marxan-server:latest'
+  - '--region'
+  - 'europe-west8'
+  - '--platform'
+  - 'managed'
+  - '--allow-unauthenticated'

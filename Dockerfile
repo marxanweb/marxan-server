@@ -43,7 +43,7 @@ WORKDIR marxan-server/
 # RUN chmod +x ../wait && chmod a+x marxan-server.py
 RUN chmod a+x marxan-server.py
 
-EXPOSE 80
+EXPOSE 80 
 
 # CMD ../wait && pyth on3 marxan-server.py
 CMD python3 marxan-server.py

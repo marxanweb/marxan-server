@@ -45,5 +45,5 @@ RUN chmod a+x marxan-server.py
 
 EXPOSE 80
 
-# CMD ../wait && python3 marxan-server.py
+# CMD ../wait && pyth on3 marxan-server.py
 CMD python3 marxan-server.py

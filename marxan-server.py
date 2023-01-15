@@ -203,6 +203,7 @@ async def _setGlobalVariables():
     MARXAN_FOLDER = os.path.dirname(os.path.realpath(__file__)) + os.sep
     #get the data in the server configuration file
     serverData = _getKeyValuesFromFile(MARXAN_FOLDER + SERVER_CONFIG_FILENAME)
+    print(serverData)
     #get the database connection string
     SERVER_NAME = _getDictValue(serverData,'SERVER_NAME')
     SERVER_DESCRIPTION = _getDictValue(serverData,'SERVER_DESCRIPTION')

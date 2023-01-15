@@ -30,7 +30,7 @@ RUN pip3 install -r requirements.txt
 
 COPY . marxan-server/.
 
-COPY server.dat marxan-server/server.dat
+# COPY server.dat.docker marxan-server/server.dat
 COPY runlog.dat.default marxan-server/runlog.dat
 COPY users/admin/user.dat.default marxan-server/users/admin/user.dat
 COPY marxan-server.log.default marxan-server/marxan-server.log

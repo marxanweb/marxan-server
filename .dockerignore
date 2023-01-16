@@ -1,9 +1,5 @@
 /__pycache__/
-/MarOpt_v243_Mac*
-MarOpt_v243_Linux32
-unix*
 /test-data/
 architecture-server.png
 test.sql
 test*.py
-unix*.sh

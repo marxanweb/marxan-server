@@ -10,5 +10,8 @@ COPY ./server.dat.default ./marxan-server/server.dat
 COPY ./users/admin/user.dat.default ./marxan-server/users/admin/user.dat
 COPY ./marxan-server.log.default ./marxan-server/marxan-server.log
 COPY ./runlog.dat.default ./marxan-server/runlog.dat
+# Activate conda base environment
+RUN echo "conda activate base" >> ~/.bashrc
+SHELL ["/bin/bash", "--login", "-c"]
 # Entry point
 ENTRYPOINT [ "/miniconda3/bin/python", "/marxan-server/marxan-server.py"] 

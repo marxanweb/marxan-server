@@ -6,7 +6,7 @@ COOKIE_RANDOM_VALUE __TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__
 PERMITTED_DOMAINS http://app.marxanweb.org,https://app.marxanweb.org,http://www.marxanweb.org,https://www.marxanweb.org,http://marxanweb.org,https://marxanweb.org
 DATABASE_NAME marxanserver
 DATABASE_HOST /cloudsql/andrewcottam-default:europe-west8:andrew-postgis
-DATABASE_USER jrc
+DATABASE_USER postgres
 DATABASE_PASSWORD thargal88
 CERTFILE None
 KEYFILE None

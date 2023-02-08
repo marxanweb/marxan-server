@@ -98,3 +98,9 @@ restore the database.
 If youre using pgadmin use pgadmin3 as pgadmin4 will not restore with `OIDS`  
 
 docker pull postgres:10
+
+# Local Docker
+```
+docker build . -t marxanserver
+docker run -it --rm -p 8080:8080 marxanserver
+```

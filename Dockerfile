@@ -3,6 +3,9 @@ ENV MARXAN_SERVER_DIRECTORY=/marxan-server/
 # Install miniconda and dependencies
 COPY ./unix_install.sh ./marxan-server/
 RUN ./marxan-server/unix_install.sh
+ENV CONDA_DEFAULT_ENV=base 
+ENV GDAL_DATA=/miniconda3/share/gdal 
+ENV PROJ_LIB=/miniconda3/share/proj 
 # Copy files
 COPY . /marxan-server/.
 # Create vanilla server files

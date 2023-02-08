@@ -96,3 +96,5 @@ Get the database restore file
 `wget https://github.com/marxanweb/marxan-server/releases/download/v1.0.0/dump.sql`  
 restore the database.  
 If youre using pgadmin use pgadmin3 as pgadmin4 will not restore with `OIDS`  
+
+docker pull postgres:10

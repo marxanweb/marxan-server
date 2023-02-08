@@ -2658,6 +2658,7 @@ def _runCmd(cmd, suppressOutput=False):
     """
     if platform.system() != "Windows":
         try:
+            logging.debug(cmd)
             #run the import as an asyncronous subprocess
             if suppressOutput: 
                 process = Subprocess([*shlex.split(cmd)], stdout=subprocess.DEVNULL)                    
@@ -2824,7 +2825,6 @@ class PostGIS():
             await self.execute(sql.SQL("DROP TABLE IF EXISTS marxan.{};").format(sql.Identifier(feature_class_name)))
             #using ogr2ogr - rename the geometry field from the default (wkb_geometry) to geometry
             cmd = '"' + OGR2OGR_EXECUTABLE + '" -f "PostgreSQL" PG:"host=' + DATABASE_HOST + ' user=' + DATABASE_USER + ' dbname=' + DATABASE_NAME + ' password=' + DATABASE_PASSWORD + '" "' + folder + filename + '" -nlt GEOMETRY -lco SCHEMA=marxan -lco GEOMETRY_NAME=geometry ' + sourceFeatureClass + ' -nln ' + feature_class_name + ' -s_srs ' + sEpsgCode + ' -t_srs ' + tEpsgCode + ' -lco precision=NO'
-            logging.debug(cmd)
             #run the command
             result = await _runCmd(cmd)
             if result == 0:

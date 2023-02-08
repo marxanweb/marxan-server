@@ -71,7 +71,7 @@ GUEST_USERNAME = "guest"
 """The name of the guest user"""
 NOT_AUTHENTICATED_ERROR = "Request could not be authenticated. No secure cookie found."
 NO_REFERER_ERROR = "The request header does not specify a referer and this is required for CORS access."
-MAPBOX_USER = "blishten"
+MAPBOX_USER = "andrewcottam"
 """The default name for the Mapbox user account to store Vector tiles"""
 #filenames
 SERVER_CONFIG_FILENAME = "server.dat"
@@ -2299,7 +2299,7 @@ def _setCORS(obj):
     """
     #get the referer
     if "Referer" in list(obj.request.headers.keys()):
-        #get the referer url, e.g. https://marxan-client-blishten.c9users.io/ or https://beta.biopama.org/marxan-client/build/
+        #get the referer url
         referer = obj.request.headers.get("Referer")
         #get the origin
         parsed = urlparse(referer) 

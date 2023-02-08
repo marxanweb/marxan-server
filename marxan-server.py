@@ -1921,7 +1921,8 @@ def _uploadTileset(filename, _name):
         MarxanServicesError: If the Mapbox Uploads API fails to return an upload ID.
     """
     #create an instance of the upload service
-    service = Uploader(access_token=MBAT)    
+    service = Uploader(access_token=MBAT)
+    logging.info(MBAT)
     with open(filename, 'rb') as src:
         upload_resp = service.upload(src, _name)
         if 'id' in upload_resp.json().keys():

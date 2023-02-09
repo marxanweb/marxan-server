@@ -5018,7 +5018,7 @@ class runSQLFile(MarxanRESTHandler):
             #see if suppressOutput is set
             suppressOutput = True if 'suppressOutput' in self.request.arguments else False
             #set the command
-            cmd = 'sudo -u postgres psql -f ' + MARXAN_FOLDER + self.get_argument("filename") + ' postgresql://' + DATABASE_USER + ':' + DATABASE_PASSWORD + '@localhost:5432/marxanserver'
+            cmd = 'sudo -u postgres psql -f ' + MARXAN_FOLDER + self.get_argument("filename") + ' postgresql://' + DATABASE_USER + ':' + DATABASE_PASSWORD + '@localhost:5432/marxan-server'
             #run the command
             result = await _runCmd(cmd, suppressOutput)
             self.send_response({'info': result})

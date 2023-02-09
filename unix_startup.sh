@@ -7,10 +7,10 @@
 # ##
 # ## License: European Union Public Licence V. 1.2, see https://opensource.org/licenses/EUPL-1.2
 # ##
-# . /etc/profile.d/marxan-server.sh
+# . /etc/profile.d/server.sh
 # conda activate base 
 # #start marxan-server using a detached screen session that can be resumed
-# screen -d -m ${CONDA_PYTHON_EXE} ${MARXAN_SERVER_DIRECTORY}\/marxan-server.py
+# screen -d -m ${CONDA_PYTHON_EXE} ${MARXAN_SERVER_DIRECTORY}\/server.py
 # echo "Starting marxan-server .."
 # echo "Server started"
 # #if gcloud is installed, get the external ip address so we can add the testTornado link
@@ -26,4 +26,4 @@
 # echo "To connect to the running instance:"
 # echo "  sudo screen -r"
 # # sudo screen -r
-${CONDA_PYTHON_EXE} ${MARXAN_SERVER_DIRECTORY}\/marxan-server.py
+${CONDA_PYTHON_EXE} ${MARXAN_SERVER_DIRECTORY}\/server.py

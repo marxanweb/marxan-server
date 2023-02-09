@@ -19,4 +19,4 @@ COPY ./favicon.ico ./marxan-client/build/favicon.ico
 RUN echo "conda activate base" >> ~/.bashrc
 SHELL ["/bin/bash", "--login", "-c"]
 # Entry point
-ENTRYPOINT [ "/miniconda3/bin/python", "/marxan-server/marxan-server.py"] 
+ENTRYPOINT [ "/miniconda3/bin/python", "/marxan-server/server.py"] 

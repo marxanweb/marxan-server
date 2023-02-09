@@ -35,8 +35,8 @@ cookie = None
 projects = ''
 fcns = []
 
-#import the marxan-server module
-m = importlib.import_module("marxan-server")
+#import the marxan-server module - now just called server
+m = importlib.import_module("server")
 #set the ASYNC_TEST_TIMEOUT environment variable as described here http://www.tornadoweb.org/en/stable/testing.html#tornado.testing.AsyncTestCase.wait
 os.environ['ASYNC_TEST_TIMEOUT'] = '600' # 10 minutes
 

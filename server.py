@@ -101,6 +101,8 @@ WDPA_DOWNLOAD_FILENAME = "wdpa.zip"
 #file prefixes
 SOLUTION_FILE_PREFIX = "output_r"
 MISSING_VALUES_FILE_PREFIX = "output_mv"
+#docs settings
+DOCS_FOLDER = "/marxan-server/docs/build/html"
 #export settings
 EXPORT_F_SHP_FOLDER = "f_shps"
 """The name of the folder where feature shapefiles are exported to during a project export."""
@@ -6509,6 +6511,7 @@ class Application(tornado.web.Application):
             ("/marxan-server/testTornado", testTornado),
             ("/marxan-server/exports/(.*)", StaticFileHandler,dict(path=EXPORT_FOLDER)),
             ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
+            ("/docs/(.*)", StaticFileHandler, {"path": DOCS_FOLDER}),
             (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
         ]
         settings = dict(

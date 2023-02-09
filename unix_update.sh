@@ -7,7 +7,7 @@
 ##
 ## License: European Union Public Licence V. 1.2, see https://opensource.org/licenses/EUPL-1.2
 ##
-. /etc/profile.d/marxan-server.sh
+. /etc/profile.d/server.sh
 #kill the screen process that is running marxan-server
 printf "\n"
 echo "Stopping marxan-server.."

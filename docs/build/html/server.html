@@ -746,10 +746,10 @@ software and to return JSON data for those requests.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="server.MarxanRESTHandler.write_error">
 <span class="sig-name descname"><span class="pre">write_error</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">status_code</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#server.MarxanRESTHandler.write_error" title="Permalink to this definition"></a></dt>
-<dd><p>Called on uncaught exceptions in the descendent classes. Gets the stack trace and writes it back to the client.</p>
+<dd><p>Called on uncaught exceptions in the descendent classes. Gets the stack trace and writes it back to the client. See <a class="reference external" href="https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write_error">https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write_error</a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>https</strong> (<em>See</em>) – //www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write_error</p>
+<dd class="field-odd"><p><strong>status_code</strong> (<em>str</em>) – The http status code.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>None</p>
@@ -1224,7 +1224,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1250,7 +1250,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1276,7 +1276,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1305,8 +1305,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“name”: The name of the new cloned project
+“info”: Informational message,
+“name”: The name of the new cloned project
 }</p>
 </p>
 </dd>
@@ -1336,10 +1336,10 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“id”: The feature oid,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“feature_class_name”: The feature class name,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“uploadId”: The Mapbox tileset upload id
+“info”: Informational message,
+“id”: The feature oid,
+“feature_class_name”: The feature class name,
+“uploadId”: The Mapbox tileset upload id
 }</p>
 </p>
 </dd>
@@ -1368,7 +1368,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1400,12 +1400,12 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Contains detailed progress statements on the import process,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing, pid, FeatureCreated or Finished,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“id”: The oid of the feature created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“feature_class_name”: The name of the feature class created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“uploadId”: The Mapbox tileset upload id
+“info”: Contains detailed progress statements on the import process,
+“elapsedtime”: The elapsed time in seconds of the run,
+“status”: One of Preprocessing, pid, FeatureCreated or Finished,
+“id”: The oid of the feature created,
+“feature_class_name”: The name of the feature class created,
+“uploadId”: The Mapbox tileset upload id
 }</p>
 </p>
 </dd>
@@ -1446,8 +1446,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“name”: The name of the project created
+“info”: Informational message,
+“name”: The name of the project created
 }</p>
 </p>
 </dd>
@@ -1478,12 +1478,12 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing or Finished,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“feature_class_name”: The name of the feature class created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“alias”: The alias of the planning grid created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“uploadId”: The Mapbox tileset upload id
+“info”: Informational message,
+“elapsedtime”: The elapsed time in seconds of the run,
+“status”: One of Preprocessing or Finished,
+“feature_class_name”: The name of the feature class created,
+“alias”: The alias of the planning grid created,
+“uploadId”: The Mapbox tileset upload id
 }</p>
 </p>
 </dd>
@@ -1529,9 +1529,9 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“name”: The name of the project created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“user”: The name of the user
+“info”: Informational message,
+“name”: The name of the project created,
+“user”: The name of the user
 }</p>
 </p>
 </dd>
@@ -1562,8 +1562,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: dict[]: The data for the created projects. Each dict contains the keys: project name, clump number
+“info”: Informational message,
+“data”: dict[]: The data for the created projects. Each dict contains the keys: project name, clump number
 }</p>
 </p>
 </dd>
@@ -1594,7 +1594,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1624,7 +1624,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1650,7 +1650,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1682,7 +1682,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1708,7 +1708,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1740,8 +1740,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“project”: The name of the project deleted
+“info”: Informational message,
+“project”: The name of the project deleted
 }</p>
 </p>
 </dd>
@@ -1770,7 +1770,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1799,7 +1799,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1825,7 +1825,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1851,7 +1851,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -1877,8 +1877,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“filename”: The name of the zip file created
+“info”: Informational message,
+“filename”: The name of the zip file created
 }</p>
 </p>
 </dd>
@@ -1904,8 +1904,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“filename”: The name of the zip file created
+“info”: Informational message,
+“filename”: The name of the zip file created
 }</p>
 </p>
 </dd>
@@ -1934,12 +1934,12 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Contains detailed progress statements on the export process,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the export,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing, pid, FeatureCreated or Finished,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“id”: The oid of the feature created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“feature_class_name”: The name of the feature class created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“uploadId”: The Mapbox tileset upload id
+“info”: Contains detailed progress statements on the export process,
+“elapsedtime”: The elapsed time in seconds of the export,
+“status”: One of Preprocessing, pid, FeatureCreated or Finished,
+“id”: The oid of the feature created,
+“feature_class_name”: The name of the feature class created,
+“uploadId”: The Mapbox tileset upload id
 }</p>
 </p>
 </dd>
@@ -1977,8 +1977,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: dict[]: A list of the features. Each dict contains the keys: id,feature_class_name,alias,description,area,extent,creation_date,tilesetid,source,created_by
+“info”: Informational message,
+“data”: dict[]: A list of the features. Each dict contains the keys: id, feature_class_name, alias, description, area, extent, creation_date, tilesetid, source, created_by
 }</p>
 </p>
 </dd>
@@ -2007,7 +2007,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: list[]: A list of records from the Marxan output_mvbest file
+“data”: list[]: A list of records from the Marxan output_mvbest file
 }</p>
 </p>
 </dd>
@@ -2036,7 +2036,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: string[]: A list of the cost profiles
+“data”: string[]: A list of the cost profiles
 }</p>
 </p>
 </dd>
@@ -2062,7 +2062,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“records”: dict[]: The country records. Each dict contains the keys: iso3, name_iso31, has_marine
+“records”: dict[]: The country records. Each dict contains the keys: iso3, name_iso31, has_marine
 }</p>
 </p>
 </dd>
@@ -2088,7 +2088,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: dict containing the keys: id,feature_class_name,alias,description,area,extent,creation_date,tilesetid,source,created_by
+“data”: dict containing the keys: id, feature_class_name, alias, description, area, extent, creation_date, tilesetid, source, created_by
 }</p>
 </p>
 </dd>
@@ -2118,7 +2118,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: int[]: A list of the planning unit puids where the feature occurs
+“data”: int[]: A list of the planning unit puids where the feature occurs
 }</p>
 </p>
 </dd>
@@ -2147,7 +2147,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“log”: The contents of the Marxan log
+“log”: The contents of the Marxan log
 }</p>
 </p>
 </dd>
@@ -2177,7 +2177,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“missingValues”: list[]: The data from the Marxan missing values file for the solution (output_mv*)
+“missingValues”: list[]: The data from the Marxan missing values file for the solution (output_mv*)
 }</p>
 </p>
 </dd>
@@ -2206,7 +2206,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: list[]: A list of records from the Marxan output_sum file
+“data”: list[]: A list of records from the Marxan output_sum file
 }</p>
 </p>
 </dd>
@@ -2236,8 +2236,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: dict containing the keys: features (the features within the planning unit), pu_data (the planning unit data)
+“info”: Informational message,
+“data”: dict containing the keys: features (the features within the planning unit), pu_data (the planning unit data)
 }</p>
 </p>
 </dd>
@@ -2263,8 +2263,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“planning_unit_grids”: dict[]: The data for the planning grids. Each dict contains the keys: alias,aoi_id,country,country_id,created_by,creation_date,description,domain,envelope,feature_class_name,planning_unit_count,source,tilesetid,_area
+“info”: Informational message,
+“planning_unit_grids”: dict[]: The data for the planning grids. Each dict contains the keys: alias, aoi_id, country, country_id, created_by, creation_date, description, domain, envelope, feature_class_name, planning_unit_count, source, tilesetid, _area
 }</p>
 </p>
 </dd>
@@ -2293,9 +2293,9 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: list[]: A list of puids that are in each of the 9 classes of cost (the cost data is classified into 9 classes),
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“min”: The minimum cost value,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“max”: The maximum cost value
+“data”: list[]: A list of puids that are in each of the 9 classes of cost (the cost data is classified into 9 classes),
+“min”: The minimum cost value,
+“max”: The maximum cost value
 }</p>
 </p>
 </dd>
@@ -2324,7 +2324,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”:list[]: The planning units data normalised by status. e.g. [[1,[245,3586]],[2,[45,297,5908,5909]]]
+“data”:list[]: The planning units data normalised by status. e.g. [[1,[245,3586]],[2,[45,297,5908,5909]]]
 }</p>
 </p>
 </dd>
@@ -2353,18 +2353,18 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“user”: The name of the user,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“project”: The name of the project,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“metadata”: dict containing the keys: COSTS, CREATEDATE, DESCRIPTION, IUCN_CATEGORY, OLDVERSION, PLANNING_UNIT_NAME, PRIVATE, pu_alias, pu_area, pu_country, pu_created_by, pu_creation_date, pu_description, pu_domain,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“files”: dict containing the keys: BOUNDNAME,PUNAME,PUVSPRNAME,SPECNAME which have the names of the respective .dat files,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“runParameters”: dict[]: A list of all of the run parameters for the project. Each dict contains the keys: key, value. e.g. {‘key’:’BLM’,’value’:’0.2’},
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“renderer”: dict containing the keys: CLASSIFICATION,COLORCODE,NUMCLASSES,TOPCLASSES,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“features”: dict[]: A list of all of the features for the project. Each dict contains the keys: alias,area,created_by,creation_date,description,extent,feature_class_name,id,spf,target_value,tilesetid,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“feature_preprocessing”: list[]: A list of features and their preprocessing status. Each item contains a feature id, area and count of planning units,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“planning_units”: list[]: Data from the PUNAME file that contains the statuses for all planning units normalised by status. e.g. [[1,[245,3586]],[2,[45,297,5908,5909]]],
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“protected_area_intersections”: list[]: Data from the protected_area_intersections.dat file that contains the intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [[‘II’,[245,3586]],[‘III’,[45,297,5908,5909]]],
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“costnames”: string[]: A list of the costname profiles for the project. These are the .cost files in the input folder
+“info”: Informational message,</p>
+<p>”user”: The name of the user,</p>
+<p>”project”: The name of the project,</p>
+<p>”metadata”: dict containing the keys: COSTS, CREATEDATE, DESCRIPTION, IUCN_CATEGORY, OLDVERSION, PLANNING_UNIT_NAME, PRIVATE, pu_alias, pu_area, pu_country, pu_created_by, pu_creation_date, pu_description, pu_domain,</p>
+<p>”files”: dict containing the keys: BOUNDNAME,PUNAME,PUVSPRNAME,SPECNAME which have the names of the respective .dat files,</p>
+<p>”runParameters”: dict[]: A list of all of the run parameters for the project. Each dict contains the keys: key, value. e.g. {‘key’:’BLM’,’value’:’0.2’},</p>
+<p>”renderer”: dict containing the keys: CLASSIFICATION,COLORCODE,NUMCLASSES,TOPCLASSES,</p>
+<p>”features”: dict[]: A list of all of the features for the project. Each dict contains the keys: alias, area, created_by, creation_date, description, extent, feature_class_name, id, spf, target_value, tilesetid,</p>
+<p>”feature_preprocessing”: list[]: A list of features and their preprocessing status. Each item contains a feature id, area and count of planning units,</p>
+<p>”planning_units”: list[]: Data from the PUNAME file that contains the statuses for all planning units normalised by status. e.g. [[1,[245,3586]],[2,[45,297,5908,5909]]],</p>
+<p>”protected_area_intersections”: list[]: Data from the protected_area_intersections.dat file that contains the intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [[‘II’,[245,3586]],[‘III’,[45,297,5908,5909]]],</p>
+<p>”costnames”: string[]: A list of the costname profiles for the project. These are the .cost files in the input folder
 }</p>
 </p>
 </dd>
@@ -2390,7 +2390,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“projects”: dict[]: A list of projects. Each dict contains the keys: createdate, description, name, oldversion, private, user
+“projects”: dict[]: A list of projects. Each dict contains the keys: createdate, description, name, oldversion, private, user
 }</p>
 </p>
 </dd>
@@ -2416,8 +2416,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: dict[]: A list of projects with the planning grids
+“info”: Informational message,
+“data”: dict[]: A list of projects with the planning grids
 }</p>
 </p>
 </dd>
@@ -2446,7 +2446,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: list[]: Data from the protected_area_intersections.dat file that contains the intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [[‘II’,[245,3586]],[‘III’,[45,297,5908,5909]]]
+“data”: list[]: Data from the protected_area_intersections.dat file that contains the intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [[‘II’,[245,3586]],[‘III’,[45,297,5908,5909]]]
 }</p>
 </p>
 </dd>
@@ -2475,11 +2475,11 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“log”: The Marxan log for the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“mvbest”: list[]: A list of records from the Marxan output_mvbest file,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“summary”: list[]: A list of records from the Marxan output_sum file,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“ssoln”: list[]: A list of records from the Marxan output_ssoln file
+“info”: Informational message,
+“log”: The Marxan log for the run,
+“mvbest”: list[]: A list of records from the Marxan output_mvbest file,
+“summary”: list[]: A list of records from the Marxan output_sum file,
+“ssoln”: list[]: A list of records from the Marxan output_ssoln file
 }</p>
 </p>
 </dd>
@@ -2505,8 +2505,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: dict[]: A list of runs. Each dict contains the keys: endtime,pid,project,runs,runtime,starttime,status,user
+“info”: Informational message,
+“data”: dict[]: A list of runs. Each dict contains the keys: endtime,pid,project,runs,runtime,starttime,status,user
 }</p>
 </p>
 </dd>
@@ -2532,8 +2532,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“serverData”: dict containing the keys: CERTFILE,DATABASE_VERSION_POSTGIS,DATABASE_VERSION_POSTGRESQL,DISABLE_FILE_LOGGING,DISABLE_SECURITY,DISK_FREE_SPACE,ENABLE_GUEST_USER,ENABLE_RESET,KEYFILE,MACHINE,MARXAN_CLIENT_VERSION,MARXAN_SERVER_VERSION,NODE,PERMITTED_DOMAINS,PLANNING_GRID_UNITS_LIMIT,PORT,PROCESSOR,PROCESSOR_COUNT,RAM,RELEASE,SERVER_DESCRIPTION,SERVER_NAME,SYSTEM,VERSION,WDPA_VERSION
+“info”: Informational message,
+“serverData”: dict containing the keys: CERTFILE, DATABASE_VERSION_POSTGIS, DATABASE_VERSION_POSTGRESQL, DISABLE_FILE_LOGGING, DISABLE_SECURITY, DISK_FREE_SPACE, ENABLE_GUEST_USER, ENABLE_RESET, KEYFILE, MACHINE, MARXAN_CLIENT_VERSION, MARXAN_SERVER_VERSION, NODE, PERMITTED_DOMAINS, PLANNING_GRID_UNITS_LIMIT, PORT, PROCESSOR, PROCESSOR_COUNT, RAM,RELEASE, SERVER_DESCRIPTION, SERVER_NAME, SYSTEM, VERSION, WDPA_VERSION
 }</p>
 </p>
 </dd>
@@ -2559,8 +2559,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“fieldnames”: string[]: A list of the field names
+“info”: Informational message,
+“fieldnames”: string[]: A list of the field names
 }</p>
 </p>
 </dd>
@@ -2590,10 +2590,10 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“mv”: list[]: The data from the Marxan missing values file for the solution (output_mv*). Not returned for clumping projects,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“user”: The name of the user,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“project”: The name of the project
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“solution”: The solution retrieved
+“mv”: list[]: The data from the Marxan missing values file for the solution (output_mv*). Not returned for clumping projects,
+“user”: The name of the user,
+“project”: The name of the project
+“solution”: The solution retrieved
 }</p>
 </p>
 </dd>
@@ -2622,7 +2622,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: dict[]: For old versions of Marxan each dict contains: alias,feature_class_name,description,creation_date,area,tilesetid,prop,spf,oid,created_by. For Marxan Web projects each dict contains: oid,alias,feature_class_name,description,creation_date,area,tilesetid,extent,created_by
+“data”: dict[]: For old versions of Marxan each dict contains: alias, feature_class_name, description, creation_date, area, tilesetid, prop, spf, oid, created_by.</p>
+<p>For Marxan Web projects each dict contains: oid, alias, feature_class_name, description, creation_date, area, tilesetid, extent, created_by
 }</p>
 </p>
 </dd>
@@ -2651,7 +2652,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: A list of the preprocessing data
+“data”: A list of the preprocessing data
 }</p>
 </p>
 </dd>
@@ -2680,7 +2681,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: list[]: A list of records from the Marxan output_ssoln file
+“data”: list[]: A list of records from the Marxan output_ssoln file
 }</p>
 </p>
 </dd>
@@ -2706,8 +2707,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“userData”: dict: The users data. The dict contains the keys: LASTPROJECT,SHOWPOPUP,NAME,EMAIL,BASEMAP,ROLE,CREATEDATE,USEFEATURECOLORS,SHOWWELCOMESCREEN,REPORTUNITS,unauthorisedMethods,dismissedNotifications
+“info”: Informational message,</p>
+<p>”userData”: dict: The users data. The dict contains the keys: LASTPROJECT, SHOWPOPUP, NAME, EMAIL, BASEMAP, ROLE, CREATEDATE, USEFEATURECOLORS, SHOWWELCOMESCREEN, REPORTUNITS, unauthorisedMethods, dismissedNotifications
 }</p>
 </p>
 </dd>
@@ -2733,8 +2734,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“users”: dict[]: A list of the users data. Each dict contains the keys: LASTPROJECT,SHOWPOPUP,NAME,EMAIL,BASEMAP,ROLE,CREATEDATE,USEFEATURECOLORS,SHOWWELCOMESCREEN,REPORTUNITS,user
+“info”: Informational message,</p>
+<p>”users”: dict[]: A list of the users data. Each dict contains the keys: LASTPROJECT, SHOWPOPUP, NAME, EMAIL, BASEMAP, ROLE, CREATEDATE, USEFEATURECOLORS, SHOWWELCOMESCREEN, REPORTUNITS, user
 }</p>
 </p>
 </dd>
@@ -2765,13 +2766,13 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Contains detailed progress statements on the import process,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing, pid, FeatureCreated or Finished,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“id”: The oid of the feature created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“feature_class_name”: The name of the feature class created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“uploadId”: The Mapbox tileset upload id (for a single feature),
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“uploadIds”: string[]: The Mapbox tileset upload ids (for multiple feature)
+“info”: Contains detailed progress statements on the import process,
+“elapsedtime”: The elapsed time in seconds of the run,
+“status”: One of Preprocessing, pid, FeatureCreated or Finished,
+“id”: The oid of the feature created,
+“feature_class_name”: The name of the feature class created,
+“uploadId”: The Mapbox tileset upload id (for a single feature),
+“uploadIds”: string[]: The Mapbox tileset upload ids (for multiple feature)
 }</p>
 </p>
 </dd>
@@ -2812,12 +2813,12 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Contains detailed progress statements on the import process,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing, pid, FeatureCreated or Finished,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“id”: The oid of the feature created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“feature_class_name”: The name of the feature class created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“uploadId”: The Mapbox tileset upload id
+“info”: Contains detailed progress statements on the import process,
+“elapsedtime”: The elapsed time in seconds of the run,
+“status”: One of Preprocessing, pid, FeatureCreated or Finished,
+“id”: The oid of the feature created,
+“feature_class_name”: The name of the feature class created,
+“uploadId”: The Mapbox tileset upload id
 }</p>
 </p>
 </dd>
@@ -2899,10 +2900,10 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“feature_class_name”: The name of the feature class imported,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“uploadId”: The Mapbox upload id for the tileset,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“alias”: The alias for the feature class imported
+“info”: Informational message,
+“feature_class_name”: The name of the feature class imported,
+“uploadId”: The Mapbox upload id for the tileset,
+“alias”: The alias for the feature class imported
 }</p>
 </p>
 </dd>
@@ -2933,9 +2934,9 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Contains detailed progress statements on the import process,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the import,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing or Finished
+“info”: Contains detailed progress statements on the import process,
+“elapsedtime”: The elapsed time in seconds of the import,
+“status”: One of Preprocessing or Finished
 }</p>
 </p>
 </dd>
@@ -2987,8 +2988,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“projects”: dict[]: A list of the projects that the feature is in. Each dict contains the keys: user, name
+“info”: Informational message,
+“projects”: dict[]: A list of the projects that the feature is in. Each dict contains the keys: user, name
 }</p>
 </p>
 </dd>
@@ -3014,8 +3015,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“projects”: dict[]: A list of the projects that the feature is in. Each dict contains the keys: user, name
+“info”: Informational message,
+“projects”: dict[]: A list of the projects that the feature is in. Each dict contains the keys: user, name
 }</p>
 </p>
 </dd>
@@ -3058,7 +3059,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3112,13 +3113,13 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Contains detailed progress statements on the preprocessing,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing or Finished,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“feature_class_name”: The name of the feature class preprocessed,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“id”: The oid of the feature created,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“pu_area”: The total area of the feature that is in the planning grid,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“pu_count”: The total number of planning grids that intersect the feature
+“info”: Contains detailed progress statements on the preprocessing,
+“elapsedtime”: The elapsed time in seconds of the run,
+“status”: One of Preprocessing or Finished,
+“feature_class_name”: The name of the feature class preprocessed,
+“id”: The oid of the feature created,
+“pu_area”: The total area of the feature that is in the planning grid,
+“pu_count”: The total number of planning grids that intersect the feature
 }</p>
 </p>
 </dd>
@@ -3159,9 +3160,9 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing or Finished
+“info”: Informational message,
+“elapsedtime”: The elapsed time in seconds of the run,
+“status”: One of Preprocessing or Finished
 }</p>
 </p>
 </dd>
@@ -3203,10 +3204,10 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Contains detailed progress statements on preprocessing,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing or Finished,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“intersections” list[]: The intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [[‘II’,[245,3586]],[‘III’,[45,297,5908,5909]]]
+“info”: Contains detailed progress statements on preprocessing,
+“elapsedtime”: The elapsed time in seconds of the run,
+“status”: One of Preprocessing or Finished,
+“intersections” list[]: The intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [[‘II’,[245,3586]],[‘III’,[45,297,5908,5909]]]
 }</p>
 </p>
 </dd>
@@ -3248,8 +3249,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“project”: The name of the project that was renamed
+“info”: Informational message,
+“project”: The name of the project that was renamed
 }</p>
 </p>
 </dd>
@@ -3275,9 +3276,9 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing or Finished
+“info”: Informational message,
+“elapsedtime”: The elapsed time in seconds of the run,
+“status”: One of Preprocessing or Finished
 }</p>
 </p>
 </dd>
@@ -3315,7 +3316,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3341,9 +3342,9 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Contains detailed progress information on the database reset,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing or Finished
+“info”: Contains detailed progress information on the database reset,
+“elapsedtime”: The elapsed time in seconds of the run,
+“status”: One of Preprocessing or Finished
 }</p>
 </p>
 </dd>
@@ -3381,7 +3382,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3410,10 +3411,10 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing or Finished,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“data”: dict[]: The gap analysis results. Each dict has the keys: country_area,current_protected_area,current_protected_percent,endemic,total_area,_alias,_feature_class_name
+“info”: Informational message,
+“elapsedtime”: The elapsed time in seconds of the run,
+“status”: One of Preprocessing or Finished,
+“data”: dict[]: The gap analysis results. Each dict has the keys: country_area, current_protected_area, current_protected_percent, endemic, total_area, _alias, _feature_class_name
 }</p>
 </p>
 </dd>
@@ -3454,12 +3455,12 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“user”: The name of the user,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“project”: The name of the project that is running,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Contains the Marxan streaming log (Unix only),
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the run,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“pid”: The process id of the Marxan subprocess,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing, pid, RunningMarxan or Finished
+“user”: The name of the user,
+“project”: The name of the project that is running,
+“info”: Contains the Marxan streaming log (Unix only),
+“elapsedtime”: The elapsed time in seconds of the run,
+“pid”: The process id of the Marxan subprocess,
+“status”: One of Preprocessing, pid, RunningMarxan or Finished
 }</p>
 </p>
 </dd>
@@ -3512,7 +3513,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3558,7 +3559,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3587,7 +3588,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3613,7 +3614,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3659,8 +3660,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“rootfilename”: The name of the shapefile unzipped (minus the .shp extension)
+“info”: Informational message,
+“rootfilename”: The name of the shapefile unzipped (minus the .shp extension)
 }</p>
 </p>
 </dd>
@@ -3690,7 +3691,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3722,7 +3723,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3751,7 +3752,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3783,7 +3784,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3809,7 +3810,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3835,9 +3836,9 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Contains detailed progress information on the update,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“elapsedtime”: The elapsed time in seconds of the update,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“status”: One of Preprocessing or Finished
+“info”: Contains detailed progress information on the update,
+“elapsedtime”: The elapsed time in seconds of the update,
+“status”: One of Preprocessing or Finished
 }</p>
 </p>
 </dd>
@@ -3895,8 +3896,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“project”: The name of the project updated
+“info”: Informational message,
+“project”: The name of the project updated
 }</p>
 </p>
 </dd>
@@ -3927,7 +3928,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>
@@ -3957,8 +3958,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“file”: The name of the file that was uploaded
+“info”: Informational message,
+“file”: The name of the file that was uploaded
 }</p>
 </p>
 </dd>
@@ -3987,8 +3988,8 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message,
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“uploadid”: The Mapbox tileset upload id
+“info”: Informational message,
+“uploadid”: The Mapbox tileset upload id
 }</p>
 </p>
 </dd>
@@ -4017,7 +4018,7 @@ software and to return JSON data for those requests.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><p>{
-&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;“info”: Informational message
+“info”: Informational message
 }</p>
 </p>
 </dd>

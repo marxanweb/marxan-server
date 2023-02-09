@@ -3079,10 +3079,10 @@ class MarxanRESTHandler(tornado.web.RequestHandler):
                 self.write(content)
     
     def write_error(self, status_code, **kwargs):
-        """Called on uncaught exceptions in the descendent classes. Gets the stack trace and writes it back to the client.
+        """Called on uncaught exceptions in the descendent classes. Gets the stack trace and writes it back to the client. See https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write_error.
         
         Args:
-            See https://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write_error
+            status_code (str): The http status code.
         Returns:
             None  
         """
@@ -3162,7 +3162,7 @@ class createUser(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }  
     """
     def post(self):
@@ -3196,9 +3196,9 @@ class createProject(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"name": The name of the project created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"user": The name of the user  
+        "info": Informational message,  
+        "name": The name of the project created,  
+        "user": The name of the user  
         }  
     """
     async def post(self):
@@ -3228,8 +3228,8 @@ class createImportProject(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"name": The name of the project created  
+        "info": Informational message,  
+        "name": The name of the project created  
         }  
     """
     def post(self):
@@ -3254,8 +3254,8 @@ class upgradeProject(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"project": The name of the project updated  
+        "info": Informational message,  
+        "project": The name of the project updated  
         }  
     """
     async def get(self):
@@ -3294,8 +3294,8 @@ class deleteProject(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"project": The name of the project deleted  
+        "info": Informational message,  
+        "project": The name of the project deleted  
         }  
     Raises:
         MarxanServicesError: If it is the users last project.
@@ -3325,8 +3325,8 @@ class cloneProject(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"name": The name of the new cloned project  
+        "info": Informational message,  
+        "name": The name of the new cloned project  
         }  
     """
     def get(self):
@@ -3353,8 +3353,8 @@ class createProjectGroup(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": dict[]: The data for the created projects. Each dict contains the keys: project name, clump number  
+        "info": Informational message,  
+        "data": dict[]: The data for the created projects. Each dict contains the keys: project name, clump number  
         }  
     """
     def get(self):
@@ -3391,7 +3391,7 @@ class deleteProjects(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -3421,8 +3421,8 @@ class renameProject(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"project": The name of the project that was renamed  
+        "info": Informational message,  
+        "project": The name of the project that was renamed  
         }  
     """
     def get(self):
@@ -3448,7 +3448,7 @@ class getCountries(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"records": dict[]: The country records. Each dict contains the keys: iso3, name_iso31, has_marine  
+        "records": dict[]: The country records. Each dict contains the keys: iso3, name_iso31, has_marine  
         }  
     """
     async def get(self):
@@ -3468,8 +3468,8 @@ class getPlanningUnitGrids(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"planning_unit_grids": dict[]: The data for the planning grids. Each dict contains the keys: alias,aoi_id,country,country_id,created_by,creation_date,description,domain,envelope,feature_class_name,planning_unit_count,source,tilesetid,_area  
+        "info": Informational message,  
+        "planning_unit_grids": dict[]: The data for the planning grids. Each dict contains the keys: alias, aoi_id, country, country_id, created_by, creation_date, description, domain, envelope, feature_class_name, planning_unit_count, source, tilesetid, _area  
         }  
     """
     async def get(self):
@@ -3491,10 +3491,10 @@ class importPlanningUnitGrid(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"feature_class_name": The name of the feature class imported,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"uploadId": The Mapbox upload id for the tileset,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"alias": The alias for the feature class imported  
+        "info": Informational message,  
+        "feature_class_name": The name of the feature class imported,  
+        "uploadId": The Mapbox upload id for the tileset,  
+        "alias": The alias for the feature class imported  
         }  
     """
     async def get(self):
@@ -3518,8 +3518,8 @@ class exportPlanningUnitGrid(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"filename": The name of the zip file created  
+        "info": Informational message,  
+        "filename": The name of the zip file created  
         }  
     """
     async def get(self):
@@ -3543,7 +3543,7 @@ class deletePlanningUnitGrid(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     Raises:
         MarxanServicesError: If the planning grid is system supplied or is in use by one or more projects. 
@@ -3570,7 +3570,7 @@ class validateUser(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     Raises:
         MarxanServicesError: If the user is not found or the credentials are incorrect. 
@@ -3610,7 +3610,7 @@ class logout(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """  
     def get(self):
@@ -3631,7 +3631,7 @@ class resendPassword(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -3648,8 +3648,9 @@ class getUser(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"userData": dict: The users data. The dict contains the keys: LASTPROJECT,SHOWPOPUP,NAME,EMAIL,BASEMAP,ROLE,CREATEDATE,USEFEATURECOLORS,SHOWWELCOMESCREEN,REPORTUNITS,unauthorisedMethods,dismissedNotifications  
+        "info": Informational message,  
+
+        "userData": dict: The users data. The dict contains the keys: LASTPROJECT, SHOWPOPUP, NAME, EMAIL, BASEMAP, ROLE, CREATEDATE, USEFEATURECOLORS, SHOWWELCOMESCREEN, REPORTUNITS, unauthorisedMethods, dismissedNotifications  
         }  
     """
     def get(self):
@@ -3678,8 +3679,9 @@ class getUsers(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"users": dict[]: A list of the users data. Each dict contains the keys: LASTPROJECT,SHOWPOPUP,NAME,EMAIL,BASEMAP,ROLE,CREATEDATE,USEFEATURECOLORS,SHOWWELCOMESCREEN,REPORTUNITS,user  
+        "info": Informational message,  
+
+        "users": dict[]: A list of the users data. Each dict contains the keys: LASTPROJECT, SHOWPOPUP, NAME, EMAIL, BASEMAP, ROLE, CREATEDATE, USEFEATURECOLORS, SHOWWELCOMESCREEN, REPORTUNITS, user  
         }  
     """
     def get(self):
@@ -3703,7 +3705,7 @@ class deleteUser(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -3727,18 +3729,29 @@ class getProject(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"user": The name of the user,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"project": The name of the project,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"metadata": dict containing the keys: COSTS, CREATEDATE, DESCRIPTION, IUCN_CATEGORY, OLDVERSION, PLANNING_UNIT_NAME, PRIVATE, pu_alias, pu_area, pu_country, pu_created_by, pu_creation_date, pu_description, pu_domain,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"files": dict containing the keys: BOUNDNAME,PUNAME,PUVSPRNAME,SPECNAME which have the names of the respective .dat files,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"runParameters": dict[]: A list of all of the run parameters for the project. Each dict contains the keys: key, value. e.g. {'key':'BLM','value':'0.2'},  
-        &nbsp;&nbsp;&nbsp;&nbsp;"renderer": dict containing the keys: CLASSIFICATION,COLORCODE,NUMCLASSES,TOPCLASSES,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"features": dict[]: A list of all of the features for the project. Each dict contains the keys: alias,area,created_by,creation_date,description,extent,feature_class_name,id,spf,target_value,tilesetid,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"feature_preprocessing": list[]: A list of features and their preprocessing status. Each item contains a feature id, area and count of planning units,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"planning_units": list[]: Data from the PUNAME file that contains the statuses for all planning units normalised by status. e.g. [[1,[245,3586]],[2,[45,297,5908,5909]]],  
-        &nbsp;&nbsp;&nbsp;&nbsp;"protected_area_intersections": list[]: Data from the protected_area_intersections.dat file that contains the intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [['II',[245,3586]],['III',[45,297,5908,5909]]],  
-        &nbsp;&nbsp;&nbsp;&nbsp;"costnames": string[]: A list of the costname profiles for the project. These are the .cost files in the input folder  
+        "info": Informational message,  
+
+        "user": The name of the user,  
+
+        "project": The name of the project,  
+
+        "metadata": dict containing the keys: COSTS, CREATEDATE, DESCRIPTION, IUCN_CATEGORY, OLDVERSION, PLANNING_UNIT_NAME, PRIVATE, pu_alias, pu_area, pu_country, pu_created_by, pu_creation_date, pu_description, pu_domain,  
+
+        "files": dict containing the keys: BOUNDNAME,PUNAME,PUVSPRNAME,SPECNAME which have the names of the respective .dat files,  
+
+        "runParameters": dict[]: A list of all of the run parameters for the project. Each dict contains the keys: key, value. e.g. {'key':'BLM','value':'0.2'},  
+
+        "renderer": dict containing the keys: CLASSIFICATION,COLORCODE,NUMCLASSES,TOPCLASSES,  
+
+        "features": dict[]: A list of all of the features for the project. Each dict contains the keys: alias, area, created_by, creation_date, description, extent, feature_class_name, id, spf, target_value, tilesetid,  
+
+        "feature_preprocessing": list[]: A list of features and their preprocessing status. Each item contains a feature id, area and count of planning units,  
+
+        "planning_units": list[]: Data from the PUNAME file that contains the statuses for all planning units normalised by status. e.g. [[1,[245,3586]],[2,[45,297,5908,5909]]],  
+
+        "protected_area_intersections": list[]: Data from the protected_area_intersections.dat file that contains the intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [['II',[245,3586]],['III',[45,297,5908,5909]]],  
+
+        "costnames": string[]: A list of the costname profiles for the project. These are the .cost files in the input folder  
         } 
     """
     async def get(self):
@@ -3789,7 +3802,7 @@ class getFeature(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": dict containing the keys: id,feature_class_name,alias,description,area,extent,creation_date,tilesetid,source,created_by  
+        "data": dict containing the keys: id, feature_class_name, alias, description, area, extent, creation_date, tilesetid, source, created_by  
         }  
     """
     async def get(self):
@@ -3813,8 +3826,8 @@ class exportFeature(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"filename": The name of the zip file created  
+        "info": Informational message,  
+        "filename": The name of the zip file created  
         }  
     """
     async def get(self):
@@ -3840,7 +3853,7 @@ class getFeaturePlanningUnits(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": int[]: A list of the planning unit puids where the feature occurs  
+        "data": int[]: A list of the planning unit puids where the feature occurs  
         }  
     """
     async def get(self):
@@ -3867,7 +3880,9 @@ class getSpeciesData(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": dict[]: For old versions of Marxan each dict contains: alias,feature_class_name,description,creation_date,area,tilesetid,prop,spf,oid,created_by. For Marxan Web projects each dict contains: oid,alias,feature_class_name,description,creation_date,area,tilesetid,extent,created_by  
+        "data": dict[]: For old versions of Marxan each dict contains: alias, feature_class_name, description, creation_date, area, tilesetid, prop, spf, oid, created_by. 
+        
+        For Marxan Web projects each dict contains: oid, alias, feature_class_name, description, creation_date, area, tilesetid, extent, created_by  
         }  
     """
     async def get(self):
@@ -3891,8 +3906,8 @@ class getAllSpeciesData(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": dict[]: A list of the features. Each dict contains the keys: id,feature_class_name,alias,description,area,extent,creation_date,tilesetid,source,created_by  
+        "info": Informational message,  
+        "data": dict[]: A list of the features. Each dict contains the keys: id, feature_class_name, alias, description, area, extent, creation_date, tilesetid, source, created_by  
         }  
     """
     async def get(self):
@@ -3915,7 +3930,7 @@ class getSpeciesPreProcessingData(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": A list of the preprocessing data  
+        "data": A list of the preprocessing data  
         }  
     """
     def get(self):
@@ -3940,7 +3955,7 @@ class getPlanningUnitsData(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data":list[]: The planning units data normalised by status. e.g. [[1,[245,3586]],[2,[45,297,5908,5909]]]  
+        "data":list[]: The planning units data normalised by status. e.g. [[1,[245,3586]],[2,[45,297,5908,5909]]]  
         }   
     """
     async def get(self):
@@ -3965,9 +3980,9 @@ class getPlanningUnitsCostData(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": list[]: A list of puids that are in each of the 9 classes of cost (the cost data is classified into 9 classes),  
-        &nbsp;&nbsp;&nbsp;&nbsp;"min": The minimum cost value,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"max": The maximum cost value  
+        "data": list[]: A list of puids that are in each of the 9 classes of cost (the cost data is classified into 9 classes),  
+        "min": The minimum cost value,  
+        "max": The maximum cost value  
         }  
     """
     async def get(self):
@@ -3992,7 +4007,7 @@ class getCosts(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": string[]: A list of the cost profiles  
+        "data": string[]: A list of the cost profiles  
         }  
     """
     def get(self):
@@ -4018,7 +4033,7 @@ class updateCosts(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     async def get(self):
@@ -4044,7 +4059,7 @@ class deleteCost(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -4069,7 +4084,7 @@ class getProtectedAreaIntersectionsData(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": list[]: Data from the protected_area_intersections.dat file that contains the intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [['II',[245,3586]],['III',[45,297,5908,5909]]]  
+        "data": list[]: Data from the protected_area_intersections.dat file that contains the intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [['II',[245,3586]],['III',[45,297,5908,5909]]]  
         }  
     """
     def get(self):
@@ -4094,7 +4109,7 @@ class getMarxanLog(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"log": The contents of the Marxan log  
+        "log": The contents of the Marxan log  
         }  
     """
     def get(self):
@@ -4119,7 +4134,7 @@ class getBestSolution(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": list[]: A list of records from the Marxan output_mvbest file  
+        "data": list[]: A list of records from the Marxan output_mvbest file  
         }  
     """
     def get(self):
@@ -4144,7 +4159,7 @@ class getOutputSummary(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": list[]: A list of records from the Marxan output_sum file  
+        "data": list[]: A list of records from the Marxan output_sum file  
         }  
     """
     def get(self):
@@ -4169,7 +4184,7 @@ class getSummedSolution(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": list[]: A list of records from the Marxan output_ssoln file  
+        "data": list[]: A list of records from the Marxan output_ssoln file  
         }  
     """
     def get(self):
@@ -4195,10 +4210,10 @@ class getSolution(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"mv": list[]: The data from the Marxan missing values file for the solution (output_mv*). Not returned for clumping projects,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"user": The name of the user,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"project": The name of the project  
-        &nbsp;&nbsp;&nbsp;&nbsp;"solution": The solution retrieved  
+        "mv": list[]: The data from the Marxan missing values file for the solution (output_mv*). Not returned for clumping projects,  
+        "user": The name of the user,  
+        "project": The name of the project  
+        "solution": The solution retrieved  
         }  
     """
     def get(self):
@@ -4229,7 +4244,7 @@ class getMissingValues(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"missingValues": list[]: The data from the Marxan missing values file for the solution (output_mv*)  
+        "missingValues": list[]: The data from the Marxan missing values file for the solution (output_mv*)  
         }  
     """
     def get(self):
@@ -4254,11 +4269,11 @@ class getResults(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"log": The Marxan log for the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"mvbest": list[]: A list of records from the Marxan output_mvbest file,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"summary": list[]: A list of records from the Marxan output_sum file,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"ssoln": list[]: A list of records from the Marxan output_ssoln file  
+        "info": Informational message,  
+        "log": The Marxan log for the run,  
+        "mvbest": list[]: A list of records from the Marxan output_mvbest file,  
+        "summary": list[]: A list of records from the Marxan output_sum file,  
+        "ssoln": list[]: A list of records from the Marxan output_ssoln file  
         }  
     """
     def get(self):
@@ -4288,8 +4303,8 @@ class getServerData(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"serverData": dict containing the keys: CERTFILE,DATABASE_VERSION_POSTGIS,DATABASE_VERSION_POSTGRESQL,DISABLE_FILE_LOGGING,DISABLE_SECURITY,DISK_FREE_SPACE,ENABLE_GUEST_USER,ENABLE_RESET,KEYFILE,MACHINE,MARXAN_CLIENT_VERSION,MARXAN_SERVER_VERSION,NODE,PERMITTED_DOMAINS,PLANNING_GRID_UNITS_LIMIT,PORT,PROCESSOR,PROCESSOR_COUNT,RAM,RELEASE,SERVER_DESCRIPTION,SERVER_NAME,SYSTEM,VERSION,WDPA_VERSION  
+        "info": Informational message,  
+        "serverData": dict containing the keys: CERTFILE, DATABASE_VERSION_POSTGIS, DATABASE_VERSION_POSTGRESQL, DISABLE_FILE_LOGGING, DISABLE_SECURITY, DISK_FREE_SPACE, ENABLE_GUEST_USER, ENABLE_RESET, KEYFILE, MACHINE, MARXAN_CLIENT_VERSION, MARXAN_SERVER_VERSION, NODE, PERMITTED_DOMAINS, PLANNING_GRID_UNITS_LIMIT, PORT, PROCESSOR, PROCESSOR_COUNT, RAM,RELEASE, SERVER_DESCRIPTION, SERVER_NAME, SYSTEM, VERSION, WDPA_VERSION  
         }  
     """
     def get(self):
@@ -4321,7 +4336,7 @@ class getProjects(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"projects": dict[]: A list of projects. Each dict contains the keys: createdate, description, name, oldversion, private, user  
+        "projects": dict[]: A list of projects. Each dict contains the keys: createdate, description, name, oldversion, private, user  
         } 
     """
     async def get(self):
@@ -4345,8 +4360,8 @@ class getProjectsWithGrids(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": dict[]: A list of projects with the planning grids  
+        "info": Informational message,  
+        "data": dict[]: A list of projects with the planning grids  
         }  
     """
     async def get(self):
@@ -4395,7 +4410,7 @@ class updateSpecFile(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     async def post(self):
@@ -4422,7 +4437,7 @@ class updatePUFile(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     async def post(self):
@@ -4452,8 +4467,8 @@ class getPUData(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": dict containing the keys: features (the features within the planning unit), pu_data (the planning unit data)  
+        "info": Informational message,  
+        "data": dict containing the keys: features (the features within the planning unit), pu_data (the planning unit data)  
         }  
     """
     async def get(self):
@@ -4485,7 +4500,7 @@ class createFeaturePreprocessingFileFromImport(MarxanRESTHandler): #not currentl
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     async def get(self):
@@ -4531,7 +4546,7 @@ class updateUserParameters(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def post(self):
@@ -4557,7 +4572,7 @@ class updateProjectParameters(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def post(self):
@@ -4583,8 +4598,8 @@ class listProjectsForFeature(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"projects": dict[]: A list of the projects that the feature is in. Each dict contains the keys: user, name  
+        "info": Informational message,  
+        "projects": dict[]: A list of the projects that the feature is in. Each dict contains the keys: user, name  
         }  
     """
     def get(self):
@@ -4608,8 +4623,8 @@ class listProjectsForPlanningGrid(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"projects": dict[]: A list of the projects that the feature is in. Each dict contains the keys: user, name  
+        "info": Informational message,  
+        "projects": dict[]: A list of the projects that the feature is in. Each dict contains the keys: user, name  
         }  
     """
     def get(self):
@@ -4634,8 +4649,8 @@ class uploadTilesetToMapBox(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"uploadid": The Mapbox tileset upload id  
+        "info": Informational message,  
+        "uploadid": The Mapbox tileset upload id  
         }  
     """
     async def get(self):
@@ -4659,8 +4674,8 @@ class uploadFileToFolder(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"file": The name of the file that was uploaded  
+        "info": Informational message,  
+        "file": The name of the file that was uploaded  
         }  
     """
     def post(self):
@@ -4686,7 +4701,7 @@ class uploadFile(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def post(self):
@@ -4710,8 +4725,8 @@ class unzipShapefile(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"rootfilename": The name of the shapefile unzipped (minus the .shp extension)  
+        "info": Informational message,  
+        "rootfilename": The name of the shapefile unzipped (minus the .shp extension)  
         }  
     """
     async def get(self):
@@ -4735,8 +4750,8 @@ class getShapefileFieldnames(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"fieldnames": string[]: A list of the field names  
+        "info": Informational message,  
+        "fieldnames": string[]: A list of the field names  
         }  
     """
     def get(self):
@@ -4760,7 +4775,7 @@ class deleteFeature(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     Raises:
         MarxanServicesError: If the feature cannot be deleted because it is system supplied or currently in use in one or more projects. 
@@ -4786,7 +4801,7 @@ class deleteShapefile(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -4810,10 +4825,10 @@ class createFeatureFromLinestring(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"id": The feature oid,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"feature_class_name": The feature class name,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"uploadId": The Mapbox tileset upload id  
+        "info": Informational message,  
+        "id": The feature oid,  
+        "feature_class_name": The feature class name,  
+        "uploadId": The Mapbox tileset upload id  
         }  
     """
     async def post(self):
@@ -4842,7 +4857,7 @@ class stopProcess(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     Raises:
         MarxanServicesError: If the process does not exist.
@@ -4882,8 +4897,8 @@ class getRunLogs(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": dict[]: A list of runs. Each dict contains the keys: endtime,pid,project,runs,runtime,starttime,status,user  
+        "info": Informational message,  
+        "data": dict[]: A list of runs. Each dict contains the keys: endtime,pid,project,runs,runtime,starttime,status,user  
         }  
     """
     def get(self):
@@ -4903,7 +4918,7 @@ class clearRunLogs(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -4924,7 +4939,7 @@ class dismissNotification(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -4947,7 +4962,7 @@ class resetNotifications(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -4969,7 +4984,7 @@ class deleteGapAnalysis(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     async def get(self):
@@ -4993,7 +5008,7 @@ class testRoleAuthorisation(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -5008,7 +5023,7 @@ class runSQLFile(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     async def get(self):
@@ -5037,7 +5052,7 @@ class cleanup(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     async def get(self):
@@ -5088,7 +5103,7 @@ class block(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -5108,7 +5123,7 @@ class testTornado(MarxanRESTHandler):
         A dict with the following structure (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message  
+        "info": Informational message  
         }
     """
     def get(self):
@@ -5274,12 +5289,12 @@ class runMarxan(MarxanWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"user": The name of the user,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"project": The name of the project that is running,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains the Marxan streaming log (Unix only),  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"pid": The process id of the Marxan subprocess,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing, pid, RunningMarxan or Finished  
+        "user": The name of the user,  
+        "project": The name of the project that is running,  
+        "info": Contains the Marxan streaming log (Unix only),  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "pid": The process id of the Marxan subprocess,  
+        "status": One of Preprocessing, pid, RunningMarxan or Finished  
         }  
     """
     async def open(self):
@@ -5417,13 +5432,13 @@ class importFeatures(MarxanWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the import process,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing, pid, FeatureCreated or Finished,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"id": The oid of the feature created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"feature_class_name": The name of the feature class created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"uploadId": The Mapbox tileset upload id (for a single feature),  
-        &nbsp;&nbsp;&nbsp;&nbsp;"uploadIds": string[]: The Mapbox tileset upload ids (for multiple feature)  
+        "info": Contains detailed progress statements on the import process,  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "status": One of Preprocessing, pid, FeatureCreated or Finished,  
+        "id": The oid of the feature created,  
+        "feature_class_name": The name of the feature class created,  
+        "uploadId": The Mapbox tileset upload id (for a single feature),  
+        "uploadIds": string[]: The Mapbox tileset upload ids (for multiple feature)  
         }  
     """
     async def open(self):
@@ -5501,12 +5516,12 @@ class importGBIFData(MarxanWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the import process,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing, pid, FeatureCreated or Finished,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"id": The oid of the feature created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"feature_class_name": The name of the feature class created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"uploadId": The Mapbox tileset upload id  
+        "info": Contains detailed progress statements on the import process,  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "status": One of Preprocessing, pid, FeatureCreated or Finished,  
+        "id": The oid of the feature created,  
+        "feature_class_name": The name of the feature class created,  
+        "uploadId": The Mapbox tileset upload id  
         }  
     """
     async def open(self):
@@ -5679,12 +5694,12 @@ class createFeaturesFromWFS(MarxanWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the import process,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing, pid, FeatureCreated or Finished,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"id": The oid of the feature created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"feature_class_name": The name of the feature class created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"uploadId": The Mapbox tileset upload id  
+        "info": Contains detailed progress statements on the import process,  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "status": One of Preprocessing, pid, FeatureCreated or Finished,  
+        "id": The oid of the feature created,  
+        "feature_class_name": The name of the feature class created,  
+        "uploadId": The Mapbox tileset upload id  
         }  
     """
     async def open(self):
@@ -5735,12 +5750,12 @@ class exportProject(MarxanWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the export process,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the export,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing, pid, FeatureCreated or Finished,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"id": The oid of the feature created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"feature_class_name": The name of the feature class created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"uploadId": The Mapbox tileset upload id  
+        "info": Contains detailed progress statements on the export process,  
+        "elapsedtime": The elapsed time in seconds of the export,  
+        "status": One of Preprocessing, pid, FeatureCreated or Finished,  
+        "id": The oid of the feature created,  
+        "feature_class_name": The name of the feature class created,  
+        "uploadId": The Mapbox tileset upload id  
         }  
     """
     async def open(self):
@@ -5803,9 +5818,9 @@ class importProject(MarxanWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the import process,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the import,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing or Finished  
+        "info": Contains detailed progress statements on the import process,  
+        "elapsedtime": The elapsed time in seconds of the import,  
+        "status": One of Preprocessing or Finished  
         }  
     """
     async def open(self):
@@ -5942,13 +5957,13 @@ class preprocessFeature(QueryWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on the preprocessing,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing or Finished,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"feature_class_name": The name of the feature class preprocessed,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"id": The oid of the feature created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"pu_area": The total area of the feature that is in the planning grid,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"pu_count": The total number of planning grids that intersect the feature  
+        "info": Contains detailed progress statements on the preprocessing,  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "status": One of Preprocessing or Finished,  
+        "feature_class_name": The name of the feature class preprocessed,  
+        "id": The oid of the feature created,  
+        "pu_area": The total area of the feature that is in the planning grid,  
+        "pu_count": The total number of planning grids that intersect the feature  
         }  
     """
     async def open(self):
@@ -6013,10 +6028,10 @@ class preprocessProtectedAreas(QueryWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress statements on preprocessing,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing or Finished,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"intersections" list[]: The intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [['II',[245,3586]],['III',[45,297,5908,5909]]]  
+        "info": Contains detailed progress statements on preprocessing,  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "status": One of Preprocessing or Finished,  
+        "intersections" list[]: The intersection data between the planning units and the protected areas normalised by IUCN category. e.g. [['II',[245,3586]],['III',[45,297,5908,5909]]]  
         }   
     """
     async def open(self):
@@ -6046,9 +6061,9 @@ class reprocessProtectedAreas(QueryWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing or Finished  
+        "info": Informational message,  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "status": One of Preprocessing or Finished  
         }  
     """
     async def open(self):
@@ -6076,9 +6091,9 @@ class preprocessPlanningUnits(QueryWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing or Finished  
+        "info": Informational message,  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "status": One of Preprocessing or Finished  
         }  
     """
     async def open(self):
@@ -6121,12 +6136,12 @@ class createPlanningUnitGrid(QueryWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing or Finished,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"feature_class_name": The name of the feature class created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"alias": The alias of the planning grid created,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"uploadId": The Mapbox tileset upload id  
+        "info": Informational message,  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "status": One of Preprocessing or Finished,  
+        "feature_class_name": The name of the feature class created,  
+        "alias": The alias of the planning grid created,  
+        "uploadId": The Mapbox tileset upload id  
         }
     """
     async def open(self):
@@ -6171,10 +6186,10 @@ class runGapAnalysis(QueryWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Informational message,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing or Finished,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"data": dict[]: The gap analysis results. Each dict has the keys: country_area,current_protected_area,current_protected_percent,endemic,total_area,_alias,_feature_class_name  
+        "info": Informational message,  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "status": One of Preprocessing or Finished,  
+        "data": dict[]: The gap analysis results. Each dict has the keys: country_area, current_protected_area, current_protected_percent, endemic, total_area, _alias, _feature_class_name  
         }   
     """
     async def open(self):
@@ -6205,9 +6220,9 @@ class resetDatabase(QueryWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress information on the database reset,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the run,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing or Finished  
+        "info": Contains detailed progress information on the database reset,  
+        "elapsedtime": The elapsed time in seconds of the run,  
+        "status": One of Preprocessing or Finished  
         }  
     """
     async def open(self):
@@ -6271,9 +6286,9 @@ class updateWDPA(QueryWebSocketHandler):
         WebSocket dict messages with one or more of the following keys (if the class raises an exception, the error message is included in an 'error' key/value pair):  
 
         {  
-        &nbsp;&nbsp;&nbsp;&nbsp;"info": Contains detailed progress information on the update,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"elapsedtime": The elapsed time in seconds of the update,  
-        &nbsp;&nbsp;&nbsp;&nbsp;"status": One of Preprocessing or Finished  
+        "info": Contains detailed progress information on the update,  
+        "elapsedtime": The elapsed time in seconds of the update,  
+        "status": One of Preprocessing or Finished  
         }  
     """
     #authenticate and get the user folder and project folders
@@ -6511,8 +6526,8 @@ class Application(tornado.web.Application):
             ("/marxan-server/testTornado", testTornado),
             ("/marxan-server/exports/(.*)", StaticFileHandler,dict(path=EXPORT_FOLDER)),
             ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
-            ("/docs/(.*)", StaticFileHandler, {"path": DOCS_FOLDER}),
-            (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
+            ("/(.*)", StaticFileHandler, {"path": DOCS_FOLDER, "default_filename":"index.html"})
+            # (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
         ]
         settings = dict(
             cookie_secret=COOKIE_RANDOM_VALUE,

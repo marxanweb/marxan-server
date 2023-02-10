@@ -6535,7 +6535,6 @@ class Application(tornado.web.Application):
             ("/marxan-server/testTornado", testTornado),
             ("/marxan-server/exports/(.*)", StaticFileHandler,dict(path=EXPORT_FOLDER)),
             ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
-            ("/(.*)", StaticFileHandler, {"path": DOCS_FOLDER, "default_filename":"index.html"}),
             (r"/", startPage)
             # (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
         ]

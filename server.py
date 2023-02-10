@@ -6428,6 +6428,15 @@ class updateWDPA(QueryWebSocketHandler):
         finally:
             await session.close()
 
+class startPage(tornado.web.RequestHandler):
+    # http://localhost:8080/ 
+    """
+    :meta private:
+    """
+    def get(self): 
+        self.redirect('/static/index.html')
+        return
+
 ####################################################################################################################################################################################################################################################################
 ## tornado functions
 ####################################################################################################################################################################################################################################################################
@@ -6526,13 +6535,14 @@ class Application(tornado.web.Application):
             ("/marxan-server/testTornado", testTornado),
             ("/marxan-server/exports/(.*)", StaticFileHandler,dict(path=EXPORT_FOLDER)),
             ("/marxan-server/(.*)", methodNotFound), # default handler if the REST services is cannot be found on this server - maybe a newer client is requesting a method on an old server
-            ("/(.*)", StaticFileHandler, {"path": DOCS_FOLDER, "default_filename":"index.html"})
+            ("/(.*)", StaticFileHandler, {"path": DOCS_FOLDER, "default_filename":"index.html"}),
+            (r"/", startPage)
             # (r"/(.*)", StaticFileHandler, {"path": MARXAN_CLIENT_BUILD_FOLDER}) # assuming the marxan-client is installed in the same folder as the marxan-server all files will go to the client build folder
         ]
         settings = dict(
             cookie_secret=COOKIE_RANDOM_VALUE,
-            static_path=EXPORT_FOLDER,
-            static_url_prefix='/resources/' #to avoid clashes with the npm static build folder called 'static'
+            static_path='docs/build/html'
+            # static_url_prefix='/resources/' #to avoid clashes with the npm static build folder called 'static'
         )
         super(Application, self).__init__(handlers, **settings)
 

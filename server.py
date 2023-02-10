@@ -6540,10 +6540,10 @@ class Application(tornado.web.Application):
         ]
         settings = dict(
             cookie_secret=COOKIE_RANDOM_VALUE,
-            static_path='docs/build/html'
+            # static_path='docs/build/html'
             # static_url_prefix='/resources/' #to avoid clashes with the npm static build folder called 'static'
         )
-        super(Application, self).__init__(handlers, **settings)
+        super(Application, self).__init__(handlers, **settings, static_path='docs/build/html')
 
 async def initialiseApp():
     """Initialises the application with all of the global variables
